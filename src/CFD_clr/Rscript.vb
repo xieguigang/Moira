@@ -182,7 +182,7 @@ Module Rscript
                 size:=dims,
                 fillRect:=True
             )
-            Dim file As Stream = dir.OpenFile($"/frame-{time.ToString.PadLeft(5, "0"c)}.bitmap", access:=FileAccess.Write)
+            Dim file As Stream = dir.OpenFile($"/frame-{time.ToString.PadLeft(5, "0"c)}.bmp", access:=FileAccess.Write)
 
             If Not model Is Nothing Then
                 Using g As IGraphics = Driver.CreateGraphicsDevice(bitmap.Size, driver:=Drivers.GDI)
