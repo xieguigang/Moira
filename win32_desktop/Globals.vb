@@ -2,6 +2,7 @@
 Imports CFD_clr
 Imports CFD_win32.My
 Imports CFD_win32.RibbonLib.Controls
+Imports Microsoft.VisualBasic.Drawing
 Imports Microsoft.VisualBasic.Net
 Imports WeifenLuo.WinFormsUI.Docking
 
@@ -15,6 +16,7 @@ Module Globals
 
     Sub New()
         settings = Settings.LoadSettings
+        SkiaDriver.Register()
     End Sub
 
     Public Sub Message(str As String)
