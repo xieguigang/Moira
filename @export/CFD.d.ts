@@ -9,10 +9,23 @@
 */
 declare namespace CFD {
    /**
-     * @param dimension default value Is ``'speed2'``.
-     * @param colors default value Is ``'viridis'``.
-     * @param color_levels default value Is ``200``.
-     * @param env default value Is ``null``.
+    * export the simulation result as image frames
+    * 
+    * 
+     * @param pack -
+     * @param fs -
+     * @param dimension -
+     * 
+     * + default value Is ``'speed2'``.
+     * @param colors -
+     * 
+     * + default value Is ``'viridis'``.
+     * @param color_levels -
+     * 
+     * + default value Is ``200``.
+     * @param env -
+     * 
+     * + default value Is ``null``.
    */
    function dump_stream(pack: object, fs: any, dimension?: string, colors?: any, color_levels?: object, env?: object): any;
    module open {
