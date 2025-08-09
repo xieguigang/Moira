@@ -118,6 +118,16 @@ Module Rscript
         Return New RawRaster() With {.raster = pixels}
     End Function
 
+    ''' <summary>
+    ''' export the simulation result as image frames
+    ''' </summary>
+    ''' <param name="pack"></param>
+    ''' <param name="fs"></param>
+    ''' <param name="dimension"></param>
+    ''' <param name="colors"></param>
+    ''' <param name="color_levels"></param>
+    ''' <param name="env"></param>
+    ''' <returns></returns>
     <ExportAPI("dump_stream")>
     Public Function dump_stream(pack As FrameReader, fs As Object,
                                 Optional dimension As String = "speed2",
