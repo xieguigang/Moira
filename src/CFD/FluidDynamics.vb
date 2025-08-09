@@ -227,6 +227,7 @@ Public Class FluidDynamics : Inherits Simulation
     Public Overrides Sub advance()
         Call collide()
         Call stream()
+        Call boundary()
         Call bounce()
 
         Call SuppressDoubleRange(n0)
@@ -312,6 +313,9 @@ Public Class FluidDynamics : Inherits Simulation
         For y As Integer = ydim - 1 To 1 Step -1
             nN(xdim - 1)(y) = nN(xdim - 1)(y - 1)
         Next
+    End Sub
+
+    Friend Sub boundary()
         ' Now handle left boundary as in Pullan's example code:
         ' Stream particles in from the non-existent space to the left, with the
         ' user-determined speed:
