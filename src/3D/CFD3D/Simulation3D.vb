@@ -82,7 +82,7 @@ Public MustInherit Class Simulation3D
     End Sub
 
     ' --- Indexing helpers ---
-    Protected Function Idx(x As Integer, y As Integer, z As Integer) As Integer
+    Public Function Idx(x As Integer, y As Integer, z As Integer) As Integer
         Return x + y * NX + z * NX * NY
     End Function
 

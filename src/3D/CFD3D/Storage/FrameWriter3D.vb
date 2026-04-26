@@ -58,7 +58,7 @@ Namespace Storage
         ''' Save the barrier mask to a binary file.
         ''' </summary>
         Public Sub SaveBarrier(barrier As Boolean())
-            Dim path As String = Path.Combine(outputDir, "barrier.bin")
+            Dim path As String = $"{outputDir}/barrier.bin"
             Dim bytes(barrier.Length - 1) As Byte
 
             For i As Integer = 0 To barrier.Length - 1
@@ -77,7 +77,7 @@ Namespace Storage
             rho As Double(), speed2 As Double())
 
             frameCount += 1
-            Dim path As String = Path.Combine(outputDir, $"frame_{frameCount:D4}.bin")
+            Dim path As String = $"{outputDir}/frame_{frameCount:D4}.bin"
 
             Using fs As New FileStream(path, FileMode.Create, FileAccess.Write)
                 Using bw As New BinaryWriter(fs)

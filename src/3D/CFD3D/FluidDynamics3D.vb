@@ -55,7 +55,7 @@ Public Class FluidDynamics3D
         For z As Integer = 0 To NZ - 1
             For y As Integer = 0 To NY - 1
                 For x As Integer = 0 To NX - 1
-                    Dim idx As Integer = Idx(x, y, z)
+                    Dim idx As Integer = MyBase.Idx(x, y, z)
 
                     If m_barrier(idx) Then
                         ' Barrier cells: zero distributions
@@ -121,9 +121,9 @@ Public Class FluidDynamics3D
         Parallel.For(0, NZ, Sub(z)
             For y As Integer = 0 To NY - 1
                 For x As Integer = 0 To NX - 1
-                    Dim idx As Integer = Idx(x, y, z)
+                                        Dim idx As Integer = MyBase.Idx(x, y, z)
 
-                    If m_barrier(idx) Then Return
+                                        If m_barrier(idx) Then Return
 
                     ' Compute macroscopic quantities from current distributions
                     Dim rho As Double = 0.0
@@ -173,9 +173,9 @@ Public Class FluidDynamics3D
         Parallel.For(0, NZ, Sub(z)
             For y As Integer = 0 To NY - 1
                 For x As Integer = 0 To NX - 1
-                    Dim idx As Integer = Idx(x, y, z)
+                                        Dim idx As Integer = MyBase.Idx(x, y, z)
 
-                    For i As Integer = 0 To 18
+                                        For i As Integer = 0 To 18
                         Dim sx As Integer = x - Lattice3D.cx(i)
                         Dim sy As Integer = y - Lattice3D.cy(i)
                         Dim sz As Integer = z - Lattice3D.cz(i)
@@ -185,8 +185,8 @@ Public Class FluidDynamics3D
                         If sx >= 0 AndAlso sx < NX AndAlso
                            sy >= 0 AndAlso sy < NY AndAlso
                            sz >= 0 AndAlso sz < NZ Then
-                            f(i)(idx) = fTemp(i)(Idx(sx, sy, sz))
-                        End If
+                                                f(i)(idx) = fTemp(i)(MyBase.Idx(sx, sy, sz))
+                                            End If
                         ' else: f(i)(idx) retains its post-collision value
                     Next
                 Next
@@ -201,9 +201,9 @@ Public Class FluidDynamics3D
         Parallel.For(0, NZ, Sub(z)
             For y As Integer = 0 To NY - 1
                 For x As Integer = 0 To NX - 1
-                    Dim idx As Integer = Idx(x, y, z)
+                                        Dim idx As Integer = MyBase.Idx(x, y, z)
 
-                    If Not m_barrier(idx) Then Return
+                                        If Not m_barrier(idx) Then Return
 
                     ' Check if this barrier has a non-zero wall velocity (moving wall)
                     Dim hasWallVelocity As Boolean = (Math.Abs(m_wallUx(idx)) > 1.0E-12) OrElse
@@ -242,9 +242,9 @@ Public Class FluidDynamics3D
         Parallel.For(0, NZ, Sub(z)
             For y As Integer = 0 To NY - 1
                 For x As Integer = 0 To NX - 1
-                    Dim idx As Integer = Idx(x, y, z)
+                                        Dim idx As Integer = MyBase.Idx(x, y, z)
 
-                    If m_barrier(idx) Then
+                                        If m_barrier(idx) Then
                         m_rho(idx) = 0.0
                         m_ux(idx) = 0.0
                         m_uy(idx) = 0.0
