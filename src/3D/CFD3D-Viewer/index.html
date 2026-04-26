@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D CFD Viewer - 发酵罐流场可视化</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #0a0e17;
+      color: #e0e6f0;
+      overflow: hidden;
+      height: 100vh;
+    }
+    #app {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Sidebar */
+    #sidebar {
+      width: 320px;
+      min-width: 320px;
+      background: #111827;
+      border-right: 1px solid #1f2937;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid #1f2937;
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+    }
+    .sidebar-header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #60a5fa;
+      margin-bottom: 4px;
+    }
+    .sidebar-header p {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .panel {
+      padding: 16px 20px;
+      border-bottom: 1px solid #1f2937;
+    }
+    .panel-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 12px;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .control-row label {
+      font-size: 13px;
+      color: #cbd5e1;
+    }
+    .control-row input[type="range"] {
+      width: 140px;
+      accent-color: #3b82f6;
+    }
+    .control-row select, .control-row input[type="number"] {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover {
+      background: #334155;
+      border-color: #475569;
+    }
+    .btn-primary {
+      background: #2563eb;
+      border-color: #3b82f6;
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+    }
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .checkbox-row input[type="checkbox"] {
+      accent-color: #3b82f6;
+    }
+    .checkbox-row label {
+      font-size: 13px;
+      color: #cbd5e1;
+    }
+
+    /* Color bar */
+    #colorbar {
+      height: 16px;
+      border-radius: 4px;
+      margin: 8px 0 4px;
+    }
+    .colorbar-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    /* Info panel */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .info-item {
+      background: #1e293b;
+      border-radius: 4px;
+      padding: 8px;
+    }
+    .info-item .label {
+      font-size: 10px;
+      color: #64748b;
+      text-transform: uppercase;
+    }
+    .info-item .value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-top: 2px;
+    }
+
+    /* Main viewport */
+    #viewport {
+      flex: 1;
+      position: relative;
+    }
+    #viewport canvas {
+      display: block;
+    }
+
+    /* Loading overlay */
+    #loading {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(10, 14, 23, 0.9);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #loading.hidden { display: none; }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid #1f2937;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    /* Toast */
+    #toast {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 200;
+    }
+    #toast.show { opacity: 1; }
+
+    /* Viewport overlay info */
+    #frame-info {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid #1f2937;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: #94a3b8;
+      z-index: 50;
+    }
+    #frame-info span { color: #60a5fa; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Sidebar Controls -->
+    <div id="sidebar">
+      <div class="sidebar-header">
+        <h1>🔬 3D CFD Viewer</h1>
+        <p>发酵罐流场可视化 | D3Q19 LBM</p>
+      </div>
+
+      <!-- Data Loading -->
+      <div class="panel">
+        <div class="panel-title">数据加载</div>
+        <div class="btn-group">
+          <button class="btn btn-primary" id="btn-load">📂 加载数据目录</button>
+          <button class="btn" id="btn-demo">🎮 加载演示数据</button>
+        </div>
+        <p style="font-size:11px;color:#64748b;margin-top:8px;">
+          选择包含 metadata.json 和 frame_*.bin 的目录
+        </p>
+      </div>
+
+      <!-- Simulation Info -->
+      <div class="panel" id="info-panel" style="display:none;">
+        <div class="panel-title">模拟信息</div>
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="label">网格尺寸</div>
+            <div class="value" id="info-dims">-</div>
+          </div>
+          <div class="info-item">
+            <div class="label">总单元数</div>
+            <div class="value" id="info-cells">-</div>
+          </div>
+          <div class="info-item">
+            <div class="label">帧数</div>
+            <div class="value" id="info-frames">-</div>
+          </div>
+          <div class="info-item">
+            <div class="label">粘度</div>
+            <div class="value" id="info-visc">-</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Frame Control -->
+      <div class="panel" id="frame-panel" style="display:none;">
+        <div class="panel-title">帧控制</div>
+        <div class="control-row">
+          <label>当前帧</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="frame-slider" min="0" max="0" value="0" />
+            <span id="frame-label" style="font-size:13px;min-width:40px;">0</span>
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn" id="btn-play">▶ 播放</button>
+          <button class="btn" id="btn-stop">⏹ 停止</button>
+        </div>
+        <div class="control-row" style="margin-top:8px;">
+          <label>播放速度</label>
+          <select id="playback-speed">
+            <option value="200">0.2x</option>
+            <option value="500">0.5x</option>
+            <option value="1000" selected>1x</option>
+            <option value="2000">2x</option>
+            <option value="5000">5x</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Visualization -->
+      <div class="panel" id="viz-panel" style="display:none;">
+        <div class="panel-title">可视化设置</div>
+        <div class="control-row">
+          <label>数据场</label>
+          <select id="field-select">
+            <option value="speed">速度大小</option>
+            <option value="ux">X 速度</option>
+            <option value="uy">Y 速度</option>
+            <option value="uz">Z 速度</option>
+            <option value="rho">密度</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <label>切片轴</label>
+          <select id="slice-axis">
+            <option value="z">Z (水平切面)</option>
+            <option value="x">X (纵切面)</option>
+            <option value="y">Y (纵切面)</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <label>切片位置</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="range" id="slice-pos" min="0" max="50" value="25" />
+            <span id="slice-label" style="font-size:13px;min-width:30px;">25</span>
+          </div>
+        </div>
+        <div class="control-row">
+          <label>箭头密度</label>
+          <select id="arrow-density">
+            <option value="4">稀疏</option>
+            <option value="3" selected>中等</option>
+            <option value="2">密集</option>
+          </select>
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="show-arrows" checked />
+          <label for="show-arrows">显示速度箭头</label>
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="show-barrier" checked />
+          <label for="show-barrier">显示障碍物</label>
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="show-volume" />
+          <label for="show-volume">体积渲染 (GPU)</label>
+        </div>
+      </div>
+
+      <!-- Color Map -->
+      <div class="panel" id="colormap-panel" style="display:none;">
+        <div class="panel-title">色标</div>
+        <canvas id="colorbar" width="280" height="16"></canvas>
+        <div class="colorbar-labels">
+          <span id="cbar-min">0.000</span>
+          <span id="cbar-max">1.000</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3D Viewport -->
+    <div id="viewport">
+      <div id="loading">
+        <div class="spinner"></div>
+        <p>等待加载数据...</p>
+      </div>
+      <div id="frame-info" style="display:none;">
+        帧 <span id="overlay-frame">0</span> / <span id="overlay-total">0</span>
+      </div>
+      <div id="toast"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>CFD3D</RootNamespace>
+    <TargetFramework>net8.0</TargetFramework>
+    <Platforms>AnyCPU;x64</Platforms>
+    <Configurations>Debug;Release</Configurations>
+    <OptionStrict>Off</OptionStrict>
+    <OptionExplicit>On</OptionExplicit>
+    <OptionCompare>Binary</OptionCompare>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DebugType>full</DebugType>
+    <DefineTrace>true</DefineTrace>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <Optimize>true</Optimize>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <!--
+    This 3D CFD library is self-contained with no external dependencies.
+    It uses only .NET built-in libraries for parallel processing and I/O.
+    The original 2D project depended on GCModeller/sciBASIC/Microsoft.VisualBasic.Core
+    for HDSPack storage, image processing, and parallel tasks.
+    Those have been replaced with:
+      - System.Threading.Tasks.Parallel (built-in)
+      - System.IO.BinaryWriter/BinaryReader (built-in)
+      - System.Text.Json (built-in in .NET 8)
+  -->
+
+</Project>
