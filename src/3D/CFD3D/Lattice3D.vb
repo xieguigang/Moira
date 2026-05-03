@@ -24,13 +24,13 @@ Public Module Lattice3D
     ''' cx(i), cy(i), cz(i) give the x, y, z components of direction i.
     ''' </summary>
     Public ReadOnly cx As Integer() = {
-        0,  1, -1,  0,  0,  0,  0,  1, -1,  1, -1,  1, -1,  1, -1,  0,  0,  0,  0
+        0, 1, -1, 0, 0, 0, 0, 1, -1, 1, -1, 1, -1, 1, -1, 0, 0, 0, 0
     }
     Public ReadOnly cy As Integer() = {
-        0,  0,  0,  1, -1,  0,  0,  1, -1, -1,  1,  0,  0,  0,  0,  1, -1,  1, -1
+        0, 0, 0, 1, -1, 0, 0, 1, -1, -1, 1, 0, 0, 0, 0, 1, -1, 1, -1
     }
     Public ReadOnly cz As Integer() = {
-        0,  0,  0,  0,  0,  1, -1,  0,  0,  0,  0,  1, -1, -1,  1,  1, -1, -1,  1
+        0, 0, 0, 0, 0, 1, -1, 0, 0, 0, 0, 1, -1, -1, 1, 1, -1, -1, 1
     }
 
     ''' <summary>

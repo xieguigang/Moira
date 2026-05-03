@@ -119,45 +119,45 @@ Public Class FluidDynamics3D
         Dim om As Double = omega
 
         Parallel.For(0, NZ, Sub(z)
-            For y As Integer = 0 To NY - 1
-                For x As Integer = 0 To NX - 1
+                                For y As Integer = 0 To NY - 1
+                                    For x As Integer = 0 To NX - 1
                                         Dim idx As Integer = MyBase.Idx(x, y, z)
 
                                         If m_barrier(idx) Then Return
 
-                    ' Compute macroscopic quantities from current distributions
-                    Dim rho As Double = 0.0
-                    Dim ux As Double = 0.0
-                    Dim uy As Double = 0.0
-                    Dim uz As Double = 0.0
+                                        ' Compute macroscopic quantities from current distributions
+                                        Dim rho As Double = 0.0
+                                        Dim ux As Double = 0.0
+                                        Dim uy As Double = 0.0
+                                        Dim uz As Double = 0.0
 
-                    For i As Integer = 0 To 18
-                        rho += f(i)(idx)
-                        ux += Lattice3D.cx(i) * f(i)(idx)
-                        uy += Lattice3D.cy(i) * f(i)(idx)
-                        uz += Lattice3D.cz(i) * f(i)(idx)
-                    Next
+                                        For i As Integer = 0 To 18
+                                            rho += f(i)(idx)
+                                            ux += Lattice3D.cx(i) * f(i)(idx)
+                                            uy += Lattice3D.cy(i) * f(i)(idx)
+                                            uz += Lattice3D.cz(i) * f(i)(idx)
+                                        Next
 
-                    ' Avoid division by zero
-                    If rho > 0.0001 Then
-                        ux /= rho
-                        uy /= rho
-                        uz /= rho
-                    Else
-                        ux = 0.0
-                        uy = 0.0
-                        uz = 0.0
-                        rho = 1.0
-                    End If
+                                        ' Avoid division by zero
+                                        If rho > 0.0001 Then
+                                            ux /= rho
+                                            uy /= rho
+                                            uz /= rho
+                                        Else
+                                            ux = 0.0
+                                            uy = 0.0
+                                            uz = 0.0
+                                            rho = 1.0
+                                        End If
 
-                    ' BGK collision: f_i = f_i - omega * (f_i - f_i^eq)
-                    For i As Integer = 0 To 18
-                        Dim feq As Double = Equilibrium(i, rho, ux, uy, uz)
-                        f(i)(idx) += om * (feq - f(i)(idx))
-                    Next
-                Next
-            Next
-        End Sub)
+                                        ' BGK collision: f_i = f_i - omega * (f_i - f_i^eq)
+                                        For i As Integer = 0 To 18
+                                            Dim feq As Double = Equilibrium(i, rho, ux, uy, uz)
+                                            f(i)(idx) += om * (feq - f(i)(idx))
+                                        Next
+                                    Next
+                                Next
+                            End Sub)
     End Sub
 
     ' ========================================================================
@@ -171,27 +171,27 @@ Public Class FluidDynamics3D
 
         ' Pull scheme: f_i(x) = fTemp_i(x - c_i)
         Parallel.For(0, NZ, Sub(z)
-            For y As Integer = 0 To NY - 1
-                For x As Integer = 0 To NX - 1
+                                For y As Integer = 0 To NY - 1
+                                    For x As Integer = 0 To NX - 1
                                         Dim idx As Integer = MyBase.Idx(x, y, z)
 
                                         For i As Integer = 0 To 18
-                        Dim sx As Integer = x - Lattice3D.cx(i)
-                        Dim sy As Integer = y - Lattice3D.cy(i)
-                        Dim sz As Integer = z - Lattice3D.cz(i)
+                                            Dim sx As Integer = x - Lattice3D.cx(i)
+                                            Dim sy As Integer = y - Lattice3D.cy(i)
+                                            Dim sz As Integer = z - Lattice3D.cz(i)
 
-                        ' Boundary handling: out-of-bounds cells keep their value
-                        ' (will be overwritten by boundary conditions)
-                        If sx >= 0 AndAlso sx < NX AndAlso
-                           sy >= 0 AndAlso sy < NY AndAlso
-                           sz >= 0 AndAlso sz < NZ Then
+                                            ' Boundary handling: out-of-bounds cells keep their value
+                                            ' (will be overwritten by boundary conditions)
+                                            If sx >= 0 AndAlso sx < NX AndAlso
+                                               sy >= 0 AndAlso sy < NY AndAlso
+                                               sz >= 0 AndAlso sz < NZ Then
                                                 f(i)(idx) = fTemp(i)(MyBase.Idx(sx, sy, sz))
                                             End If
-                        ' else: f(i)(idx) retains its post-collision value
-                    Next
-                Next
-            Next
-        End Sub)
+                                            ' else: f(i)(idx) retains its post-collision value
+                                        Next
+                                    Next
+                                Next
+                            End Sub)
     End Sub
 
     ' ========================================================================
@@ -199,40 +199,40 @@ Public Class FluidDynamics3D
     ' ========================================================================
     Private Sub BounceBack()
         Parallel.For(0, NZ, Sub(z)
-            For y As Integer = 0 To NY - 1
-                For x As Integer = 0 To NX - 1
+                                For y As Integer = 0 To NY - 1
+                                    For x As Integer = 0 To NX - 1
                                         Dim idx As Integer = MyBase.Idx(x, y, z)
 
                                         If Not m_barrier(idx) Then Return
 
-                    ' Check if this barrier has a non-zero wall velocity (moving wall)
-                    Dim hasWallVelocity As Boolean = (Math.Abs(m_wallUx(idx)) > 1.0E-12) OrElse
-                                                     (Math.Abs(m_wallUy(idx)) > 1.0E-12) OrElse
-                                                     (Math.Abs(m_wallUz(idx)) > 1.0E-12)
+                                        ' Check if this barrier has a non-zero wall velocity (moving wall)
+                                        Dim hasWallVelocity As Boolean = (Math.Abs(m_wallUx(idx)) > 0.000000000001) OrElse
+                                                                         (Math.Abs(m_wallUy(idx)) > 0.000000000001) OrElse
+                                                                         (Math.Abs(m_wallUz(idx)) > 0.000000000001)
 
-                    If hasWallVelocity Then
-                        ' Modified bounce-back for moving walls:
-                        ' f_opp(x) = f_i(x) + 2 * w_i * rho * 3 * (c_i . u_wall)
-                        Dim rho0 As Double = 1.0
-                        For i As Integer = 0 To 18
-                            Dim oi As Integer = Lattice3D.opp(i)
-                            Dim cu As Double = Lattice3D.cx(i) * m_wallUx(idx) +
-                                              Lattice3D.cy(i) * m_wallUy(idx) +
-                                              Lattice3D.cz(i) * m_wallUz(idx)
-                            Dim correction As Double = 2.0 * Lattice3D.w(i) * rho0 * 3.0 * cu
-                            f(oi)(idx) = f(i)(idx) + correction
-                        Next
-                    Else
-                        ' Standard bounce-back for stationary walls:
-                        ' f_opp(x) = f_i(x)
-                        For i As Integer = 0 To 18
-                            Dim oi As Integer = Lattice3D.opp(i)
-                            f(oi)(idx) = f(i)(idx)
-                        Next
-                    End If
-                Next
-            Next
-        End Sub)
+                                        If hasWallVelocity Then
+                                            ' Modified bounce-back for moving walls:
+                                            ' f_opp(x) = f_i(x) + 2 * w_i * rho * 3 * (c_i . u_wall)
+                                            Dim rho0 As Double = 1.0
+                                            For i As Integer = 0 To 18
+                                                Dim oi As Integer = Lattice3D.opp(i)
+                                                Dim cu As Double = Lattice3D.cx(i) * m_wallUx(idx) +
+                                                                  Lattice3D.cy(i) * m_wallUy(idx) +
+                                                                  Lattice3D.cz(i) * m_wallUz(idx)
+                                                Dim correction As Double = 2.0 * Lattice3D.w(i) * rho0 * 3.0 * cu
+                                                f(oi)(idx) = f(i)(idx) + correction
+                                            Next
+                                        Else
+                                            ' Standard bounce-back for stationary walls:
+                                            ' f_opp(x) = f_i(x)
+                                            For i As Integer = 0 To 18
+                                                Dim oi As Integer = Lattice3D.opp(i)
+                                                f(oi)(idx) = f(i)(idx)
+                                            Next
+                                        End If
+                                    Next
+                                Next
+                            End Sub)
     End Sub
 
     ' ========================================================================
@@ -240,50 +240,50 @@ Public Class FluidDynamics3D
     ' ========================================================================
     Private Sub ComputeMacroscopic()
         Parallel.For(0, NZ, Sub(z)
-            For y As Integer = 0 To NY - 1
-                For x As Integer = 0 To NX - 1
+                                For y As Integer = 0 To NY - 1
+                                    For x As Integer = 0 To NX - 1
                                         Dim idx As Integer = MyBase.Idx(x, y, z)
 
                                         If m_barrier(idx) Then
-                        m_rho(idx) = 0.0
-                        m_ux(idx) = 0.0
-                        m_uy(idx) = 0.0
-                        m_uz(idx) = 0.0
-                        m_speed2(idx) = 0.0
-                        Return
-                    End If
+                                            m_rho(idx) = 0.0
+                                            m_ux(idx) = 0.0
+                                            m_uy(idx) = 0.0
+                                            m_uz(idx) = 0.0
+                                            m_speed2(idx) = 0.0
+                                            Return
+                                        End If
 
-                    Dim rho As Double = 0.0
-                    Dim ux As Double = 0.0
-                    Dim uy As Double = 0.0
-                    Dim uz As Double = 0.0
+                                        Dim rho As Double = 0.0
+                                        Dim ux As Double = 0.0
+                                        Dim uy As Double = 0.0
+                                        Dim uz As Double = 0.0
 
-                    For i As Integer = 0 To 18
-                        rho += f(i)(idx)
-                        ux += Lattice3D.cx(i) * f(i)(idx)
-                        uy += Lattice3D.cy(i) * f(i)(idx)
-                        uz += Lattice3D.cz(i) * f(i)(idx)
-                    Next
+                                        For i As Integer = 0 To 18
+                                            rho += f(i)(idx)
+                                            ux += Lattice3D.cx(i) * f(i)(idx)
+                                            uy += Lattice3D.cy(i) * f(i)(idx)
+                                            uz += Lattice3D.cz(i) * f(i)(idx)
+                                        Next
 
-                    If rho > 0.0001 Then
-                        ux /= rho
-                        uy /= rho
-                        uz /= rho
-                    Else
-                        ux = 0.0
-                        uy = 0.0
-                        uz = 0.0
-                        rho = 1.0
-                    End If
+                                        If rho > 0.0001 Then
+                                            ux /= rho
+                                            uy /= rho
+                                            uz /= rho
+                                        Else
+                                            ux = 0.0
+                                            uy = 0.0
+                                            uz = 0.0
+                                            rho = 1.0
+                                        End If
 
-                    m_rho(idx) = rho
-                    m_ux(idx) = ux
-                    m_uy(idx) = uy
-                    m_uz(idx) = uz
-                    m_speed2(idx) = ux * ux + uy * uy + uz * uz
-                Next
-            Next
-        End Sub)
+                                        m_rho(idx) = rho
+                                        m_ux(idx) = ux
+                                        m_uy(idx) = uy
+                                        m_uz(idx) = uz
+                                        m_speed2(idx) = ux * ux + uy * uy + uz * uz
+                                    Next
+                                Next
+                            End Sub)
     End Sub
 
     ' ========================================================================
