@@ -95,7 +95,7 @@ Public Module Program
 
         ' --- Create frame writer ---
         Dim writer As New FrameWriter3D(
-            outputDir:=outputDir,
+            outputDirectory:=outputDir,
             nx:=NX, ny:=NY, nz:=NZ,
             visc:=VISCOSITY,
             desc:="3D Fermenter with rotating Rushton turbine impeller (D3Q19 LBM)"
@@ -112,7 +112,7 @@ Public Module Program
         Console.WriteLine()
         Console.WriteLine("[Simulation] Starting...")
 
-        For step As Integer = 1 To maxIterations
+        For [step] As Integer = 1 To maxIterations
 
             ' Update impeller rotation
             impellerAngle += ANGULAR_VELOCITY
@@ -124,27 +124,27 @@ Public Module Program
             cfd.advance()
 
             ' Save snapshot
-            If step Mod snapshotInterval = 0 Then
+            If [step] Mod snapshotInterval = 0 Then
                 frameNum += 1
                 writer.AddFrame(cfd.ux, cfd.uy, cfd.uz, cfd.rho, cfd.speed2)
             End If
 
             ' Progress report
-            If step Mod reportInterval = 0 Then
+            If [step] Mod reportInterval = 0 Then
                 Dim elapsed As Double = (Now - t0).TotalSeconds
-                Dim speed As Double = step / elapsed
-                Dim remaining As Double = (maxIterations - step) / speed
-                Dim pct As Double = step / maxIterations * 100.0
+                Dim speed As Double = [step] / elapsed
+                Dim remaining As Double = (maxIterations - [step]) / speed
+                Dim pct As Double = [step] / maxIterations * 100.0
 
-                Console.WriteLine($"  [{step}/{maxIterations}] {pct:F1}%  " &
+                Console.WriteLine($"  [{[step]}/{maxIterations}] {pct:F1}%  " &
                                   $"{speed:F0} it/s  " &
                                   $"ETA: {FormatTime(remaining)}")
             End If
 
             ' NaN check (every 500 steps)
-            If step Mod 500 = 0 Then
+            If [step] Mod 500 = 0 Then
                 If Not cfd.CheckNaN() Then
-                    Console.WriteLine($"  [WARNING] NaN detected at step {step}!")
+                    Console.WriteLine($"  [WARNING] NaN detected at step {[step]}!")
                 End If
             End If
         Next
