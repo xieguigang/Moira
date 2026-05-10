@@ -2,6 +2,8 @@
 
 Namespace Tasks
 
+    ' 将for循环切割为不同的片段，每一条并行线程执行一个for循环片段
+
     Public Class bounce : Inherits VectorTask
 
         ReadOnly cfd As FluidDynamics
@@ -11,6 +13,12 @@ Namespace Tasks
             Me.cfd = cfd
         End Sub
 
+        ''' <summary>
+        ''' run thread parallel
+        ''' </summary>
+        ''' <param name="start">parallel task partition start index</param>
+        ''' <param name="ends">parallel task partition end index</param>
+        ''' <param name="cpu_id">thread id</param>
         Protected Overrides Sub Solve(start As Integer, ends As Integer, cpu_id As Integer)
             For x As Integer = start To ends - 1
                 For Y As Integer = 1 To cfd.ydim - 2
