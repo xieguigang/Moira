@@ -1,6 +1,4 @@
-﻿Imports System.Drawing
-
-Public MustInherit Class Simulation : Implements IDisposable
+﻿Public MustInherit Class Simulation : Implements IDisposable
 
     Private disposedValue As Boolean
 

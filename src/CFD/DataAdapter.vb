@@ -76,10 +76,3 @@ Public Class DataAdapter
     End Function
 
 End Class
-
-Public Enum FrameTypes
-    Speed
-    Density
-    XVel
-    YVel
-End Enum
