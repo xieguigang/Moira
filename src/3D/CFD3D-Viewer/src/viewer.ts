@@ -120,7 +120,7 @@ export class CFDViewer {
     // Set default slice position to middle
     this.config.slicePosition = Math.floor(
       this.config.sliceAxis === 'x' ? nx / 2 :
-      this.config.sliceAxis === 'y' ? ny / 2 : nz / 2
+        this.config.sliceAxis === 'y' ? ny / 2 : nz / 2
     );
   }
 
@@ -156,7 +156,7 @@ export class CFDViewer {
     if (!this.metadata) return 50;
     const [nx, ny, nz] = this.metadata.dims;
     return this.config.sliceAxis === 'x' ? nx - 1 :
-           this.config.sliceAxis === 'y' ? ny - 1 : nz - 1;
+      this.config.sliceAxis === 'y' ? ny - 1 : nz - 1;
   }
 
   // ========================================================================
