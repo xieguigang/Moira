@@ -62,7 +62,7 @@ Public Module Program
     Public Sub Main(args As String())
 
         ' Parse command-line arguments
-        Dim outputDir As String = If(args.Length > 0, args(0), "./results")
+        Dim outputDir As String = "Z:/results"
         Dim maxIterations As Integer = If(args.Length > 1, CInt(args(1)), DEFAULT_ITERATIONS)
         Dim snapshotInterval As Integer = If(args.Length > 2, CInt(args(2)), DEFAULT_SNAPSHOT)
 
