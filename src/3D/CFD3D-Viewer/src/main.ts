@@ -19,16 +19,16 @@ const overlayTotal = document.getElementById('overlay-total')!;
 const toast = document.getElementById('toast')!;
 
 const dataPathInput = document.getElementById('data-path') as HTMLInputElement;
-const loadBtn = document.getElementById('load-btn') as HTMLButtonElement;
-const demoBtn = document.getElementById('demo-btn') as HTMLButtonElement;
+const loadBtn = document.getElementById('btn-load') as HTMLButtonElement;
+const demoBtn = document.getElementById('btn-demo') as HTMLButtonElement;
 
 const fieldSelect = document.getElementById('field-select') as HTMLSelectElement;
 const sliceAxisSelect = document.getElementById('slice-axis') as HTMLSelectElement;
-const sliceSlider = document.getElementById('slice-position') as HTMLInputElement;
+const sliceSlider = document.getElementById('slice-pos') as HTMLInputElement;
 const sliceValue = document.getElementById('slice-value') as HTMLSpanElement;
 const frameSlider = document.getElementById('frame-slider') as HTMLInputElement;
 const frameValue = document.getElementById('frame-value') as HTMLSpanElement;
-const playBtn = document.getElementById('play-btn') as HTMLButtonElement;
+const playBtn = document.getElementById('btn-play') as HTMLButtonElement;
 
 const arrowDensitySelect = document.getElementById('arrow-density') as HTMLSelectElement;
 const showArrowsCheck = document.getElementById('show-arrows') as HTMLInputElement;
