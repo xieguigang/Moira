@@ -346,7 +346,7 @@ export class CFDViewer {
     const [nx, ny, nz] = this.metadata.dims;
     const step = this.config.arrowDensity;
     const pos = this.config.slicePosition;
-    const arrowScale = 15; // Scale factor for arrow length
+    const arrowScale = 5; // Scale factor for arrow length
 
     // Find max speed for normalization
     let maxSpeed = 0;
@@ -359,6 +359,8 @@ export class CFDViewer {
     if (maxSpeed < 1e-10) return;
 
     const arrowColor = new THREE.Color(0xffffff);
+    const length_scale = 0.125;
+    const width_scale = 0.05;
 
     if (this.config.sliceAxis === 'z') {
       for (let y = step; y < ny - step; y += step) {
@@ -376,7 +378,7 @@ export class CFDViewer {
           const length = (speed / maxSpeed) * arrowScale;
           const origin = new THREE.Vector3(x, y, pos + 0.5);
 
-          const arrow = new THREE.ArrowHelper(dir, origin, length, arrowColor, length * 0.3, length * 0.15);
+          const arrow = new THREE.ArrowHelper(dir, origin, length, arrowColor, length * length_scale, length * width_scale);
           this.arrowGroup.add(arrow);
         }
       }
@@ -396,7 +398,7 @@ export class CFDViewer {
           const length = (speed / maxSpeed) * arrowScale;
           const origin = new THREE.Vector3(pos + 0.5, y, z);
 
-          const arrow = new THREE.ArrowHelper(dir, origin, length, arrowColor, length * 0.3, length * 0.15);
+          const arrow = new THREE.ArrowHelper(dir, origin, length, arrowColor, length * length_scale, length * width_scale);
           this.arrowGroup.add(arrow);
         }
       }
@@ -416,7 +418,7 @@ export class CFDViewer {
           const length = (speed / maxSpeed) * arrowScale;
           const origin = new THREE.Vector3(x, pos + 0.5, z);
 
-          const arrow = new THREE.ArrowHelper(dir, origin, length, arrowColor, length * 0.3, length * 0.15);
+          const arrow = new THREE.ArrowHelper(dir, origin, length, arrowColor, length * length_scale, length * width_scale);
           this.arrowGroup.add(arrow);
         }
       }

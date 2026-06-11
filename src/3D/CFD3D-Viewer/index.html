@@ -297,11 +297,12 @@
         </div>
         <p style="font-size:11px;color:#64748b;margin-top:8px;">
           选择包含 metadata.json 和 frame_*.bin 的目录
+          <input type="file" id="data-path" webkitdirectory />
         </p>
       </div>
 
       <!-- Simulation Info -->
-      <div class="panel" id="info-panel" style="display:none;">
+      <div class="panel" id="meta-info">
         <div class="panel-title">模拟信息</div>
         <div class="info-grid">
           <div class="info-item">
@@ -324,7 +325,7 @@
       </div>
 
       <!-- Frame Control -->
-      <div class="panel" id="frame-panel" style="display:none;">
+      <div class="panel" id="frame-panel">
         <div class="panel-title">帧控制</div>
         <div class="control-row">
           <label>当前帧</label>
@@ -350,7 +351,7 @@
       </div>
 
       <!-- Visualization -->
-      <div class="panel" id="viz-panel" style="display:none;">
+      <div class="panel" id="viz-panel">
         <div class="panel-title">可视化设置</div>
         <div class="control-row">
           <label>数据场</label>
@@ -400,9 +401,14 @@
       </div>
 
       <!-- Color Map -->
-      <div class="panel" id="colormap-panel" style="display:none;">
+      <div class="panel" id="colormap-panel">
         <div class="panel-title">色标</div>
-        <select id="colormap"></select>
+        <select id="colormap">
+          <option value='Jet'>Jet</option>
+          <option value='CoolWarm'>CoolWarm</option>
+          <option value='Viridis'>Viridis</option>
+          <option value='Plasma'>Plasma</option>
+        </select>
         <canvas id="colorbar" width="280" height="16"></canvas>
         <div class="colorbar-labels">
           <span id="cbar-min">0.000</span>
@@ -417,7 +423,7 @@
         <div class="spinner"></div>
         <p>等待加载数据...</p>
       </div>
-      <div id="frame-info" style="display:none;">
+      <div id="frame-info">
         帧 <span id="overlay-frame">0</span> / <span id="overlay-total">0</span>
       </div>
       <div id="toast"></div>

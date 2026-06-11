@@ -25,9 +25,9 @@ const demoBtn = document.getElementById('btn-demo') as HTMLButtonElement;
 const fieldSelect = document.getElementById('field-select') as HTMLSelectElement;
 const sliceAxisSelect = document.getElementById('slice-axis') as HTMLSelectElement;
 const sliceSlider = document.getElementById('slice-pos') as HTMLInputElement;
-const sliceValue = document.getElementById('slice-value') as HTMLSpanElement;
+const sliceValue = document.getElementById('slice-label') as HTMLSpanElement;
 const frameSlider = document.getElementById('frame-slider') as HTMLInputElement;
-const frameValue = document.getElementById('frame-value') as HTMLSpanElement;
+const frameValue = document.getElementById('frame-label') as HTMLSpanElement;
 const playBtn = document.getElementById('btn-play') as HTMLButtonElement;
 
 const arrowDensitySelect = document.getElementById('arrow-density') as HTMLSelectElement;
@@ -58,7 +58,7 @@ viewer = new CFDViewer(viewport);
 // ========================================================================
 
 loadBtn.addEventListener('click', async () => {
-  const path = dataPathInput.value.trim();
+  const path = "/results"; // dataPathInput.value.trim();
   if (!path) {
     showToast('请输入数据目录路径', 'error');
     return;

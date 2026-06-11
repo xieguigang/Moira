@@ -59,7 +59,7 @@ export async function loadSimulationData(baseUrl: string): Promise<SimulationDat
   const frameCount = metadata.totalFrames;
 
   for (let i = 1; i <= frameCount; i++) {
-    const frameUrl = `${baseUrl}/frame_${String(i).PadLeft(4, '0')}.bin`;
+    const frameUrl = `${baseUrl}/frame_${String(i).padStart(4, '0')}.bin`;
     const frameResp = await fetch(frameUrl);
     if (!frameResp.ok) throw new Error(`Failed to load frame ${i} from ${frameUrl}`);
     const frameBuffer = await frameResp.arrayBuffer();
