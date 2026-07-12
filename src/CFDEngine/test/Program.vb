@@ -57,12 +57,20 @@ Module Program
         Console.WriteLine($"[3] 运行 {steps} 个时间步，dt={dt}...")
         Console.WriteLine()
 
-        ' 创建逐帧快照记录器：每帧导出一个 .vtk，结束后生成 animation.pvd（ParaView 动画）
+        ' 选择快照格式：默认 VTK；可通过命令行参数 --json / --vtk 切换
+        Dim format As SnapshotFormat = SnapshotFormat.Vtk
+        For Each a In System.Environment.GetCommandLineArgs()
+            Dim lower = a.ToLower()
+            If lower = "--json" OrElse lower = "json" Then format = SnapshotFormat.Json
+            If lower = "--vtk" OrElse lower = "vtk" Then format = SnapshotFormat.Vtk
+        Next
+
         Dim framesDir = System.IO.Path.Combine(System.AppContext.BaseDirectory, "frames")
-        Dim recorder As New SnapshotRecorder(framesDir, "frame",
-                                             interval:=1,
-                                             pvdName:="animation.pvd",
-                                             estimatedFrames:=steps)
+        If format = SnapshotFormat.Json Then
+            Console.WriteLine($"    快照格式: JSON (metadata.json + frame_xxx.json)")
+        Else
+            Console.WriteLine($"    快照格式: VTK (.vtk + animation.pvd)")
+        End If
         Console.WriteLine($"    逐帧快照将保存到: {framesDir}")
         Console.WriteLine()
 
@@ -74,12 +82,17 @@ Module Program
                                              $"最大速度={MaxSpeed(tank):F3}")
                        End If
                    End Sub,
-                   recorder:=recorder)
+                   format, framesDir)
         Dim elapsed = (DateTime.Now - startTime).TotalSeconds
         Console.WriteLine($"    完成！耗时 {elapsed:F2} 秒")
-        Console.WriteLine($"    已保存 {recorder.FrameCount} 帧快照，动画集合: " &
-                          System.IO.Path.Combine(framesDir, "animation.pvd"))
-        Console.WriteLine("    在 ParaView 中打开 animation.pvd 即可播放时间动画。")
+        Console.WriteLine($"    已保存 {tank.StepCount} 步的快照数据")
+        If format = SnapshotFormat.Json Then
+            Console.WriteLine($"    集合索引: {System.IO.Path.Combine(framesDir, "metadata.json")}")
+            Console.WriteLine("    metadata.json 保存网格与配置，frame_xxx.json 逐帧保存全部物理场。")
+        Else
+            Console.WriteLine($"    动画集合: {System.IO.Path.Combine(framesDir, "animation.pvd")}")
+            Console.WriteLine("    在 ParaView 中打开 animation.pvd 即可播放时间动画。")
+        End If
         Console.WriteLine()
 
         ' ---- 4. 打印切片 ----

@@ -26,6 +26,16 @@ Imports std = System.Math
 Namespace CFDEngine
 
     ''' <summary>
+    ''' 快照文件格式。用于在 VTK 与 JSON 两套快照系统之间切换。
+    ''' </summary>
+    Public Enum SnapshotFormat
+        ''' <summary>Legacy VTK：逐帧 .vtk + animation.pvd（ParaView 可用）</summary>
+        Vtk
+        ''' <summary>JSON：metadata.json + frame_xxx.json（消除帧间网格定义冗余）</summary>
+        Json
+    End Enum
+
+    ''' <summary>
     ''' CFD 引擎顶层门面，提供简化的模拟 API。
     ''' </summary>
     Public Class FluidSim
@@ -103,12 +113,13 @@ Namespace CFDEngine
         ''' <param name="dt">每步时间步长</param>
         ''' <param name="progressCallback">可选：每步回调 (stepIndex, time)</param>
         ''' <param name="recorder">
-        ''' 可选：数据快照记录器。若非 Nothing，则每步后自动捕获当前流体场为一帧，
-        ''' 循环结束后自动写出 .pvd 时间集合，便于在 ParaView 中以动画形式观察。
+        ''' 可选：数据快照记录器（VTK 或 JSON 均可，均实现 ISnapshotRecorder）。
+        ''' 若非 Nothing，则每步后自动捕获当前流体场为一帧，循环结束后自动收尾。
+        ''' 向后兼容：传入 SnapshotRecorder 即使用原有 VTK 快照。
         ''' </param>
         Public Sub Run(steps As Integer, dt As Double,
                        Optional progressCallback As Action(Of Integer, Double) = Nothing,
-                       Optional recorder As SnapshotRecorder = Nothing)
+                       Optional recorder As ISnapshotRecorder = Nothing)
 
             For s = 1 To steps
                 Tank.StepForward(dt)
@@ -120,12 +131,67 @@ Namespace CFDEngine
                 End If
             Next
 
-            ' 循环结束后写出 .pvd 动画集合索引
+            ' 循环结束后收尾（写出 .pvd 或 metadata.json 的 frames 列表）
             If recorder IsNot Nothing Then
-                recorder.WriteIndex()
+                recorder.Finish()
             End If
 
         End Sub
+
+        ''' <summary>
+        ''' 执行多个时间步，并按指定格式自动创建快照记录器。
+        ''' 用 format 参数在 VTK 与 JSON 两套快照系统之间切换；同时保留
+        ''' 传入自定义 ISnapshotRecorder 的能力（见另一 Run 重载）。
+        ''' </summary>
+        ''' <param name="steps">步数</param>
+        ''' <param name="dt">每步时间步长</param>
+        ''' <param name="progressCallback">每步回调 (stepIndex, time)</param>
+        ''' <param name="format">快照格式（Vtk / Json）</param>
+        ''' <param name="outputDir">输出目录</param>
+        ''' <param name="baseName">帧文件基础名（如 "frame"）</param>
+        ''' <param name="interval">采样间隔（每隔多少步捕获一帧）</param>
+        ''' <param name="metadata">JSON 模式的元数据；省略时由 Tank 自动派生</param>
+        Public Sub Run(steps As Integer, dt As Double,
+                       progressCallback As Action(Of Integer, Double),
+                       format As SnapshotFormat,
+                       outputDir As String,
+                       Optional baseName As String = "frame",
+                       Optional interval As Integer = 1,
+                       Optional metadata As SnapshotMetadata = Nothing)
+
+            Dim rec = CreateRecorder(format, outputDir, baseName, interval, steps, dt, metadata)
+
+            For s = 1 To steps
+                Tank.StepForward(dt)
+                If progressCallback IsNot Nothing Then
+                    progressCallback(s, Tank.Time)
+                End If
+                rec.Capture(Tank.Field, Tank.StepCount, Tank.Time)
+            Next
+
+            rec.Finish()
+
+        End Sub
+
+        ''' <summary>
+        ''' 按格式构造对应的快照记录器（工厂 helper）。
+        ''' </summary>
+        Private Function CreateRecorder(format As SnapshotFormat, outputDir As String,
+                                        baseName As String, interval As Integer,
+                                        steps As Integer, dt As Double,
+                                        metadata As SnapshotMetadata) As ISnapshotRecorder
+
+            Dim estimatedFrames = CInt(std.Ceiling(steps / interval))
+
+            If format = SnapshotFormat.Json Then
+                Dim md = If(metadata Is Nothing, SnapshotMetadata.FromTank(Tank, dt), metadata)
+                Return New JsonSnapshotRecorder(outputDir, md, baseName, interval, estimatedFrames)
+            Else
+                Return New SnapshotRecorder(outputDir, baseName, interval,
+                                            pvdName:="animation.pvd", estimatedFrames:=estimatedFrames)
+            End If
+
+        End Function
 
 #End Region
 

@@ -34,6 +34,7 @@ Namespace CFDEngine
     ''' 仅依赖 FluidField，与引擎对象解耦。
     ''' </summary>
     Public Class SnapshotRecorder
+        Implements ISnapshotRecorder
 
 #Region "单帧元数据"
 
@@ -50,7 +51,7 @@ Namespace CFDEngine
 #Region "配置"
 
         ''' <summary>输出目录。</summary>
-        Public ReadOnly Property OutputDir As String
+        Public ReadOnly Property OutputDir As String Implements ISnapshotRecorder.OutputDir
 
         ''' <summary>帧文件基础名（如 "frame"）。</summary>
         Public ReadOnly Property BaseName As String
@@ -62,7 +63,7 @@ Namespace CFDEngine
         Public ReadOnly Property PvdName As String
 
         ''' <summary>已写出的帧数。</summary>
-        Public ReadOnly Property FrameCount As Integer
+        Public ReadOnly Property FrameCount As Integer Implements ISnapshotRecorder.FrameCount
             Get
                 Return _frames.Count
             End Get
@@ -119,7 +120,7 @@ Namespace CFDEngine
         ''' <param name="field">当前流体场</param>
         ''' <param name="stepIndex">当前时间步序号</param>
         ''' <param name="time">当前模拟时间</param>
-        Public Sub Capture(field As FluidField, stepIndex As Integer, time As Double)
+        Public Sub Capture(field As FluidField, stepIndex As Integer, time As Double) Implements ISnapshotRecorder.Capture
 
             ' 采样间隔过滤
             If Interval > 1 AndAlso (stepIndex Mod Interval) <> 0 Then
@@ -159,6 +160,14 @@ Namespace CFDEngine
                 writer.WriteLine("</VTKFile>")
             End Using
 
+        End Sub
+
+        ''' <summary>
+        ''' 模拟结束收尾：生成 .pvd 动画集合。对应 ISnapshotRecorder.Finish。
+        ''' 保留 WriteIndex 以兼容既有调用点。
+        ''' </summary>
+        Public Sub Finish() Implements ISnapshotRecorder.Finish
+            WriteIndex()
         End Sub
 
 #End Region

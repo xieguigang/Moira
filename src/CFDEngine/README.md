@@ -42,14 +42,19 @@
 
 ```
 CFDEngine/
-├── CFDEngine.vbproj          # 项目文件（.NET 8.0）
+├── CFDEngine.vbproj          # 项目文件（.NET 10.0）
 ├── Tensor.vb                 # Tensor 对象（用户提供，未修改）
 ├── FluidField.vb             # 流体场数据结构（速度/压力/密度）
 ├── StableFluidsSolver.vb     # 核心求解器（平流/扩散/投影）
 ├── Stirrer.vb                # 搅拌器（旋转叶轮）模型
 ├── FermentationTank.vb       # 发酵罐容器 + 主时间步进循环
-├── CFDEngine.vb              # 顶层门面（FluidSim 类）
+├── CFDEngine.vb              # 顶层门面（FluidSim 类 + SnapshotFormat 枚举）
 ├── VTKExporter.vb            # VTK 文件导出器
+├── Snapshot.vb               # 单帧快照数据单元（FluidField 深拷贝）
+├── ISnapshotRecorder.vb      # 快照记录器统一接口
+├── SnapshotRecorder.vb       # 基于 VTK 的逐帧记录器（.vtk + .pvd）
+├── SnapshotMetadata.vb       # JSON 快照元数据对象（网格 + 配置 + 帧引用）
+├── JsonSnapshotRecorder.vb   # 基于 JSON 的逐帧记录器（metadata.json + frame_xxx.json）
 ├── Program.vb                # 演示入口
 ├── README.md                 # 本文档
 └── fermentation_tank_stirring.vtk  # 演示生成的 VTK 结果文件
@@ -64,9 +69,14 @@ CFDEngine/
 | `StableFluidsSolver.vb` | `StableFluidsSolver` | 实现半拉格朗日平流、隐式扩散、压力投影三大数值方法 |
 | `Stirrer.vb` | `Stirrer` | 圆盘叶轮几何 + 旋转速度边界条件 |
 | `FermentationTank.vb` | `FermentationTank` | 组装组件，执行算子分裂时间步进 |
-| `CFDEngine.vb` | `FluidSim` | 顶层 API，工厂方法 + Run + 查询接口 |
+| `CFDEngine.vb` | `FluidSim` | 顶层 API，工厂方法 + Run + 查询接口；含 `SnapshotFormat` 枚举 |
 | `VTKExporter.vb` | `VTKExporter` | 导出 legacy VTK 文件供 ParaView 可视化 |
-| `Program.vb` | `Module Program` | 演示：创建罐→注入染料→运行→打印→导出 |
+| `Snapshot.vb` | `Snapshot` | 单帧快照数据单元（持有 FluidField 深拷贝） |
+| `ISnapshotRecorder.vb` | `ISnapshotRecorder` | 快照记录器统一接口，`Run` 以多态方式调用 |
+| `SnapshotRecorder.vb` | `SnapshotRecorder` | 基于 VTK 的逐帧记录器：每帧 .vtk + 结束 animation.pvd |
+| `SnapshotMetadata.vb` | `SnapshotMetadata` | JSON 元数据对象：网格模型 + 仿真配置 + 帧引用列表 |
+| `JsonSnapshotRecorder.vb` | `JsonSnapshotRecorder` | 基于 JSON 的逐帧记录器：metadata.json + frame_xxx.json |
+| `Program.vb` | `Module Program` | 演示：创建罐→注入染料→运行→打印→导出；支持 `--json` / `--vtk` 切换 |
 
 ---
 
@@ -294,11 +304,28 @@ dotnet run
 
 ### 输出文件
 
-运行后会在以下位置生成 VTK 文件：
+演示默认导出一份 VTK 结果（最后一帧）：
 ```
-CFDEngine/bin/Debug/net8.0/fermentation_tank_stirring.vtk
+CFDEngine/bin/Debug/net10.0/fermentation_tank_stirring.vtk
 CFDEngine/fermentation_tank_stirring.vtk   （副本）
 ```
+
+此外，逐帧快照会写入 `frames/` 目录。快照格式可通过命令行参数切换：
+
+- **VTK（默认）**：每帧一个 `.vtk` + 结束时一个 `animation.pvd`（ParaView 动画集合）。
+  ```
+  dotnet run            # 默认 VTK
+  dotnet run --vtk
+  ```
+- **JSON（低冗余）**：一份 `metadata.json`（网格模型 + 仿真配置）+ 一系列 `frame_xxx.json`（每帧全部物理场）。
+  ```
+  dotnet run --json
+  ```
+
+两者都通过 `FluidSim.Run(steps, dt, progressCallback, format, outputDir)` 驱动，
+`format` 为 `SnapshotFormat.Vtk` 或 `SnapshotFormat.Json` 枚举。原有的
+`SnapshotRecorder`（VTK）与新增的 `JsonSnapshotRecorder` 均实现 `ISnapshotRecorder` 接口，
+因此也可显式构造任一记录器直接传给 `Run(..., recorder:=...)`，向后完全兼容。
 
 ### 用 ParaView 查看三维结果
 
@@ -460,6 +487,95 @@ Stable Fluids 对 dt **不敏感**（无条件稳定），但 dt 影响精度：
 - 控制压力投影和扩散的求解精度
 - 次数越多越精确但越慢
 - **建议**：20~40（教学），50+（高精度）
+
+---
+
+## JSON 快照系统（低冗余）
+
+基于 VTK 的逐帧快照每帧都会重复写入 `DIMENSIONS / ORIGIN / SPACING` 等
+**三维体素模型定义信息**，导致帧与帧之间数据冗余度很高。
+JSON 快照系统将「不随时间变化的网格与配置」抽离到一份 `metadata.json`，
+每帧只写物理场数据（`frame_xxx.json`），从而彻底消除上述冗余。
+
+### 文件结构
+
+运行 `dotnet run --json` 后，`frames/` 目录下生成：
+
+```
+frames/
+├── metadata.json        # 网格模型 + 仿真配置 + 帧引用列表（仅写一次）
+├── frame_0000.json      # 第 0 帧：step / time + 7 个物理场扁平数组
+├── frame_0001.json
+└── ...
+```
+
+### metadata.json 结构
+
+```json
+{
+  "format": "json",
+  "schemaVersion": 1,
+  "createdAt": "2026-07-13T...",
+  "grid": {
+    "nx": 48, "ny": 48, "nz": 48,
+    "origin": [0.0, 0.0, 0.0],
+    "spacing": [1.0, 1.0, 1.0],
+    "totalVoxels": 110592,
+    "indexOrder": "i*ny*nz + j*nz + k"
+  },
+  "simulation": {
+    "viscosity": 0.0001,
+    "diffusion": 0.00001,
+    "timeStep": 0.1,
+    "solver": "StableFluids (Jos Stam, 1999)",
+    "stirrer": {
+      "centerX": 23.5, "centerY": 23.5, "zCenter": 16.0,
+      "radius": 16.0, "height": 2.0, "angularVelocity": 4.0, "axialVelocity": 0.0
+    }
+  },
+  "frames": [
+    { "step": 1,  "time": 0.1, "file": "frame_0000.json" },
+    { "step": 2,  "time": 0.2, "file": "frame_0001.json" }
+  ]
+}
+```
+
+> 无搅拌器时，`simulation.stirrer` 为 `null`。
+
+### frame_xxx.json 结构
+
+每帧保存 `step`、`time`、网格维度与全部 **7 个物理场**的扁平一维数组
+（索引顺序 `i*ny*nz + j*nz + k`，与 VTK 导出完全对齐）：
+
+```json
+{
+  "step": 0,
+  "time": 0.0,
+  "grid": { "nx": 48, "ny": 48, "nz": 48 },
+  "fields": {
+    "pressure":  [ ... ],          // 长度 N
+    "density":   [ ... ],          // 长度 N
+    "u":         [ ... ],          // 长度 N（X 方向速度）
+    "v":         [ ... ],          // 长度 N（Y 方向速度）
+    "w":         [ ... ],          // 长度 N（Z 方向速度）
+    "speed":     [ ... ],          // 长度 N（速度大小，由 U/V/W 派生）
+    "velocity":  [ ... ]           // 长度 3N（u,v,w 交错扁平数组）
+  }
+}
+```
+
+### 编程用法
+
+```vbnet
+' JSON 模式（自动由 Tank 派生 metadata）
+engine.Run(80, 0.1, progressCallback,
+           format:=SnapshotFormat.Json, outputDir:="frames")
+
+' 或显式构造记录器（传入自定义 metadata）
+Dim md = SnapshotMetadata.FromTank(engine.Tank, dt:=0.1)
+Dim rec = New JsonSnapshotRecorder("frames", md, baseName:="frame", interval:=1)
+engine.Run(80, 0.1, progressCallback, recorder:=rec)
+```
 
 ---
 
