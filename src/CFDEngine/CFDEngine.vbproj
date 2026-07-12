@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>CFDEngine</AssemblyName>
+    <OptionExplicit>On</OptionExplicit>
+    <OptionStrict>Off</OptionStrict>
+    <OptionCompare>Binary</OptionCompare>
+    <OptionInfer>On</OptionInfer>
+    <LangVersion>16.9</LangVersion>
+    <Nullable>Disable</Nullable>
+    <AssemblyTitle>Basic CFD Engine for Teaching</AssemblyTitle>
+    <Description>A basic Computational Fluid Dynamics engine implemented in VB.NET using basic math functions, designed for principle learning and teaching. Simulates 3D liquid stirring in a fermentation tank.</Description>
+  </PropertyGroup>
+
+</Project>
