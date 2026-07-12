@@ -18,6 +18,6 @@
     <Platform Solution="*|x64" Project="x64" />
   </Project>
   <Project Path="CFDEngine/test/test.vbproj" Id="f44f484f-ca15-4bfe-b49d-cdf30ef9a673">
-    <Platform Solution="Debug|x64" Project="x64" />
+    <Platform Solution="*|x64" Project="x64" />
   </Project>
 </Solution>

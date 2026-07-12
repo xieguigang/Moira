@@ -58,7 +58,7 @@ Module Program
         Console.WriteLine()
 
         ' 选择快照格式：默认 VTK；可通过命令行参数 --json / --vtk 切换
-        Dim format As SnapshotFormat = SnapshotFormat.Vtk
+        Dim format As SnapshotFormat = SnapshotFormat.Json
         For Each a In System.Environment.GetCommandLineArgs()
             Dim lower = a.ToLower()
             If lower = "--json" OrElse lower = "json" Then format = SnapshotFormat.Json
