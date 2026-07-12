@@ -75,25 +75,39 @@ export class Viewer {
     this.renderer.setSize(w, h, false);
   }
 
-  // ---------- 数据加载 ----------
-  setData(ds) {
+  // ---------- 数据加载（异步，分阶段报告进度） ----------
+  async setData(ds, onProgress) {
+    const report = (phase, done, total) => { if (onProgress) onProgress({ phase, done, total }); };
+    const next = () => new Promise((r) => setTimeout(r, 0));
+
     this.clearScene();
     this.ds = ds;
     const { nx, ny, nz } = ds;
     this.offset = [nx / 2, ny / 2, nz / 2];
     const N = nx * ny * nz;
 
-    // 预计算各场全局 min/max
+    // 1) 预计算各场全局 min/max（分场报告进度）
+    report('stats', 0, ds.fields.length);
+    await next();
     this.fieldStats = {};
-    for (const f of ds.fields) {
+    for (let fi = 0; fi < ds.fields.length; fi++) {
+      const f = ds.fields[fi];
       const a = ds.arrays[f];
       let mn = Infinity, mx = -Infinity;
-      for (let i = 0; i < a.length; i++) { const v = a[i]; if (v < mn) mn = v; if (v > mx) mx = v; }
+      const len = a.length;
+      const CHUNK = 1 << 18; // 262144
+      for (let i = 0; i < len; i += CHUNK) {
+        const end = Math.min(i + CHUNK, len);
+        for (let j = i; j < end; j++) { const v = a[j]; if (v < mn) mn = v; if (v > mx) mx = v; }
+      }
       this.fieldStats[f] = { min: mn, max: mx };
+      report('stats', fi + 1, ds.fields.length);
     }
     this.range = { min: this.fieldStats[this.field].min, max: this.fieldStats[this.field].max, auto: true };
 
-    // 体素 InstancedMesh
+    // 2) 体素 InstancedMesh（分块构建，避免阻塞主线程）
+    report('voxels', 0, N);
+    await next();
     const geo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
     const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
     mat.clippingPlanes = this.section.enabled ? [this.clipPlane] : [];
@@ -101,11 +115,19 @@ export class Viewer {
     mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3);
     const dummy = new THREE.Object3D();
     const [cx, cy, cz] = this.offset;
-    for (let idx = 0; idx < N; idx++) {
-      const [i, j, k] = idxToIJK(idx, nx, ny);
-      dummy.position.set(i + 0.5 - cx, j + 0.5 - cy, k + 0.5 - cz);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(idx, dummy.matrix);
+    const VCHUNK = 6000;
+    for (let start = 0; start < N; start += VCHUNK) {
+      const end = Math.min(start + VCHUNK, N);
+      for (let idx = start; idx < end; idx++) {
+        const i = idx % nx;
+        const j = ((idx / nx) | 0) % ny;
+        const k = (idx / (nx * ny)) | 0;
+        dummy.position.set(i + 0.5 - cx, j + 0.5 - cy, k + 0.5 - cz);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(idx, dummy.matrix);
+      }
+      report('voxels', end, N);
+      await next();
     }
     mesh.frustumCulled = false;
     this.scene.add(mesh);
@@ -117,8 +139,11 @@ export class Viewer {
     this.highlight.visible = false;
     this.scene.add(this.highlight);
 
-    // 箭头（按需构建）
+    // 3) 箭头骨架
+    report('arrows', 0, 1);
+    await next();
     this._buildArrowSkeleton();
+    report('arrows', 1, 1);
 
     // 坐标轴 / 地面网格
     const maxDim = Math.max(nx, ny, nz);
@@ -135,7 +160,12 @@ export class Viewer {
     this.controls.target.set(0, 0, 0);
     this.controls.update();
 
+    // 4) 着色渲染
+    report('colors', 0, 1);
+    await next();
     this.updateColors();
+    report('colors', 1, 1);
+
     this._applySection();
   }
 

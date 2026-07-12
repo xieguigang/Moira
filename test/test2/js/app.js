@@ -193,16 +193,23 @@ function refreshVoxelChart() {
 async function handleFiles(files) {
   const overlay = $('loadingOverlay');
   overlay.hidden = false;
-  setProgress(0, 1);
-  $('loadingText').textContent = t('status.parsing', { pct: '0' });
+  const fileArr = Array.from(files);
+  if (fileArr.length === 0) { overlay.hidden = true; return; }
+  setLoadProgress({ phase: 'load', done: 0, total: fileArr.length });
   try {
-    ds = await loadDatasetFromFiles(files, { onProgress: (done, total) => setProgress(done, total) });
+    ds = await loadDatasetFromFiles(fileArr, { onProgress: setLoadProgress });
   } catch (err) {
     overlay.hidden = true;
     alert(err.message || String(err));
     return;
   }
-  viewer.setData(ds);
+  try {
+    await viewer.setData(ds, setLoadProgress);
+  } catch (err) {
+    overlay.hidden = true;
+    alert(err.message || String(err));
+    return;
+  }
   viewer.setFrame(0);
 
   $('frameSlider').max = ds.nFrames - 1;
@@ -219,11 +226,28 @@ async function handleFiles(files) {
   overlay.hidden = true;
 }
 
-function setProgress(done, total) {
-  const pct = total ? Math.round((done / total) * 100) : 0;
+// 按阶段实时更新加载遮罩的进度条与文案
+function setLoadProgress(p) {
+  const labels = {
+    load: t('status.parsingFrames'),
+    stats: t('status.computingStats'),
+    voxels: t('status.buildingVoxels'),
+    arrows: t('status.buildingArrows'),
+    colors: t('status.coloring')
+  };
+  let pct;
+  if (p.phase === 'load') {
+    pct = Math.round((p.done / p.total) * 80);
+  } else {
+    const order = ['stats', 'voxels', 'arrows', 'colors'];
+    const idx = order.indexOf(p.phase);
+    const within = p.total > 0 ? p.done / p.total : 1;
+    pct = Math.round(80 + ((idx + within) / order.length) * 20);
+  }
+  pct = Math.max(0, Math.min(100, pct));
   $('progressBar').style.width = pct + '%';
   $('progressPct').textContent = pct + '%';
-  $('loadingText').textContent = t('status.parsing', { pct });
+  $('loadingText').textContent = (labels[p.phase] || t('status.parsing')) + ' … ' + pct + '%';
 }
 
 // ===================== 语言切换刷新动态文案 =====================
