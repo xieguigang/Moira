@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,21 +10,29 @@
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
   <link rel="stylesheet" href="css/style.css" />
 </head>
+
 <body class="bg-[#F4F6FA] text-[#1E293B] font-sans antialiased">
 
   <!-- ===================== Header ===================== -->
-  <header class="h-14 flex items-center justify-between px-5 bg-white border-b border-slate-200 shadow-sm z-20 relative">
+  <header
+    class="h-14 flex items-center justify-between px-5 bg-white border-b border-slate-200 shadow-sm z-20 relative">
     <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#2563EB] to-[#0EA5E9] flex items-center justify-center text-white font-bold">C</div>
+      <div
+        class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#2563EB] to-[#0EA5E9] flex items-center justify-center text-white font-bold">
+        C</div>
       <h1 class="text-[20px] font-semibold tracking-tight" data-i18n="appTitle">CFD 可视化</h1>
     </div>
     <div class="flex items-center gap-2">
-      <button id="upload-btn" class="px-4 py-2 rounded-lg bg-[#2563EB] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition shadow-sm flex items-center gap-2">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      <button id="upload-btn"
+        class="px-4 py-2 rounded-lg bg-[#2563EB] text-white text-[13px] font-medium hover:bg-[#1d4ed8] transition shadow-sm flex items-center gap-2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
         <span data-i18n="uploadBtn">上传 demo 文件夹</span>
       </button>
       <input id="folder-input" type="file" webkitdirectory directory multiple class="hidden" />
-      <button id="lang-toggle" class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-[13px] font-medium hover:bg-slate-50 transition min-w-[64px]">
+      <button id="lang-toggle"
+        class="px-3 py-2 rounded-lg border border-slate-200 bg-white text-[13px] font-medium hover:bg-slate-50 transition min-w-[64px]">
         <span id="lang-label">中 / EN</span>
       </button>
     </div>
@@ -105,19 +114,23 @@
       <canvas id="three-canvas" class="w-full h-full block"></canvas>
 
       <!-- colorbar -->
-      <div id="colorbar-wrap" class="absolute right-4 top-4 bg-white/85 backdrop-blur rounded-lg p-2 shadow-sm border border-slate-200 hidden">
+      <div id="colorbar-wrap"
+        class="absolute right-4 top-4 bg-white/85 backdrop-blur rounded-lg p-2 shadow-sm border border-slate-200 hidden">
         <div id="colorbar-title" class="text-[11px] font-medium text-center mb-1 text-[#475569]">—</div>
         <canvas id="colorbar" width="22" height="220"></canvas>
       </div>
 
       <!-- axis hint -->
-      <div class="absolute left-4 bottom-4 text-[11px] text-[#475569] bg-white/80 rounded px-2 py-1 shadow-sm border border-slate-200">
+      <div
+        class="absolute left-4 bottom-4 text-[11px] text-[#475569] bg-white/80 rounded px-2 py-1 shadow-sm border border-slate-200">
         X · Y · Z
       </div>
 
       <!-- empty / loading state -->
       <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-center gap-3">
-        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#2563EB] to-[#14B8A6] flex items-center justify-center text-white text-2xl">CFD</div>
+        <div
+          class="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#2563EB] to-[#14B8A6] flex items-center justify-center text-white text-2xl">
+          CFD</div>
         <p class="text-[#475569] text-[14px]" data-i18n="emptyHint">请点击右上角「上传 demo 文件夹」加载模拟结果</p>
         <p class="text-[#94a3b8] text-[12px]" data-i18n="emptyHint2">支持 metadata.json 与 frame_*.json 的文件夹</p>
       </div>
@@ -145,15 +158,20 @@
 
       <section class="card">
         <h2 class="card-title" data-i18n="secSlice">2D 横截面</h2>
-        <canvas id="slice-canvas" class="w-full rounded-lg border border-slate-200 bg-slate-50" width="240" height="240"></canvas>
+        <canvas id="slice-canvas" class="w-full rounded-lg border border-slate-200 bg-slate-50" width="240"
+          height="240"></canvas>
       </section>
     </aside>
   </main>
 
   <!-- ===================== Timeline ===================== -->
   <footer id="timeline" class="h-[60px] flex items-center gap-4 px-5 bg-white border-t border-slate-200">
-    <button id="play-btn" class="w-10 h-10 rounded-full bg-[#2563EB] text-white flex items-center justify-center hover:bg-[#1d4ed8] transition disabled:opacity-40" disabled>
-      <svg id="play-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    <button id="play-btn"
+      class="w-10 h-10 rounded-full bg-[#2563EB] text-white flex items-center justify-center hover:bg-[#1d4ed8] transition disabled:opacity-40"
+      disabled>
+      <svg id="play-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M8 5v14l11-7z" />
+      </svg>
     </button>
     <div class="flex items-center gap-2">
       <label class="lbl" data-i18n="speed">速度</label>
@@ -180,4 +198,5 @@
   <script src="js/charts.js"></script>
   <script src="js/app.js"></script>
 </body>
+
 </html>
