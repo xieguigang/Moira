@@ -4,5 +4,6 @@ relative_work("demo.dat")
 |> CFD::open.pack(mode = "read")
 |> CFD::dump_stream(
     fs = "/tmp/video",
-    colors ="jet"
+    colors = "jet",
+    color.levels = 200
 );
