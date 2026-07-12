@@ -12,6 +12,13 @@
     <Nullable>Disable</Nullable>
     <AssemblyTitle>Basic CFD Engine for Teaching</AssemblyTitle>
     <Description>A basic Computational Fluid Dynamics engine implemented in VB.NET using basic math functions, designed for principle learning and teaching. Simulates 3D liquid stirring in a fermentation tank.</Description>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\Data_science\MachineLearning\TensorFlow\TensorFlow.vbproj" />
+    <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\Data_science\Mathematica\Math\Math\Math.NET5.vbproj" />
+    <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\Microsoft.VisualBasic.Core\src\Core.vbproj" />
+  </ItemGroup>
 
 </Project>
