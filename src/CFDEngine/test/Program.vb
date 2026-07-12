@@ -34,7 +34,7 @@ Module Program
 
         ' ---- 1. 创建引擎 ----
         Dim nx, ny, nz As Integer
-        nx = 24 : ny = 24 : nz = 24
+        nx = 48 : ny = 48 : nz = 48
 
         Console.WriteLine($"[1] 创建 {nx}×{ny}×{nz} 发酵罐，放置旋转搅拌器...")
         Dim engine = FluidSim.CreateDefault(nx, ny, nz, angularVelocity:=4.0)
