@@ -153,6 +153,7 @@ export class Viewer {
   // ---------- 着色 ----------
   setField(field) {
     this.field = field;
+    if (!this.ds) return;
     if (this.range.auto) {
       const s = this.fieldStats[field];
       this.range.min = s.min; this.range.max = s.max;
@@ -164,12 +165,14 @@ export class Viewer {
   setPalette(name) {
     this.palette = name;
     this.lut = buildLUT(name);
+    if (!this.ds) return;
     this.updateColors();
     this._refreshArrows();
   }
 
   setRange(min, max) {
     this.range.min = min; this.range.max = max; this.range.auto = false;
+    if (!this.ds) return;
     this.updateColors();
     this._refreshArrows();
   }
@@ -177,6 +180,7 @@ export class Viewer {
   setRangeAuto() {
     const s = this.fieldStats[this.field];
     this.range.min = s.min; this.range.max = s.max; this.range.auto = true;
+    if (!this.ds) return;
     this.updateColors();
     this._refreshArrows();
   }
@@ -210,7 +214,7 @@ export class Viewer {
     if (this.onFrame) this.onFrame(frame, this.ds.timesteps[frame]);
   }
 
-  setFrame(frame) { this.updateFrame(clamp(frame | 0, 0, this.ds.nFrames - 1)); }
+  setFrame(frame) { if (!this.ds) return; this.updateFrame(clamp(frame | 0, 0, this.ds.nFrames - 1)); }
 
   setPlaying(p) {
     this.playing = p;
@@ -309,7 +313,7 @@ export class Viewer {
   }
 
   // ---------- 横截面 ----------
-  setSection(cfg) { Object.assign(this.section, cfg); this._applySection(); }
+  setSection(cfg) { Object.assign(this.section, cfg); if (this.ds) this._applySection(); }
 
   _applySection() {
     const s = this.section;
@@ -327,9 +331,9 @@ export class Viewer {
       nv.normalize();
       const maxHalf = Math.max(cx, cy, cz);
       const d = s.arbPos * maxHalf;
-      n = nv.clone(); if (s.flip) n.negate();
-      c = -n.clone().multiplyScalar(d).dot(n) / (n.length()) ; // = -d (since n unit)
-      c = -d;
+      n = nv.clone();
+      if (s.flip) { n.negate(); c = d; }   // 保留 nv·x <= d
+      else { c = -d; }                      // 保留 nv·x >= d
     } else {
       const dim = s.axis === 'x' ? nx : s.axis === 'y' ? ny : nz;
       const center = s.axis === 'x' ? cx : s.axis === 'y' ? cy : cz;

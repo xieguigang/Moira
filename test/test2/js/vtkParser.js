@@ -4,7 +4,7 @@ import { t } from './i18n.js';
 
 const FIELDS = ['pressure', 'density', 'u', 'v', 'w', 'speed'];
 
-function parsePVD(text) {
+export function parsePVD(text) {
   const frameFiles = [];
   const timesteps = [];
   const re = /<DataSet[^>]*timestep="([^"]+)"[^>]*file="([^"]+)"[^>]*\/?>/g;
