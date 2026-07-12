@@ -19,6 +19,7 @@
 '
 ' /********************************************************************************/
 
+Imports CFDEngine.CFDEngine
 Imports std = System.Math
 
 Module Program
@@ -36,7 +37,7 @@ Module Program
         nx = 24 : ny = 24 : nz = 24
 
         Console.WriteLine($"[1] 创建 {nx}×{ny}×{nz} 发酵罐，放置旋转搅拌器...")
-        Dim engine = CFDEngine.FluidSim.CreateDefault(nx, ny, nz, angularVelocity:=4.0)
+        Dim engine = FluidSim.CreateDefault(nx, ny, nz, angularVelocity:=4.0)
 
         Dim tank = engine.Tank
         Console.WriteLine($"    搅拌器位置: 轴=({tank.Stirrer.CenterX:F1}, {tank.Stirrer.CenterY:F1}), " &
@@ -96,7 +97,7 @@ Module Program
         Dim vtkPath = "fermentation_tank_stirring.vtk"
         Console.WriteLine($"[9] 导出 VTK 文件: {vtkPath}")
         Dim vtkFull = System.IO.Path.Combine(System.AppContext.BaseDirectory, vtkPath)
-        CFDEngine.VTKExporter.Export(tank, vtkFull)
+        VTKExporter.Export(tank, vtkFull)
         Console.WriteLine($"    已保存: {vtkFull}")
         Console.WriteLine("    可用 ParaView (https://www.paraview.org) 打开查看三维结果。")
         Console.WriteLine()
@@ -105,7 +106,7 @@ Module Program
         Dim downloadDir = "/home/z/my-project/download/CFDEngine"
         If System.IO.Directory.Exists(downloadDir) Then
             Dim vtkCopy = System.IO.Path.Combine(downloadDir, vtkPath)
-            CFDEngine.VTKExporter.Export(tank, vtkCopy)
+            VTKExporter.Export(tank, vtkCopy)
             Console.WriteLine($"    副本已保存: {vtkCopy}")
         End If
 
@@ -118,7 +119,7 @@ Module Program
 #Region "辅助打印函数"
 
     ''' <summary>计算全场最大速度</summary>
-    Function MaxSpeed(tank As CFDEngine.FermentationTank) As Double
+    Function MaxSpeed(tank As FermentationTank) As Double
         Dim f = tank.Field
         Dim maxS = 0.0
         For i = 0 To f.Nx - 1
@@ -136,7 +137,7 @@ Module Program
     End Function
 
     ''' <summary>打印水平切片的速度向量（用箭头字符简化表示）</summary>
-    Sub PrintVelocitySlice(tank As CFDEngine.FermentationTank, k As Integer)
+    Sub PrintVelocitySlice(tank As FermentationTank, k As Integer)
         Dim f = tank.Field
         Dim stepSize = 2  ' 每隔2格打印一个，避免太密
         Console.WriteLine("    速度方向（→←↑↓ 等），长度反映速度大小：")
@@ -177,7 +178,7 @@ Module Program
     End Sub
 
     ''' <summary>打印水平切片的密度场（用字符浓度表示）</summary>
-    Sub PrintDensitySlice(tank As CFDEngine.FermentationTank, k As Integer)
+    Sub PrintDensitySlice(tank As FermentationTank, k As Integer)
         Dim f = tank.Field
         Dim chars = " .:-=+*#%@".ToCharArray()
         ' 先找全场最大密度，用于归一化显示
@@ -203,7 +204,7 @@ Module Program
     End Sub
 
     ''' <summary>打印垂直纵切面的速度大小</summary>
-    Sub PrintVerticalSlice(tank As CFDEngine.FermentationTank, j As Integer)
+    Sub PrintVerticalSlice(tank As FermentationTank, j As Integer)
         Dim f = tank.Field
         Dim chars = " .:-=+*#%@".ToCharArray()
         ' 先找全场最大速度，用于归一化显示
@@ -233,7 +234,7 @@ Module Program
     End Sub
 
     ''' <summary>打印全场统计信息</summary>
-    Sub PrintStatistics(tank As CFDEngine.FermentationTank)
+    Sub PrintStatistics(tank As FermentationTank)
         Dim f = tank.Field
         Dim maxSpeed = 0.0, sumSpeed = 0.0
         Dim maxPressure = Double.NegativeInfinity, minPressure = Double.PositiveInfinity
@@ -274,7 +275,7 @@ Module Program
     End Sub
 
     ''' <summary>打印若干采样体素的详细信息</summary>
-    Sub PrintSampleVoxels(tank As CFDEngine.FermentationTank)
+    Sub PrintSampleVoxels(tank As FermentationTank)
         Dim f = tank.Field
         Dim samples = {
             (f.Nx \ 2, f.Ny \ 2, CInt(std.Floor(tank.Stirrer.ZCenter))),  ' 叶轮中心
