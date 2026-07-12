@@ -15,8 +15,10 @@ function parseVTK(text) {
   // 跳过 "POINT_DATA <count>" 所在的行，避免把 count 当作数据
   const nl = text.indexOf('\n', pIdx);
   const data = text.slice(nl + 1);
+  // 去除 SCALARS 行尾的 numComponents（如 "double 1"），否则会被当作额外数据点
+  const cleaned = data.replace(/SCALARS\s+\w+\s+double\s+1/g, 'SCALARS');
 
-  const tokens = data.match(NUM_RE);
+  const tokens = cleaned.match(NUM_RE);
   if (!tokens) throw new Error('no numeric data');
 
   const fields = {
