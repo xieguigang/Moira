@@ -8,16 +8,25 @@
 '       把 CFD 引擎计算出的速度、压力、密度场导出为 .vtk 文件，
 '       可用 ParaView（免费开源可视化软件）打开查看三维结果。
 '
+'   设计说明：
+'       本导出器只依赖 FluidField（流体场纯数据），不依赖 FermentationTank /
+'       FluidSim 等引擎对象，因此与引擎解耦、可被任意来源的场数据复用。
+'       也提供接收 Snapshot 的重载，便于逐帧快照导出。
+'
 '   文件格式：
 '       Legacy VTK ASCII 格式，STRUCTURED_POINTS 数据集。
-'       包含：
+'       每个文件导出全部物理场，顺序固定为：
 '         - SCALARS pressure  （压力标量场）
 '         - SCALARS density   （密度/示踪剂标量场）
+'         - SCALARS u         （X 方向速度分量标量场）
+'         - SCALARS v         （Y 方向速度分量标量场）
+'         - SCALARS w         （Z 方向速度分量标量场）
 '         - SCALARS speed     （速度大小标量场）
 '         - VECTORS velocity  （速度向量场）
 '
 '   使用方法：
-'       VTKExporter.Export(engine.Tank, "output_0010.vtk")
+'       VTKExporter.Export(tank.Field, "output_0010.vtk", step:=10, time:=1.0)
+'       VTKExporter.Export(snapshot, "output_0010.vtk")
 '       然后在 ParaView 中打开该文件即可。
 '
 ' /********************************************************************************/
@@ -29,17 +38,22 @@ Namespace CFDEngine
 
     ''' <summary>
     ''' 将 CFD 模拟结果导出为 VTK 文件（可用 ParaView 打开）。
+    ''' 仅依赖 FluidField，与引擎对象解耦。
     ''' </summary>
     Public Class VTKExporter
 
         ''' <summary>
-        ''' 导出整个流体场到 VTK 文件。
+        ''' 导出整个流体场到 VTK 文件（主入口，仅依赖 FluidField）。
         ''' </summary>
-        ''' <param name="tank">发酵罐模拟</param>
+        ''' <param name="field">流体场数据</param>
         ''' <param name="filePath">输出文件路径</param>
-        Public Shared Sub Export(tank As FermentationTank, filePath As String)
+        ''' <param name="stepIndex">时间步序号（写入文件头注释，可选）</param>
+        ''' <param name="time">模拟时间（写入文件头注释，可选）</param>
+        Public Shared Sub Export(field As FluidField, filePath As String,
+                                 Optional stepIndex As Integer = 0,
+                                 Optional time As Double = 0.0)
 
-            Dim f = tank.Field
+            Dim f = field
             Dim nx = f.Nx
             Dim ny = f.Ny
             Dim nz = f.Nz
@@ -47,7 +61,7 @@ Namespace CFDEngine
             Using writer As New StreamWriter(filePath)
                 ' ---- VTK 文件头 ----
                 writer.WriteLine("# vtk DataFile Version 3.0")
-                writer.WriteLine("CFD Engine Output - Step " & tank.StepCount & " - Time " & tank.Time.ToString("F4"))
+                writer.WriteLine("CFD Engine Output - Step " & stepIndex & " - Time " & time.ToString("F4"))
                 writer.WriteLine("ASCII")
                 writer.WriteLine("DATASET STRUCTURED_POINTS")
 
@@ -86,6 +100,42 @@ Namespace CFDEngine
                     Next
                 Next
 
+                ' ---- 速度 X 分量标量场 (u) ----
+                writer.WriteLine("SCALARS u double 1")
+                writer.WriteLine("LOOKUP_TABLE default")
+                For k = 0 To nz - 1
+                    For j = 0 To ny - 1
+                        For i = 0 To nx - 1
+                            writer.Write("{0:F6} ", f.U(i, j, k))
+                        Next
+                        writer.WriteLine()
+                    Next
+                Next
+
+                ' ---- 速度 Y 分量标量场 (v) ----
+                writer.WriteLine("SCALARS v double 1")
+                writer.WriteLine("LOOKUP_TABLE default")
+                For k = 0 To nz - 1
+                    For j = 0 To ny - 1
+                        For i = 0 To nx - 1
+                            writer.Write("{0:F6} ", f.V(i, j, k))
+                        Next
+                        writer.WriteLine()
+                    Next
+                Next
+
+                ' ---- 速度 Z 分量标量场 (w) ----
+                writer.WriteLine("SCALARS w double 1")
+                writer.WriteLine("LOOKUP_TABLE default")
+                For k = 0 To nz - 1
+                    For j = 0 To ny - 1
+                        For i = 0 To nx - 1
+                            writer.Write("{0:F6} ", f.W(i, j, k))
+                        Next
+                        writer.WriteLine()
+                    Next
+                Next
+
                 ' ---- 速度大小标量场 ----
                 writer.WriteLine("SCALARS speed double 1")
                 writer.WriteLine("LOOKUP_TABLE default")
@@ -117,11 +167,24 @@ Namespace CFDEngine
         End Sub
 
         ''' <summary>
-        ''' 导出单个水平切片（某 k 层）的 CSV 文件，便于用 Excel 或 Python 查看。
+        ''' 导出快照到 VTK 文件（重载，便于逐帧导出）。
         ''' </summary>
-        Public Shared Sub ExportSliceCSV(tank As FermentationTank, k As Integer, filePath As String)
+        ''' <param name="snapshot">数据快照</param>
+        ''' <param name="filePath">输出文件路径</param>
+        Public Shared Sub Export(snapshot As Snapshot, filePath As String)
+            Export(snapshot.Field, filePath, snapshot.StepIndex, snapshot.Time)
+        End Sub
 
-            Dim f = tank.Field
+        ''' <summary>
+        ''' 导出单个水平切片（某 k 层）的 CSV 文件，便于用 Excel 或 Python 查看。
+        ''' 仅依赖 FluidField，与引擎对象解耦。
+        ''' </summary>
+        ''' <param name="field">流体场数据</param>
+        ''' <param name="k">切片所在的 Z 层索引</param>
+        ''' <param name="filePath">输出文件路径</param>
+        Public Shared Sub ExportSliceCSV(field As FluidField, k As Integer, filePath As String)
+
+            Dim f = field
             Using writer As New StreamWriter(filePath)
                 writer.WriteLine("i,j,u,v,w,speed,pressure,density")
                 For i = 0 To f.Nx - 1

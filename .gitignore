@@ -358,3 +358,4 @@ test/demo.dat
 .pkg/Setup Files/resources/MainFeature.cab
 .pkg/Setup Files/resources/VisualStudio_Diagnose.cab
 *.bin
+/test/test2/data

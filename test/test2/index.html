@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CFD VTK Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- ===================== 顶部栏 ===================== -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo">CFD</div>
+      <div class="brand-text">
+        <h1 data-i18n="app.title">CFD 流体可视化</h1>
+        <span class="brand-sub" id="dataStatus" data-i18n="status.idle">未加载数据</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <label class="btn btn-primary" for="folderInput">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span data-i18n="app.upload">上传数据文件夹</span>
+      </label>
+      <input id="folderInput" type="file" webkitdirectory directory multiple hidden />
+      <button class="btn btn-ghost lang-toggle" id="langToggle" data-i18n="app.langToggle">EN</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- ===================== 左侧控制面板 ===================== -->
+    <aside class="sidebar">
+      <!-- 显示场 -->
+      <section class="card">
+        <h2 class="card-title" data-i18n="control.field">显示场</h2>
+        <select id="fieldSelect" class="select">
+          <option value="speed" data-i18n="field.speed">速度大小</option>
+          <option value="pressure" data-i18n="field.pressure">压力</option>
+          <option value="density" data-i18n="field.density">密度 / 示踪剂</option>
+          <option value="u" data-i18n="field.u">速度 U (X)</option>
+          <option value="v" data-i18n="field.v">速度 V (Y)</option>
+          <option value="w" data-i18n="field.w">速度 W (Z)</option>
+        </select>
+      </section>
+
+      <!-- 调色板 -->
+      <section class="card">
+        <h2 class="card-title" data-i18n="control.palette">调色板</h2>
+        <select id="paletteSelect" class="select">
+          <option value="viridis" data-i18n="palette.viridis">Viridis</option>
+          <option value="plasma" data-i18n="palette.plasma">Plasma</option>
+          <option value="inferno" data-i18n="palette.inferno">Inferno</option>
+          <option value="turbo" data-i18n="palette.turbo">Turbo</option>
+          <option value="jet" data-i18n="palette.jet">Jet</option>
+          <option value="coolwarm" data-i18n="palette.coolwarm">Cool-Warm</option>
+          <option value="grayscale" data-i18n="palette.grayscale">Grayscale</option>
+        </select>
+        <canvas id="legendCanvas" class="legend" width="240" height="26"></canvas>
+        <div class="legend-scale">
+          <span id="rangeMinLabel">0</span>
+          <span id="rangeMaxLabel">1</span>
+        </div>
+        <div class="range-row">
+          <label class="range-label" data-i18n="control.range">数值范围</label>
+          <button class="btn btn-mini" id="rangeAuto" data-i18n="control.auto">自动</button>
+        </div>
+        <div class="dual-range">
+          <input type="range" id="rangeMin" min="0" max="1" step="0.0001" value="0" />
+          <input type="range" id="rangeMax" min="0" max="1" step="0.0001" value="1" />
+        </div>
+      </section>
+
+      <!-- 矢量箭头 -->
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title" data-i18n="control.arrows">速度矢量箭头</h2>
+          <label class="switch">
+            <input type="checkbox" id="arrowsToggle" />
+            <span class="slider round"></span>
+          </label>
+        </div>
+        <div class="field-block">
+          <label class="range-label" data-i18n="control.arrowDensity">箭头密度</label>
+          <input type="range" id="arrowDensity" min="1" max="5" step="1" value="2" />
+          <span class="range-val" id="arrowDensityVal">2</span>
+        </div>
+      </section>
+
+      <!-- 横截面 -->
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title" data-i18n="control.section">横截面</h2>
+          <label class="switch">
+            <input type="checkbox" id="sectionToggle" />
+            <span class="slider round"></span>
+          </label>
+        </div>
+        <div class="field-block">
+          <label class="range-label" data-i18n="control.sectionAxis">截面轴</label>
+          <div class="seg" id="sectionAxis">
+            <button class="seg-btn active" data-axis="x" data-i18n="axis.x">X</button>
+            <button class="seg-btn" data-axis="y" data-i18n="axis.y">Y</button>
+            <button class="seg-btn" data-axis="z" data-i18n="axis.z">Z</button>
+          </div>
+        </div>
+        <div class="field-block">
+          <label class="range-label" data-i18n="control.sectionPos">截面位置</label>
+          <input type="range" id="sectionPos" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+        <div class="field-block">
+          <label class="switch-inline">
+            <input type="checkbox" id="sectionFlip" />
+            <span data-i18n="control.sectionFlip">翻转裁剪方向</span>
+          </label>
+        </div>
+        <div class="field-block">
+          <label class="switch-inline">
+            <input type="checkbox" id="sectionArbitrary" />
+            <span data-i18n="control.sectionArbitrary">任意平面</span>
+          </label>
+        </div>
+        <div class="field-block arbitrary-fields" id="arbitraryFields" hidden>
+          <label class="range-label" data-i18n="control.sectionNormal">法向量 (nx, ny, nz)</label>
+          <div class="vec-inputs">
+            <input type="number" id="normalX" value="1" step="0.1" />
+            <input type="number" id="normalY" value="0" step="0.1" />
+            <input type="number" id="normalZ" value="0" step="0.1" />
+          </div>
+          <input type="range" id="arbitraryPos" min="-1" max="1" step="0.01" value="0" />
+        </div>
+      </section>
+
+      <!-- 动画控制 -->
+      <section class="card">
+        <h2 class="card-title" data-i18n="control.animation">动画播放</h2>
+        <div class="play-row">
+          <button class="btn btn-primary btn-icon" id="playBtn" aria-label="play">
+            <svg id="playIcon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            <span id="playLabel" data-i18n="control.play">播放</span>
+          </button>
+          <button class="btn btn-ghost btn-icon" id="resetBtn" title="reset">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+          </button>
+        </div>
+        <div class="field-block">
+          <label class="range-label" data-i18n="control.speed">播放速度</label>
+          <input type="range" id="speedSlider" min="0.2" max="6" step="0.1" value="1.5" />
+          <span class="range-val" id="speedVal">1.5×</span>
+        </div>
+        <div class="field-block">
+          <label class="range-label" data-i18n="control.frame">帧</label>
+          <input type="range" id="frameSlider" min="0" max="0" step="1" value="0" />
+        </div>
+        <div class="time-readout">
+          <span><span data-i18n="control.time">时间</span>: <b id="timeDisplay">0.00</b></span>
+          <span><span data-i18n="control.frame">帧</span>: <b id="frameDisplay">0</b></span>
+        </div>
+      </section>
+    </aside>
+
+    <!-- ===================== 中央三维视口 ===================== -->
+    <main class="viewport-wrap">
+      <div id="viewport"></div>
+      <div id="emptyHint" class="empty-hint">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        <p data-i18n="hint.upload">请上传包含 animation.pvd 与 frame_*.vtk 的 data 文件夹以开始可视化</p>
+      </div>
+      <div id="loadingOverlay" class="loading-overlay" hidden>
+        <div class="loading-card">
+          <div class="spinner"></div>
+          <p id="loadingText" data-i18n="status.parsing">正在解析…</p>
+          <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+          <span class="progress-pct" id="progressPct">0%</span>
+        </div>
+      </div>
+      <div class="viewport-tip" id="pickTip" hidden></div>
+    </main>
+
+    <!-- ===================== 底部图表 / 信息栏 ===================== -->
+    <footer class="bottombar">
+      <section class="card voxel-card">
+        <h2 class="card-title" data-i18n="voxel.title">选中体素</h2>
+        <p class="muted" id="voxelNone" data-i18n="voxel.none">点击体素网格以查看其时间序列</p>
+        <div id="voxelInfo" hidden>
+          <div class="voxel-coords"><span data-i18n="voxel.coords">坐标 (i, j, k)</span>: <b id="voxelCoords">-,-,-</b></div>
+          <div class="voxel-values" id="voxelValues"></div>
+        </div>
+      </section>
+      <section class="card chart-card">
+        <h2 class="card-title" data-i18n="chart.title">时间序列</h2>
+        <div class="chart-wrap"><canvas id="tsChart"></canvas></div>
+      </section>
+    </footer>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

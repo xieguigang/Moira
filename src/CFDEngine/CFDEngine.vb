@@ -102,15 +102,28 @@ Namespace CFDEngine
         ''' <param name="steps">步数</param>
         ''' <param name="dt">每步时间步长</param>
         ''' <param name="progressCallback">可选：每步回调 (stepIndex, time)</param>
+        ''' <param name="recorder">
+        ''' 可选：数据快照记录器。若非 Nothing，则每步后自动捕获当前流体场为一帧，
+        ''' 循环结束后自动写出 .pvd 时间集合，便于在 ParaView 中以动画形式观察。
+        ''' </param>
         Public Sub Run(steps As Integer, dt As Double,
-                       Optional progressCallback As Action(Of Integer, Double) = Nothing)
+                       Optional progressCallback As Action(Of Integer, Double) = Nothing,
+                       Optional recorder As SnapshotRecorder = Nothing)
 
             For s = 1 To steps
                 Tank.StepForward(dt)
                 If progressCallback IsNot Nothing Then
                     progressCallback(s, Tank.Time)
                 End If
+                If recorder IsNot Nothing Then
+                    recorder.Capture(Tank.Field, Tank.StepCount, Tank.Time)
+                End If
             Next
+
+            ' 循环结束后写出 .pvd 动画集合索引
+            If recorder IsNot Nothing Then
+                recorder.WriteIndex()
+            End If
 
         End Sub
 

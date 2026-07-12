@@ -57,6 +57,15 @@ Module Program
         Console.WriteLine($"[3] 运行 {steps} 个时间步，dt={dt}...")
         Console.WriteLine()
 
+        ' 创建逐帧快照记录器：每帧导出一个 .vtk，结束后生成 animation.pvd（ParaView 动画）
+        Dim framesDir = System.IO.Path.Combine(System.AppContext.BaseDirectory, "frames")
+        Dim recorder As New SnapshotRecorder(framesDir, "frame",
+                                             interval:=1,
+                                             pvdName:="animation.pvd",
+                                             estimatedFrames:=steps)
+        Console.WriteLine($"    逐帧快照将保存到: {framesDir}")
+        Console.WriteLine()
+
         Dim startTime = DateTime.Now
         engine.Run(steps, dt,
                    Sub(stepIdx, time)
@@ -64,9 +73,13 @@ Module Program
                            Console.WriteLine($"    步 {stepIdx,3} / {steps}  时间={time:F2}  " &
                                              $"最大速度={MaxSpeed(tank):F3}")
                        End If
-                   End Sub)
+                   End Sub,
+                   recorder:=recorder)
         Dim elapsed = (DateTime.Now - startTime).TotalSeconds
         Console.WriteLine($"    完成！耗时 {elapsed:F2} 秒")
+        Console.WriteLine($"    已保存 {recorder.FrameCount} 帧快照，动画集合: " &
+                          System.IO.Path.Combine(framesDir, "animation.pvd"))
+        Console.WriteLine("    在 ParaView 中打开 animation.pvd 即可播放时间动画。")
         Console.WriteLine()
 
         ' ---- 4. 打印切片 ----
@@ -93,11 +106,11 @@ Module Program
         PrintSampleVoxels(tank)
         Console.WriteLine()
 
-        ' ---- 7. 导出 VTK ----
+        ' ---- 7. 导出单帧 VTK（最后一帧，作对照）----
         Dim vtkPath = "fermentation_tank_stirring.vtk"
-        Console.WriteLine($"[9] 导出 VTK 文件: {vtkPath}")
+        Console.WriteLine($"[9] 导出单帧 VTK 文件（最后一帧）: {vtkPath}")
         Dim vtkFull = System.IO.Path.Combine(System.AppContext.BaseDirectory, vtkPath)
-        VTKExporter.Export(tank, vtkFull)
+        VTKExporter.Export(tank.Field, vtkFull, tank.StepCount, tank.Time)
         Console.WriteLine($"    已保存: {vtkFull}")
         Console.WriteLine("    可用 ParaView (https://www.paraview.org) 打开查看三维结果。")
         Console.WriteLine()
@@ -106,7 +119,7 @@ Module Program
         Dim downloadDir = "/home/z/my-project/download/CFDEngine"
         If System.IO.Directory.Exists(downloadDir) Then
             Dim vtkCopy = System.IO.Path.Combine(downloadDir, vtkPath)
-            VTKExporter.Export(tank, vtkCopy)
+            VTKExporter.Export(tank.Field, vtkCopy, tank.StepCount, tank.Time)
             Console.WriteLine($"    副本已保存: {vtkCopy}")
         End If
 
