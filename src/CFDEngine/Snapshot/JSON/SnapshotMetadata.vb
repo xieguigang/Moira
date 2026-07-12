@@ -18,7 +18,6 @@
 '
 ' /********************************************************************************/
 
-Imports System.Collections.Generic
 Imports System.Text.Json
 Imports System.Text.Json.Serialization
 
@@ -91,7 +90,7 @@ Namespace CFDEngine
     ''' </summary>
     Public Class FrameRef
         ''' <summary>该帧时间步序号</summary>
-        <JsonPropertyName("step")>
+        <JsonPropertyName("Step")>
         Public Property StepIndex As Integer
         ''' <summary>该帧模拟时间</summary>
         Public Property Time As Double
