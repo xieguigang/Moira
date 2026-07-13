@@ -371,13 +371,16 @@ Public Class StableFluidsSolver
 
                         Dim sumP As Double = 0.0
                         Dim nFluid As Integer = 0
-                        If IsSolid(i - 1, j, k, nx, ny, nz) Then sumP += prev(i, j, k) Else sumP += prev(i - 1, j, k) : nFluid += 1
-                        If IsSolid(i + 1, j, k, nx, ny, nz) Then sumP += prev(i, j, k) Else sumP += prev(i + 1, j, k) : nFluid += 1
-                        If IsSolid(i, j - 1, k, nx, ny, nz) Then sumP += prev(i, j, k) Else sumP += prev(i, j - 1, k) : nFluid += 1
-                        If IsSolid(i, j + 1, k, nx, ny, nz) Then sumP += prev(i, j, k) Else sumP += prev(i, j + 1, k) : nFluid += 1
-                        If IsSolid(i, j, k - 1, nx, ny, nz) Then sumP += prev(i, j, k) Else sumP += prev(i, j, k - 1) : nFluid += 1
-                        If IsSolid(i, j, k + 1, nx, ny, nz) Then sumP += prev(i, j, k) Else sumP += prev(i, j, k + 1) : nFluid += 1
+                        ' 仅对流体邻居求和；固体邻居按 Neumann 零梯度不计入（贡献为 0）
+                        If IsSolid(i - 1, j, k, nx, ny, nz) Then nFluid += 0 Else sumP += prev(i - 1, j, k) : nFluid += 1
+                        If IsSolid(i + 1, j, k, nx, ny, nz) Then nFluid += 0 Else sumP += prev(i + 1, j, k) : nFluid += 1
+                        If IsSolid(i, j - 1, k, nx, ny, nz) Then nFluid += 0 Else sumP += prev(i, j - 1, k) : nFluid += 1
+                        If IsSolid(i, j + 1, k, nx, ny, nz) Then nFluid += 0 Else sumP += prev(i, j + 1, k) : nFluid += 1
+                        If IsSolid(i, j, k - 1, nx, ny, nz) Then nFluid += 0 Else sumP += prev(i, j, k - 1) : nFluid += 1
+                        If IsSolid(i, j, k + 1, nx, ny, nz) Then nFluid += 0 Else sumP += prev(i, j, k + 1) : nFluid += 1
 
+                        ' 离散 Poisson（Neumann 壁面）：Σ(流体邻居 p) - nFluid·p = div
+                        '   → p = (Σ流体邻居 - div) / nFluid
                         Dim divisor = If(nFluid > 0, CDbl(nFluid), 1.0)
                         pressure(i, j, k) = (sumP - div(i, j, k)) / divisor
                     Next
