@@ -7,12 +7,11 @@ Imports ThemeVS2015
 
 Public Class FormMain : Implements AppHost
 
-    Dim ribbon1 As New Ribbon
-    Dim vsToolStripExtender1 As New VisualStudioToolStripExtender
-    Dim vS2015LightTheme1 As New VS2015LightTheme
-    Dim dockPanel As New DockPanel
 
+
+    ReadOnly vS2015LightTheme1 As New VS2015LightTheme
     ReadOnly _toolStripProfessionalRenderer As New ToolStripProfessionalRenderer()
+
     Public Event ResizeForm As AppHost.ResizeFormEventHandler Implements AppHost.ResizeForm
     Public Event CloseWorkbench As AppHost.CloseWorkbenchEventHandler Implements AppHost.CloseWorkbench
     Private ReadOnly Property AppHost_ClientRectangle As Rectangle Implements AppHost.ClientRectangle
@@ -32,23 +31,8 @@ Public Class FormMain : Implements AppHost
         ' 此调用是设计器所必需的。
         InitializeComponent()
 
-        Me.Controls.Add(ribbon1)
-        Me.Controls.Add(dockPanel)
-
-        dockPanel.Dock = DockStyle.Fill
-        dockPanel.ShowDocumentIcon = True
-        dockPanel.DockLeftPortion = 250.0R
-
-        vsToolStripExtender1.DefaultRenderer = _toolStripProfessionalRenderer
-
-        ' 在 InitializeComponent() 调用之后添加任何初始化。
-        ribbon1.ResourceName = $"CFD_win32.RibbonMarkup.ribbon"
-        ribbon1.Dock = DockStyle.Top
-        ribbon1.Height = 100
-        ribbon1.SendToBack()
-        ribbonItems = New RibbonItems(ribbon1)
-
-        dockPanel.BringToFront()
+        VisualStudioToolStripExtender1.DefaultRenderer = _toolStripProfessionalRenderer
+        ribbonItems = New RibbonItems(Ribbon1)
 
         Globals.ribbonItems = ribbonItems
         Globals.dockPanel = dockPanel
@@ -68,25 +52,8 @@ Public Class FormMain : Implements AppHost
 
     Friend Sub EnableVSRenderer(ParamArray toolStrips As ToolStrip())
         For Each tool In toolStrips
-            vsToolStripExtender1.SetStyle(tool, VisualStudioToolStripExtender.VsVersion.Vs2015, vS2015LightTheme1)
+            VisualStudioToolStripExtender1.SetStyle(tool, VisualStudioToolStripExtender.VsVersion.Vs2015, vS2015LightTheme1)
         Next
-    End Sub
-
-    Private Sub CreateNewSimulation()
-        Dim wizard As New FormProjectWizard()
-
-        If wizard.ShowDialog() = DialogResult.OK Then
-            Using folder As New FolderBrowserDialog With {
-                .ShowNewFolderButton = True
-            }
-                If folder.ShowDialog = DialogResult.OK Then
-                    Dim pars = wizard.GetParameters(folder.SelectedPath)
-                    Dim CFD As New frmCFDCanvas With {.setup = pars}
-
-                    Call CommonRuntime.ShowDocument(CFD)
-                End If
-            End Using
-        End If
     End Sub
 
     Private Sub FormMain_FormClosing(sender As Object, e As FormClosingEventArgs) Handles MyBase.FormClosing
