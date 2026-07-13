@@ -13,6 +13,26 @@
     <AssemblyTitle>Basic CFD Engine for Teaching</AssemblyTitle>
     <Description>A basic Computational Fluid Dynamics engine implemented in VB.NET using basic math functions, designed for principle learning and teaching. Simulates 3D liquid stirring in a fermentation tank.</Description>
     <Platforms>AnyCPU;x64</Platforms>
+    <RootNamespace>Moira.CFDEngine</RootNamespace>
+    <UseApplicationFramework>True</UseApplicationFramework>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <RemoveIntegerChecks>True</RemoveIntegerChecks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <RemoveIntegerChecks>True</RemoveIntegerChecks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <RemoveIntegerChecks>True</RemoveIntegerChecks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <RemoveIntegerChecks>True</RemoveIntegerChecks>
   </PropertyGroup>
 
   <ItemGroup>
