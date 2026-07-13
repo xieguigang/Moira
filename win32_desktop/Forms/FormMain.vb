@@ -1,9 +1,11 @@
-﻿Imports CFD_clr
-Imports CFD_win32.RibbonLib.Controls
+﻿Imports CFD_win32.RibbonLib.Controls
+Imports Galaxy.Workbench
+Imports Galaxy.Workbench.CommonDialogs
+Imports Microsoft.VisualStudio.WinForms.Docking
 Imports RibbonLib
-Imports WeifenLuo.WinFormsUI.Docking
+Imports ThemeVS2015
 
-Public Class FormMain
+Public Class FormMain : Implements AppHost
 
     Dim ribbon1 As New Ribbon
     Dim vsToolStripExtender1 As New VisualStudioToolStripExtender
@@ -11,6 +13,19 @@ Public Class FormMain
     Dim dockPanel As New DockPanel
 
     ReadOnly _toolStripProfessionalRenderer As New ToolStripProfessionalRenderer()
+    Public Event ResizeForm As AppHost.ResizeFormEventHandler Implements AppHost.ResizeForm
+    Public Event CloseWorkbench As AppHost.CloseWorkbenchEventHandler Implements AppHost.CloseWorkbench
+    Private ReadOnly Property AppHost_ClientRectangle As Rectangle Implements AppHost.ClientRectangle
+        Get
+            Return New Rectangle(Location, Size)
+        End Get
+    End Property
+
+    Public ReadOnly Property ActiveDocument As Form Implements AppHost.ActiveDocument
+        Get
+            Return DirectCast(dockPanel.ActiveDocument, Form)
+        End Get
+    End Property
 
     Sub New()
 
@@ -44,14 +59,12 @@ Public Class FormMain
         dockPanel.Theme = vS2015LightTheme1
         EnableVSRenderer(StatusStrip1)
 
-        Me.Location = New Point(Globals.settings.form_pos(0), Globals.settings.form_pos(1))
-        Me.Size = New Point(Globals.settings.form_size(0), Globals.settings.form_size(1))
-
         AddHandler ribbonItems.ButtonAbout.ExecuteEvent, Sub() Call New SplashScreen() With {.ShowAbout = True}.Show()
         AddHandler ribbonItems.ButtonAppExit.ExecuteEvent, Sub() Call Me.Close()
         AddHandler ribbonItems.FileNew.ExecuteEvent, Sub() Call CreateNewSimulation()
-        AddHandler ribbonItems.ButtonLicense.ExecuteEvent, Sub() Call New FormLicense().ShowDialog()
+        AddHandler ribbonItems.ButtonLicense.ExecuteEvent, Sub() Call InputDialog.Input(Of FormLicense)()
 
+        Call CommonRuntime.Hook(Me)
         Call Globals.SetupBackendUI()
     End Sub
 
@@ -72,16 +85,66 @@ Public Class FormMain
                     Dim pars = wizard.GetParameters(folder.SelectedPath)
                     Dim CFD As New frmCFDCanvas With {.setup = pars}
 
-                    CFD.Show(dockPanel)
-                    CFD.DockState = DockState.Document
+                    Call CommonRuntime.ShowDocument(CFD)
                 End If
             End Using
         End If
     End Sub
 
     Private Sub FormMain_FormClosing(sender As Object, e As FormClosingEventArgs) Handles MyBase.FormClosing
-        Globals.settings.form_pos = {Location.X, Location.Y}
-        Globals.settings.form_size = {Size.Width, Size.Height}
+        CommonRuntime.SaveUISettings()
         Globals.settings.Save()
+    End Sub
+
+    Public Sub SetWorkbenchVisible(visible As Boolean) Implements AppHost.SetWorkbenchVisible
+        Me.Visible = visible
+    End Sub
+
+    Public Sub SetWindowState(stat As FormWindowState) Implements AppHost.SetWindowState
+        Me.WindowState = stat
+    End Sub
+
+    Public Function GetDesktopLocation() As Point Implements AppHost.GetDesktopLocation
+        Return Location
+    End Function
+
+    Public Function GetClientSize() As Size Implements AppHost.GetClientSize
+        Return Size
+    End Function
+
+    Public Function GetDocuments() As IEnumerable(Of Form) Implements AppHost.GetDocuments
+        Return dockPanel.Documents.OfType(Of Form)
+    End Function
+
+    Public Function GetDockPanel() As Control Implements AppHost.GetDockPanel
+        Return DirectCast(dockPanel, Control)
+    End Function
+
+    Public Function GetWindowState() As FormWindowState Implements AppHost.GetWindowState
+        Return WindowState
+    End Function
+
+    Public Sub SetTitle(title As String) Implements AppHost.SetTitle
+        Me.Text = title
+    End Sub
+
+    Public Sub StatusMessage(msg As String, Optional icon As Image = Nothing) Implements AppHost.StatusMessage
+        Call Me.Invoke(
+            Sub()
+                ToolStripStatusLabel1.Text = msg
+                ToolStripStatusLabel1.Image = icon
+            End Sub)
+    End Sub
+
+    Public Sub Warning(msg As String) Implements AppHost.Warning
+        Call StatusMessage(msg, Icons8.Warning)
+    End Sub
+
+    Public Sub LogText(text As String) Implements AppHost.LogText
+        Call CommonRuntime.GetOutputWindow.AppendLine(text)
+    End Sub
+
+    Public Sub ShowProperties(obj As Object) Implements AppHost.ShowProperties
+        Call CommonRuntime.GetPropertyWindow.SetObject(obj)
     End Sub
 End Class

@@ -5,6 +5,7 @@ Imports System.Runtime.CompilerServices
 Imports System.Text
 Imports CFD
 Imports CFD_clr
+Imports Galaxy.Workbench
 Imports Microsoft.VisualBasic.ComponentModel.Ranges.Model
 Imports Microsoft.VisualBasic.Imaging
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
@@ -12,7 +13,6 @@ Imports Microsoft.VisualBasic.Linq
 Imports Microsoft.VisualBasic.Math.Distributions
 Imports Microsoft.VisualBasic.Parallel.Tasks
 Imports RibbonLib.Interop
-Imports WeifenLuo.WinFormsUI.Docking
 Imports bitmap = System.Drawing.Bitmap
 Imports brushes = System.Drawing.Brushes
 Imports image = System.Drawing.Image
@@ -25,7 +25,7 @@ Public Class frmCFDCanvas
     Friend CFD As CFDTcpProtocols
     Friend setup As SetupParameters
 
-    Dim colors As SolidBrush()
+    Dim colors As solidbrush()
     Dim offset As New DoubleRange(0, 255)
     Dim drawLine As Boolean = False
     Dim model As image = Nothing
@@ -65,7 +65,7 @@ Public Class frmCFDCanvas
         Dim g As Graphics = Graphics.FromImage(bitmap)
 
         If frame.IsNullOrEmpty Then
-            Call Globals.Message("invalid frame data!")
+            Call CommonRuntime.Warning("invalid frame data!")
             Return Nothing
         End If
 
@@ -248,7 +248,7 @@ Public Class frmCFDCanvas
         Dim xy As Point = GetCFDPosition()
         Dim tooltip As New StringBuilder
 
-        Call Message($"[{xy.X},{xy.Y}]")
+        Call CommonRuntime.StatusMessage($"[{xy.X},{xy.Y}]")
 
         Dim speed As Double = CFD.GetSpeed(xy)
         Dim density As Double = CFD.GetDensity(xy)

@@ -1,4 +1,4 @@
-﻿Imports WeifenLuo.WinFormsUI.Docking
+﻿Imports Microsoft.VisualStudio.WinForms.Docking
 
 Public Class toolCFDParameters
 
@@ -7,7 +7,7 @@ Public Class toolCFDParameters
     Public ReadOnly Property pars As CFDHelper
 
     Public Sub SetTarget(callback As frmCFDCanvas)
-        Dim helper As New CFDHelper(callback.Timer1)
+        Dim helper As New CFDHelper(callback.timer1)
 
         helper.SetBackend(callback.CFD.EndPoint)
         helper.SetParameters(callback.setup)

@@ -2,9 +2,10 @@
 Imports CFD_clr
 Imports CFD_win32.My
 Imports CFD_win32.RibbonLib.Controls
+Imports Galaxy.Workbench
 Imports Microsoft.VisualBasic.Drawing
 Imports Microsoft.VisualBasic.Net
-Imports WeifenLuo.WinFormsUI.Docking
+Imports Microsoft.VisualStudio.WinForms.Docking
 
 Module Globals
 
@@ -19,12 +20,8 @@ Module Globals
         SkiaDriver.Register()
     End Sub
 
-    Public Sub Message(str As String)
-        main.Invoke(Sub() main.ToolStripStatusLabel2.Text = str)
-    End Sub
-
     Public Function CreateService() As CFDTcpProtocols
-        Dim port As Integer = RscriptHelper.CreateCFDServer(await:=1500, log:=AddressOf Message)
+        Dim port As Integer = RscriptHelper.CreateCFDServer(await:=1500, log:=AddressOf CommonRuntime.StatusMessage)
         Dim client As New CFDTcpProtocols(New IPEndPoint("127.0.0.1", port))
         Return client
     End Function
