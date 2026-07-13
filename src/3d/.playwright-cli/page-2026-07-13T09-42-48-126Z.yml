@@ -1,0 +1,77 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e6]:
+      - heading "Moira 3D" [level=1] [ref=e7]
+      - paragraph [ref=e8]: 查看与体素化 · CFD Voxelizer
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - generic [ref=e11]: /
+        - textbox "模型相对路径，例如 airplane1.3mf" [ref=e12]: airplane1.3mf
+      - button "加载模型" [ref=e13] [cursor=pointer]
+      - generic [ref=e15] [cursor=pointer]: 本地文件
+    - generic [ref=e16]: "支持: 3MF · OBJ · STL · PLY · DAE · GLB · GLTF · 3DS"
+  - complementary [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - heading "模型属性" [level=2] [ref=e20]
+        - generic [ref=e21]: —
+      - generic [ref=e22]:
+        - generic [ref=e23]:
+          - generic [ref=e24]: 顶点数
+          - generic [ref=e25]: —
+        - generic [ref=e26]:
+          - generic [ref=e27]: 三角面数
+          - generic [ref=e28]: —
+        - generic [ref=e29]:
+          - generic [ref=e30]: 对象数
+          - generic [ref=e31]: —
+        - generic [ref=e32]:
+          - generic [ref=e33]: 点数(点云)
+          - generic [ref=e34]: —
+      - generic [ref=e35]:
+        - generic [ref=e36]: 包围盒尺寸 (W × H × D)
+        - generic [ref=e37]: —
+    - generic [ref=e38]:
+      - generic [ref=e39]:
+        - heading "体素化 (CFD)" [level=2] [ref=e40]
+        - generic [ref=e41]: Solid
+      - generic [ref=e42]:
+        - generic [ref=e43]: 网格分辨率 (最长边体素数)
+        - generic [ref=e44]:
+          - spinbutton "网格分辨率 (最长边体素数)" [ref=e45]: "64"
+          - generic [ref=e46]:
+            - button "32" [ref=e47] [cursor=pointer]
+            - button "64" [ref=e48] [cursor=pointer]
+            - button "128" [ref=e49] [cursor=pointer]
+            - button "256" [ref=e50] [cursor=pointer]
+      - generic [ref=e51]:
+        - button "开始体素化" [disabled] [ref=e52]
+        - button "下载 JSON" [disabled] [ref=e54]
+      - generic [ref=e55]: 请求模型文件…
+      - generic [ref=e59] [cursor=pointer]:
+        - checkbox "在视口预览体素 (低分辨率)" [checked] [ref=e60]
+        - generic [ref=e61]: 在视口预览体素 (低分辨率)
+      - generic [ref=e62]:
+        - generic [ref=e63]: 0 · 流体/外部空间
+        - generic [ref=e65]: 1 · 固体边界
+      - generic [ref=e67]:
+        - generic [ref=e68]:
+          - generic [ref=e69]: 网格维度
+          - generic [ref=e70]: —
+        - generic [ref=e71]:
+          - generic [ref=e72]: 固体体素
+          - generic [ref=e73]: —
+        - generic [ref=e74]:
+          - generic [ref=e75]: 体素尺寸
+          - generic [ref=e76]: —
+        - generic [ref=e77]:
+          - generic [ref=e78]: 耗时
+          - generic [ref=e79]: —
+  - main [ref=e80]:
+    - generic [ref=e82]: 请求模型文件…
+    - generic [ref=e85]:
+      - button "⟳" [ref=e86] [cursor=pointer]
+      - button "▦" [ref=e87] [cursor=pointer]
+      - button "◇" [ref=e88] [cursor=pointer]
+  - contentinfo [ref=e89]:
+    - generic [ref=e91]: 加载模型…
