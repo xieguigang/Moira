@@ -14,14 +14,14 @@
 
     Public Function CheckDevelopmentMode() As Boolean
         Dim home As String = App.HOME.GetDirectoryFullPath
-        Dim check = home.StartsWith("G:/VirtualViewer")
+        Dim check = home.StartsWith("G:/Moira")
 
         Return check
     End Function
 
     Public Function GetWwwRoot() As String
         If AppEnvironment.CheckDevelopmentMode Then
-            Return "G:\VirtualViewer\src\viewer"
+            Return "G:\Moira\src\app"
         Else
             Return App.HOME & "/app"
         End If
