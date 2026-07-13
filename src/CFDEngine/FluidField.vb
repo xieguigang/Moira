@@ -86,6 +86,13 @@ Public Class FluidField
         End Get
     End Property
 
+    ''' <summary>
+    ''' 三维体素空间模型（计算空间的真相源）。
+    ''' True = 活动体素（属于模拟空间）；False = 空腔（求解器中视为固体障碍物）。
+    ''' 长方体旧路径内部构造全 true 的 VoxelShape.FullBox，故永不为 Nothing。
+    ''' </summary>
+    Public Property Shape As VoxelShape
+
 #End Region
 
 #Region "物理量场（Tensor 对象）"
@@ -111,23 +118,34 @@ Public Class FluidField
 
     ''' <summary>
     ''' 创建指定网格尺寸的流体场，所有物理量初始化为零。
+    ''' 内部用全 true 的长方体体素模型（等价于旧版 nx×ny×nz 长方体空间）。
     ''' </summary>
     ''' <param name="nx">X 方向格子数</param>
     ''' <param name="ny">Y 方向格子数</param>
     ''' <param name="nz">Z 方向格子数</param>
     Public Sub New(nx As Integer, ny As Integer, nz As Integer)
-        Me.Nx = nx
-        Me.Ny = ny
-        Me.Nz = nz
+        Me.New(VoxelShape.FullBox(nx, ny, nz))
+    End Sub
+
+    ''' <summary>
+    ''' 用指定的三维体素空间模型创建流体场，所有物理量初始化为零。
+    ''' 体素模型的 width/height/depth 对应网格的 Nx/Ny/Nz。
+    ''' </summary>
+    ''' <param name="voxelShape">三维体素空间模型（定义计算空间形状）</param>
+    Public Sub New(voxelShape As VoxelShape)
+        Me.Shape = voxelShape
+        Me.Nx = voxelShape.Width
+        Me.Ny = voxelShape.Height
+        Me.Nz = voxelShape.Depth
 
         ' 使用 Tensor 的工厂方法创建零张量
         ' 形状为 (Nx, Ny, Nz)，对应三维索引器 (i, j, k)
-        Dim shape As Integer() = {nx, ny, nz}
-        Me.U = Tensor.Zeros(shape)
-        Me.V = Tensor.Zeros(shape)
-        Me.W = Tensor.Zeros(shape)
-        Me.Pressure = Tensor.Zeros(shape)
-        Me.Density = Tensor.Zeros(shape)
+        Dim dims As Integer() = {Nx, Ny, Nz}
+        Me.U = Tensor.Zeros(dims)
+        Me.V = Tensor.Zeros(dims)
+        Me.W = Tensor.Zeros(dims)
+        Me.Pressure = Tensor.Zeros(dims)
+        Me.Density = Tensor.Zeros(dims)
     End Sub
 
 #End Region
@@ -182,6 +200,14 @@ Public Class FluidField
                k >= 0 AndAlso k < Nz
     End Function
 
+    ''' <summary>
+    ''' 判断体素 (i, j, k) 是否属于模拟计算空间（活动体素）。
+    ''' 空腔体素（Shape = False）在求解器中视为固体障碍物。
+    ''' </summary>
+    Public Function IsActive(i As Integer, j As Integer, k As Integer) As Boolean
+        Return Shape IsNot Nothing AndAlso Shape.IsActive(i, j, k)
+    End Function
+
 #End Region
 
 #Region "整体操作"
@@ -199,9 +225,10 @@ Public Class FluidField
 
     ''' <summary>
     ''' 创建当前流体场的深拷贝（用于保存快照或双缓冲）。
+    ''' 体素模型（几何形状）为不可变真相源，直接共享引用，无需深拷贝。
     ''' </summary>
     Public Function Clone() As FluidField
-        Dim copy As New FluidField(Nx, Ny, Nz)
+        Dim copy As New FluidField(Shape)
         copy.U = CType(U.Clone(), Tensor)
         copy.V = CType(V.Clone(), Tensor)
         copy.W = CType(W.Clone(), Tensor)

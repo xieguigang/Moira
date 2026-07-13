@@ -65,6 +65,68 @@ Public Class StableFluidsSolver
 
 #End Region
 
+#Region "固体掩膜 (Solid Mask)"
+
+    ''' <summary>
+    ''' 固体掩膜（True = 空腔 / 固体障碍物）。长度 = nx*ny*nz，与 Tensor 数据布局一致：
+    ''' idx = (i * ny + j) * nz + k，即与 VoxelShape.Index(i,j,k) 完全相同的顺序。
+    ''' 为 Nothing 或全 False 时表示无固体（退化为旧版长方体行为，完全不变）。
+    ''' 求解器中固体单元速度/压力强制为 0，表面作无滑移壁面，压力投影中排除。
+    ''' </summary>
+    Public Property SolidMask As Boolean() = Nothing
+
+    ''' <summary>
+    ''' 判断体素 (i, j, k) 是否为固体（空腔）。无掩膜时恒为 False。
+    ''' </summary>
+    Private Function IsSolid(i As Integer, j As Integer, k As Integer,
+                             nx As Integer, ny As Integer, nz As Integer) As Boolean
+        If SolidMask Is Nothing Then Return False
+        Return SolidMask((i * ny + j) * nz + k)
+    End Function
+
+    ''' <summary>
+    ''' 把固体单元的速度（U/V/W）与压力置零（无滑移壁，速度 = 0）。
+    ''' 用于每个求解子步骤之后，保证空腔单元恒为 0，不污染相邻流体单元。
+    ''' </summary>
+    Private Sub ZeroSolidVelocity(u As Tensor, v As Tensor, w As Tensor, p As Tensor,
+                                  nx As Integer, ny As Integer, nz As Integer)
+        If SolidMask Is Nothing Then Return
+        Dim n = u.Length
+        For idx = 0 To n - 1
+            If SolidMask(idx) Then
+                u.Data(idx) = 0.0
+                v.Data(idx) = 0.0
+                w.Data(idx) = 0.0
+                p.Data(idx) = 0.0
+            End If
+        Next
+    End Sub
+
+    ''' <summary>
+    ''' 把单个标量场中固体单元的值置零（如密度 / 压力）。
+    ''' </summary>
+    Private Sub ZeroSolidScalar(f As Tensor)
+        If SolidMask Is Nothing Then Return
+        Dim n = f.Length
+        For idx = 0 To n - 1
+            If SolidMask(idx) Then f.Data(idx) = 0.0
+        Next
+    End Sub
+
+    ''' <summary>
+    ''' 取邻居压力；若邻居为固体（空腔），用本格压力代替（零梯度 / 无通量）。
+    ''' 仅在流体单元的速度校正中使用。
+    ''' </summary>
+    Private Function Pneighbor(p As Tensor,
+                               ni As Integer, nj As Integer, nk As Integer,
+                               ci As Integer, cj As Integer, ck As Integer,
+                               nx As Integer, ny As Integer, nz As Integer) As Double
+        If IsSolid(ni, nj, nk, nx, ny, nz) Then Return p(ci, cj, ck)
+        Return p(ni, nj, nk)
+    End Function
+
+#End Region
+
 #Region "半拉格朗日平流 (Semi-Lagrangian Advection)"
 
     ''' <summary>
@@ -101,6 +163,12 @@ Public Class StableFluidsSolver
             For j = 0 To ny - 1
                 For k = 0 To nz - 1
 
+                    ' 固体单元不参与平流，速度恒为 0（无滑移壁）
+                    If IsSolid(i, j, k, nx, ny, nz) Then
+                        result(i, j, k) = 0.0
+                        Continue For
+                    End If
+
                     ' 当前格子中心的速度
                     Dim cu = velU(i, j, k)
                     Dim cv = velV(i, j, k)
@@ -116,7 +184,7 @@ Public Class StableFluidsSolver
                     y = std.Clamp(y, 0.5, ny - 1.5)
                     z = std.Clamp(z, 0.5, nz - 1.5)
 
-                    ' 三线性插值采样旧场
+                    ' 三线性插值采样旧场（固体单元在场中恒为 0，自然形成无穿透壁面）
                     result(i, j, k) = TrilinearSample(field, x, y, z)
 
                 Next
