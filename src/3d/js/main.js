@@ -53,6 +53,82 @@ const state = {
 
 // ---------------- Three.js ----------------
 let scene, camera, renderer, controls, grid, modelGroup, voxelGroup;
+let keyLight, fillLight, rimLight, hemiLight;
+
+// 三维场景亮/暗配色（与 CSS 主题同步，切换时平滑过渡）
+const SCENE_THEMES = {
+  dark: {
+    background: 0x0a0f1c, fog: 0x0a0f1c,
+    grid1: 0x2b3b57, grid2: 0x1b2740,
+    hemiSky: 0xbcd4ff, hemiGround: 0x1a2233,
+    key: 0xffffff, keyI: 1.6,
+    fill: 0x88bbff, fillI: 0.7,
+    rim: 0x22d3ee, rimI: 0.5,
+  },
+  light: {
+    background: 0xeef3f9, fog: 0xeef3f9,
+    grid1: 0xb8c4d6, grid2: 0xd6deea,
+    hemiSky: 0xffffff, hemiGround: 0x9aa7bd,
+    key: 0xffffff, keyI: 1.25,
+    fill: 0x6f9bff, fillI: 0.55,
+    rim: 0x3b82f6, rimI: 0.4,
+  },
+};
+let currentTheme = 'dark';
+// 当前与目标调色板（Color 实例，逐帧 lerp）
+const palette = {
+  bg: new THREE.Color(), fog: new THREE.Color(),
+  grid1: new THREE.Color(), grid2: new THREE.Color(),
+  hemiSky: new THREE.Color(), hemiGround: new THREE.Color(),
+  key: new THREE.Color(), fill: new THREE.Color(), rim: new THREE.Color(),
+};
+const paletteTarget = {
+  bg: new THREE.Color(), fog: new THREE.Color(),
+  grid1: new THREE.Color(), grid2: new THREE.Color(),
+  hemiSky: new THREE.Color(), hemiGround: new THREE.Color(),
+  key: new THREE.Color(), fill: new THREE.Color(), rim: new THREE.Color(),
+};
+
+function themePalette(theme) { return SCENE_THEMES[theme] || SCENE_THEMES.dark; }
+
+// 设定目标调色板；immediate=true 时直接应用（无动画，用于初始化）
+function setSceneThemeTarget(theme, immediate) {
+  const t = themePalette(theme);
+  paletteTarget.bg.setHex(t.background);
+  paletteTarget.fog.setHex(t.fog);
+  paletteTarget.grid1.setHex(t.grid1);
+  paletteTarget.grid2.setHex(t.grid2);
+  paletteTarget.hemiSky.setHex(t.hemiSky);
+  paletteTarget.hemiGround.setHex(t.hemiGround);
+  paletteTarget.key.setHex(t.key);
+  paletteTarget.fill.setHex(t.fill);
+  paletteTarget.rim.setHex(t.rim);
+  // 网格地面重建（两色顶点，无法 lerp，故直接切换）
+  if (grid) { scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
+  grid = new THREE.GridHelper(40, 40, t.grid1, t.grid2);
+  grid.material.transparent = true; grid.material.opacity = 0.55;
+  scene.add(grid);
+  if (immediate) {
+    for (const k in palette) palette[k].copy(paletteTarget[k]);
+    applyPalette();
+  }
+}
+
+function applyPalette() {
+  if (!scene) return;
+  scene.background.copy(palette.bg);
+  scene.fog.color.copy(palette.fog);
+  if (hemiLight) { hemiLight.color.copy(palette.hemiSky); hemiLight.groundColor.copy(palette.hemiGround); }
+  if (keyLight) keyLight.color.copy(palette.key);
+  if (fillLight) fillLight.color.copy(palette.fill);
+  if (rimLight) rimLight.color.copy(palette.rim);
+}
+
+function lerpPalette(dt) {
+  const a = Math.min(1, dt * 3.2); // 约 0.45s 收敛
+  for (const k in palette) palette[k].lerp(paletteTarget[k], a);
+  applyPalette();
+}
 
 function initThree() {
   scene = new THREE.Scene();
