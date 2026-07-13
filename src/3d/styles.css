@@ -253,6 +253,23 @@ html, body {
 }
 #resInput:focus { border-color: var(--c-cyan); box-shadow: 0 0 0 3px rgba(34,211,238,.15); }
 .res-presets { display: flex; gap: 6px; }
+
+/* ---------- 坐标轴旋转 ---------- */
+.rot-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.rot-field {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface); border: 1px solid var(--glass-brd);
+  border-radius: 8px; padding: 6px 8px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.rot-field:focus-within { border-color: var(--c-cyan); box-shadow: 0 0 0 3px rgba(34,211,238,.15); }
+.rot-field label { font-size: 12px; color: var(--text-1); font-weight: 600; }
+.rot-field .deg { font-size: 11px; color: var(--text-1); }
+.rot-field input {
+  width: 100%; min-width: 0; background: transparent; border: none; outline: none;
+  color: var(--text-0); font-size: 13px; font-family: inherit;
+}
+.rot-hint { font-size: 11px; color: var(--warn); margin-top: 10px; min-height: 15px; }
 .chip {
   flex: 1; background: var(--chip-bg);
   border: 1px solid var(--glass-brd); border-radius: 8px;

@@ -20,6 +20,12 @@ const el = {
   statPoints: $('statPoints'),
   statBBox: $('statBBox'),
   modelType: $('modelType'),
+  rotX: $('rotX'),
+  rotY: $('rotY'),
+  rotZ: $('rotZ'),
+  rotResetBtn: $('rotResetBtn'),
+  rotLevelBtn: $('rotLevelBtn'),
+  rotHint: $('rotHint'),
   resInput: $('resInput'),
   voxelizeBtn: $('voxelizeBtn'),
   downloadBtn: $('downloadBtn'),
@@ -195,6 +201,13 @@ function animate() {
 
 // 将模型居中并缩放到合适大小，返回缩放/位移信息（用于坐标一致性）
 function frameObject(object) {
+  // 先复位 object 自身变换，使包围盒只反映模型几何（在 modelGroup 当前朝向下），
+  // 保证多次调用幂等（避免 position 累加漂移导致模型飞出视野）
+  if (modelGroup) modelGroup.updateMatrixWorld(true);
+  object.scale.setScalar(1);
+  object.position.set(0, 0, 0);
+  object.updateMatrixWorld(true);
+
   const box = new THREE.Box3().setFromObject(object);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
@@ -203,14 +216,44 @@ function frameObject(object) {
   const targetSize = 8;
   const scale = targetSize / maxDim;
 
+  // 世界包围盒中心 -> modelGroup 局部坐标（几何中心），据以将模型居中
+  const cLocal = modelGroup ? modelGroup.worldToLocal(center.clone()) : center.clone();
+
   object.scale.setScalar(scale);
-  object.position.sub(center.multiplyScalar(scale));
+  object.position.copy(cLocal).multiplyScalar(-scale);
+  object.updateMatrixWorld(true);
 
   // 相机取景
   const dist = targetSize * 1.8;
   camera.position.set(dist * 0.7, dist * 0.6, dist);
   controls.target.set(0, 0, 0);
   controls.update();
+}
+
+// 应用用户设定的坐标轴旋转到 modelGroup（体素化会据此重新收集世界坐标）
+function applyOrientation() {
+  if (!modelGroup) return;
+  const rx = clampInt(parseFloat(el.rotX.value) || 0, -180, 180);
+  const ry = clampInt(parseFloat(el.rotY.value) || 0, -180, 180);
+  const rz = clampInt(parseFloat(el.rotZ.value) || 0, -180, 180);
+  modelGroup.rotation.set(
+    THREE.MathUtils.degToRad(rx),
+    THREE.MathUtils.degToRad(ry),
+    THREE.MathUtils.degToRad(rz)
+  );
+  modelGroup.updateMatrixWorld(true);
+}
+
+// 重置朝向（加载新模型或点重置时调用）
+function resetOrientation() {
+  el.rotX.value = '0';
+  el.rotY.value = '0';
+  el.rotZ.value = '0';
+  if (modelGroup) {
+    modelGroup.rotation.set(0, 0, 0);
+    modelGroup.updateMatrixWorld(true);
+  }
+  el.rotHint.textContent = '体素化将使用当前朝向';
 }
 
 // ---------------- Status helpers ----------------
@@ -256,6 +299,7 @@ async function loadModel(source, isFile) {
     modelGroup.add(object);
     state.currentObject = object;
     applyWireframe(object, state.wireframe);
+    resetOrientation(); // 新模型默认回到原始朝向
     frameObject(object);
 
     setProgress(0.95, '统计属性…');
@@ -308,8 +352,13 @@ async function runVoxelize() {
   setStatus('体素化中…', 'busy');
   setProgress(0, '准备体素化');
 
-  const geo = state.geometryData;
   const t0 = performance.now();
+
+  // 以当前坐标轴旋转重新收集几何，确保体素化方向与视口一致
+  applyOrientation();
+  const geo = collectGeometry(state.currentObject);
+  state.geometryData = geo;
+  updateStats(geo, state.sourceFormat);
 
   // 让 UI 有机会刷新
   await nextFrame();
@@ -365,12 +414,8 @@ function buildVoxelPreview(vox) {
   const [sx] = vox.voxelSize;
   const [ox, oy, oz] = vox.origin;
 
-  // 与模型显示一致：模型经过 frameObject 的 scale/position
-  const obj = state.currentObject;
-  const objScale = obj.scale.x;
-  const objPos = obj.position;
-
-  const geoBox = new THREE.BoxGeometry(sx * objScale * 0.92, sx * objScale * 0.92, sx * objScale * 0.92);
+  // 体素坐标 (wx,wy,wz) 已是包含模型朝向的世界坐标，直接放置即可对齐模型
+  const geoBox = new THREE.BoxGeometry(sx * 0.92, sx * 0.92, sx * 0.92);
   const mat = new THREE.MeshStandardMaterial({
     color: 0x22d3ee, metalness: 0.2, roughness: 0.5,
     transparent: true, opacity: 0.85,
@@ -388,16 +433,11 @@ function buildVoxelPreview(vox) {
       for (let z = 0; z < D; z++) {
         if (data[base + z] !== 1) continue;
         if (seen++ % stride !== 0) continue;
-        // 体素中心世界坐标（模型原始坐标系）
+        // 体素中心世界坐标（已含模型朝向，与模型显示同坐标系）
         const wx = ox + (x + 0.5) * vox.voxelSize[0];
         const wy = oy + (y + 0.5) * vox.voxelSize[1];
         const wz = oz + (z + 0.5) * vox.voxelSize[2];
-        // 应用模型显示变换
-        m.makeTranslation(
-          wx * objScale + objPos.x,
-          wy * objScale + objPos.y,
-          wz * objScale + objPos.z
-        );
+        m.makeTranslation(wx, wy, wz);
         inst.setMatrixAt(written++, m);
         if (written >= count) break;
       }
@@ -495,7 +535,10 @@ el.previewChk.addEventListener('change', () => {
 });
 
 el.resetViewBtn.addEventListener('click', () => {
-  if (state.currentObject) frameObject(state.currentObject);
+  if (state.currentObject) {
+    frameObject(state.currentObject);
+    invalidateVoxelOnRotate(); // 居中/缩放变化，旧体素结果失效
+  }
 });
 el.toggleGridBtn.addEventListener('click', () => {
   grid.visible = !grid.visible;
@@ -505,6 +548,43 @@ el.toggleWireBtn.addEventListener('click', () => {
   state.wireframe = !state.wireframe;
   if (state.currentObject) applyWireframe(state.currentObject, state.wireframe);
   el.toggleWireBtn.classList.toggle('active', state.wireframe);
+});
+
+// ---------------- 坐标轴旋转 ----------------
+// 朝向变化使已体素化结果失效，提示重新体素化
+function invalidateVoxelOnRotate() {
+  if (state.voxelResult) {
+    state.voxelResult = null;
+    el.downloadBtn.disabled = true;
+    el.voxelSummary.hidden = true;
+    el.progressBar.style.width = '0%';
+    clearGroup(voxelGroup);
+    modelGroup.visible = true;
+  }
+  el.rotHint.textContent = '模型视图已更新，请重新体素化以使结果生效';
+}
+
+function onRotateInput() {
+  applyOrientation();
+  invalidateVoxelOnRotate();
+}
+
+[el.rotX, el.rotY, el.rotZ].forEach((inp) => {
+  inp.addEventListener('input', onRotateInput);
+});
+
+el.rotResetBtn.addEventListener('click', () => {
+  resetOrientation();
+  invalidateVoxelOnRotate();
+});
+
+el.rotLevelBtn.addEventListener('click', () => {
+  // 便捷预设：绕 X 轴 -90° 将常见“垂直向下”模型转为水平飞行姿态
+  el.rotX.value = '-90';
+  el.rotY.value = '0';
+  el.rotZ.value = '0';
+  applyOrientation();
+  invalidateVoxelOnRotate();
 });
 
 // ---------------- 主题切换（亮/暗） ----------------

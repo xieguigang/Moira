@@ -92,6 +92,36 @@
         </div>
       </section>
 
+      <!-- 坐标轴旋转面板 -->
+      <section class="panel glass">
+        <div class="panel-head">
+          <h2>坐标轴旋转</h2>
+          <span class="tag">朝向</span>
+        </div>
+        <div class="rot-grid">
+          <div class="rot-field">
+            <label for="rotX">X</label>
+            <input id="rotX" type="number" value="0" step="5" min="-180" max="180" />
+            <span class="deg">°</span>
+          </div>
+          <div class="rot-field">
+            <label for="rotY">Y</label>
+            <input id="rotY" type="number" value="0" step="5" min="-180" max="180" />
+            <span class="deg">°</span>
+          </div>
+          <div class="rot-field">
+            <label for="rotZ">Z</label>
+            <input id="rotZ" type="number" value="0" step="5" min="-180" max="180" />
+            <span class="deg">°</span>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button id="rotResetBtn" class="btn btn-ghost">重置朝向</button>
+          <button id="rotLevelBtn" class="btn btn-ghost">水平化 (X −90°)</button>
+        </div>
+        <div class="rot-hint" id="rotHint">体素化将使用当前朝向</div>
+      </section>
+
       <!-- 体素化面板 -->
       <section class="panel glass">
         <div class="panel-head">
