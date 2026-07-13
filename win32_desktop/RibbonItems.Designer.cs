@@ -39,6 +39,7 @@ namespace RibbonLib.Controls
             public const uint cmdCommandGroup = 4;
             public const uint cmdFileNew = 23;
             public const uint cmdButton3DModelTool = 25;
+            public const uint cmdButtonCFDPlay = 26;
             public const uint cmdGroupApp = 14;
         }
 
@@ -66,6 +67,7 @@ namespace RibbonLib.Controls
         public RibbonGroup CommandGroup { get; private set; }
         public RibbonButton FileNew { get; private set; }
         public RibbonButton Button3DModelTool { get; private set; }
+        public RibbonButton ButtonCFDPlay { get; private set; }
         public RibbonGroup GroupApp { get; private set; }
 
         public RibbonItems(Ribbon ribbon)
@@ -94,6 +96,7 @@ namespace RibbonLib.Controls
             CommandGroup = new RibbonGroup(ribbon, Cmd.cmdCommandGroup);
             FileNew = new RibbonButton(ribbon, Cmd.cmdFileNew);
             Button3DModelTool = new RibbonButton(ribbon, Cmd.cmdButton3DModelTool);
+            ButtonCFDPlay = new RibbonButton(ribbon, Cmd.cmdButtonCFDPlay);
             GroupApp = new RibbonGroup(ribbon, Cmd.cmdGroupApp);
         }
 

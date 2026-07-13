@@ -123,6 +123,14 @@
         <Image MinDPI="192">Resources/icons8-edit-96.png</Image>
       </Command.LargeImages>
     </Command>
+    <Command Name="cmdButtonCFDPlay" Id="26" LabelTitle="CFD Viewer">
+      <Command.SmallImages>
+        <Image MinDPI="192">Resources/icons8-journey-96.png</Image>
+      </Command.SmallImages>
+      <Command.LargeImages>
+        <Image MinDPI="192">Resources/icons8-journey-96.png</Image>
+      </Command.LargeImages>
+    </Command>
   </Application.Commands>
   <Application.Views>
     <Ribbon>
@@ -166,10 +174,11 @@
       </Ribbon.ContextualTabs>
       <Ribbon.Tabs>
         <Tab CommandName="cmdTabApplicationMain">
-          <Group CommandName="cmdCommandGroup" SizeDefinition="ThreeButtons">
+          <Group CommandName="cmdCommandGroup" SizeDefinition="FourButtons">
             <Button CommandName="cmdFileOpen" />
             <Button CommandName="cmdFileNew" />
             <Button CommandName="cmdButton3DModelTool" />
+            <Button CommandName="cmdButtonCFDPlay" />
           </Group>
           <Group CommandName="cmdGroupApp" SizeDefinition="TwoButtons">
             <Button CommandName="cmdButtonLicense" />

@@ -61,12 +61,7 @@ Public Class FormMain : Implements AppHost
         dockPanel.Theme = vS2015LightTheme1
         EnableVSRenderer(StatusStrip1)
 
-        AddHandler ribbonItems.ButtonAbout.ExecuteEvent, Sub() Call New SplashScreen() With {.ShowAbout = True}.Show()
-        AddHandler ribbonItems.ButtonAppExit.ExecuteEvent, Sub() Call Me.Close()
-        AddHandler ribbonItems.FileNew.ExecuteEvent, Sub() Call CreateNewSimulation()
-        AddHandler ribbonItems.ButtonLicense.ExecuteEvent, Sub() Call InputDialog.Input(Of FormLicense)()
-        AddHandler ribbonItems.Button3DModelTool.ExecuteEvent, Sub() Call CommonRuntime.ShowSingleDocument(Of frm3DModelTool)()
-
+        Call RibbonMenu.Setup(ribbonItems)
         Call CommonRuntime.Hook(Me)
         Call Globals.SetupBackendUI()
     End Sub

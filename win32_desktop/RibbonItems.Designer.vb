@@ -36,6 +36,7 @@ Namespace RibbonLib.Controls
             Public Const cmdCommandGroup As UInteger = 4
             Public Const cmdFileNew As UInteger = 23
             Public Const cmdButton3DModelTool As UInteger = 25
+            Public Const cmdButtonCFDPlay As UInteger = 26
             Public Const cmdGroupApp As UInteger = 14
         End Class
 
@@ -173,6 +174,12 @@ Namespace RibbonLib.Controls
                 Return _Button3DModelTool
             End Get
         End Property
+        Private _ButtonCFDPlay As RibbonButton
+        Public ReadOnly Property ButtonCFDPlay As RibbonButton
+            Get
+                Return _ButtonCFDPlay
+            End Get
+        End Property
         Private _GroupApp As RibbonGroup
         Public ReadOnly Property GroupApp As RibbonGroup
             Get
@@ -206,6 +213,7 @@ Namespace RibbonLib.Controls
             _CommandGroup = New RibbonGroup(_ribbon, Cmd.cmdCommandGroup)
             _FileNew = New RibbonButton(_ribbon, Cmd.cmdFileNew)
             _Button3DModelTool = New RibbonButton(_ribbon, Cmd.cmdButton3DModelTool)
+            _ButtonCFDPlay = New RibbonButton(_ribbon, Cmd.cmdButtonCFDPlay)
             _GroupApp = New RibbonGroup(_ribbon, Cmd.cmdGroupApp)
         End Sub
 

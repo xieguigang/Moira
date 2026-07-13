@@ -113,5 +113,9 @@
 #define cmdButton3DModelTool_LabelTitle_RESID 60082
 #define cmdButton3DModelTool_SmallImages_192__RESID 60083
 #define cmdButton3DModelTool_LargeImages_192__RESID 60084
-#define InternalCmd2_LabelTitle_RESID 60085
-#define InternalCmd4_LabelTitle_RESID 60086
+#define cmdButtonCFDPlay 26 
+#define cmdButtonCFDPlay_LabelTitle_RESID 60085
+#define cmdButtonCFDPlay_SmallImages_192__RESID 60086
+#define cmdButtonCFDPlay_LargeImages_192__RESID 60087
+#define InternalCmd2_LabelTitle_RESID 60088
+#define InternalCmd4_LabelTitle_RESID 60089
