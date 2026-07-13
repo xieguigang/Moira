@@ -13,6 +13,7 @@
 assembly/
 Apps/
 src/Viz1/frames/
+src/app/frames/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
