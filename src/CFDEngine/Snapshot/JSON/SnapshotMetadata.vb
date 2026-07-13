@@ -54,13 +54,28 @@ Namespace Snapshot.JSON
         ''' <param name="dt">时间步长</param>
         Public Shared Function FromTank(tank As FermentationTank, dt As Double) As SnapshotMetadata
             Dim f = tank.Field
+            Dim shape = f.Shape
+            Dim mask As Integer() = Nothing
+            Dim active As Integer = f.TotalVoxels
+            If shape IsNot Nothing Then
+                active = shape.TotalActive
+                mask = New Integer(shape.Shape.Length - 1) {}
+                For i = 0 To shape.Shape.Length - 1
+                    mask(i) = If(shape.Shape(i), 1, 0)
+                Next
+            End If
             Dim grid = New GridInfo With {
                 .Nx = f.Nx,
                 .Ny = f.Ny,
                 .Nz = f.Nz,
+                .Width = f.Nx,
+                .Height = f.Ny,
+                .Depth = f.Nz,
                 .Origin = New Double() {0.0, 0.0, 0.0},
                 .Spacing = New Double() {1.0, 1.0, 1.0},
                 .TotalVoxels = f.TotalVoxels,
+                .ActiveVoxels = active,
+                .Mask = mask,
                 .IndexOrder = "i*ny*nz + j*nz + k"
             }
             Dim sim = New SimulationInfo With {

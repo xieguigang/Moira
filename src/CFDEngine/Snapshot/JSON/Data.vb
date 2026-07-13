@@ -13,13 +13,26 @@ Namespace Snapshot.JSON
         Public Property Ny As Integer
         ''' <summary>Z 方向格子数</summary>
         Public Property Nz As Integer
+        ''' <summary>体素模型 X 维度（↔ Nx）</summary>
+        Public Property Width As Integer
+        ''' <summary>体素模型 Y 维度（↔ Ny）</summary>
+        Public Property Height As Integer
+        ''' <summary>体素模型 Z 维度（↔ Nz）</summary>
+        Public Property Depth As Integer
         ''' <summary>原点坐标 [x, y, z]（网格单位）</summary>
         Public Property Origin As Double()
         ''' <summary>格子间距 [dx, dy, dz]（网格单位）</summary>
         Public Property Spacing As Double()
         ''' <summary>格子总数 = Nx * Ny * Nz</summary>
         Public Property TotalVoxels As Integer
-        ''' <summary>扁平数组索引顺序说明：i*ny*nz + j*nz + k</summary>
+        ''' <summary>活动（属于模拟空间）体素总数</summary>
+        Public Property ActiveVoxels As Integer
+        ''' <summary>
+        ''' 体素掩膜（0/1 扁平数组，长度 = Width*Height*Depth），顺序 = (x*Height + y)*Depth + z。
+        ''' 1 = 活动体素（模拟空间），0 = 空腔（固体障碍物）。阅读端据其还原到全网格。
+        ''' </summary>
+        Public Property Mask As Integer()
+        ''' <summary>扁平数组索引顺序说明：i*ny*nz + j*nz + k（等价于 (x*Height+y)*Depth+z）</summary>
         Public Property IndexOrder As String
     End Class
 
