@@ -15,6 +15,40 @@
   --glass-brd: rgba(148, 163, 184, 0.18);
   --radius: 14px;
   --shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+
+  /* 表面/叠加层（按主题切换） */
+  --surface: rgba(11, 17, 32, 0.6);
+  --surface-solid: rgba(11, 17, 32, 0.5);
+  --overlay: rgba(11, 17, 32, 0.6);
+  --btn-ghost-bg: rgba(148, 163, 184, 0.1);
+  --btn-ghost-bg-hover: rgba(148, 163, 184, 0.2);
+  --chip-bg: rgba(148, 163, 184, 0.1);
+  --viewport-bg-1: #142033;
+  --viewport-bg-2: #0a0f1c;
+
+  /* 主题切换过渡时长 */
+  --theme-dur: 0.45s;
+}
+
+/* ---------- 亮色主题 ---------- */
+[data-theme="light"] {
+  --bg-0: #EEF2F8;
+  --bg-1: #E3E9F2;
+  --bg-2: #FFFFFF;
+  --text-0: #0F172A;
+  --text-1: #5B6B82;
+  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-brd: rgba(15, 23, 42, 0.12);
+  --shadow: 0 8px 32px rgba(15, 23, 42, 0.14);
+
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-solid: rgba(255, 255, 255, 0.66);
+  --overlay: rgba(255, 255, 255, 0.7);
+  --btn-ghost-bg: rgba(15, 23, 42, 0.06);
+  --btn-ghost-bg-hover: rgba(15, 23, 42, 0.12);
+  --chip-bg: rgba(15, 23, 42, 0.06);
+  --viewport-bg-1: #DCE5F0;
+  --viewport-bg-2: #EEF3F9;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
