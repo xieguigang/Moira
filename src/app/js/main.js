@@ -81,7 +81,7 @@ const SCENE_THEMES = {
     rim: 0x3b82f6, rimI: 0.4,
   },
 };
-let currentTheme = 'dark';
+let currentTheme = 'light';
 // 当前与目标调色板（Color 实例，逐帧 lerp）
 const palette = {
   bg: new THREE.Color(), fog: new THREE.Color(),
@@ -610,8 +610,8 @@ document.body.addEventListener('animationend', (e) => {
 
 // ---------------- Boot ----------------
 (function initTheme() {
-  let saved = 'dark';
-  try { saved = localStorage.getItem('moira-theme') || 'dark'; } catch (_) {}
+  let saved = 'light';
+  try { saved = localStorage.getItem('moira-theme') || 'light'; } catch (_) {}
   currentTheme = saved;
   document.documentElement.setAttribute('data-theme', saved);
 })();
