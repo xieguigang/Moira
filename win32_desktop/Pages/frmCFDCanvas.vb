@@ -85,7 +85,7 @@ Public Class frmCFDCanvas
 
         g.CompositingQuality = CompositingQuality.HighSpeed
         g.TextRenderingHint = TextRenderingHint.SystemDefault
-        g.SmoothingMode = SmoothingMode.None
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None
 
         If range Is Nothing OrElse range.Min.IsNaNImaginary OrElse range.Max.IsNaNImaginary Then
             Return Nothing
