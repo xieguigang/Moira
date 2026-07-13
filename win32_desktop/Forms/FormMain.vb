@@ -53,6 +53,8 @@ Public Class FormMain : Implements AppHost
         Globals.ribbonItems = ribbonItems
         Globals.dockPanel = dockPanel
         Globals.main = Me
+
+        Call AppEnvironment.StartGlobalHttp()
     End Sub
 
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
