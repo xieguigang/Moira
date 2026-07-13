@@ -86,6 +86,48 @@ Public Class FluidSim
 
 #End Region
 
+#Region "胶囊体素工厂"
+
+    ''' <summary>
+    ''' 创建一个胶囊形（竖直 Z 轴）计算空间的发酵罐 CFD 引擎。
+    ''' 计算空间由竖直放置的胶囊三维体素模型定义；胶囊外体素视为固体障碍物。
+    ''' 搅拌器自动放置于胶囊轴中心、圆柱段内（半径略小于胶囊半径）。
+    ''' </summary>
+    ''' <param name="width">X 维度数</param>
+    ''' <param name="height">Y 维度数</param>
+    ''' <param name="depth">Z 维度数</param>
+    ''' <param name="radius">胶囊半径（网格单位）</param>
+    ''' <param name="cylHalfHeight">胶囊圆柱段半高（网格单位，不含两端半球）</param>
+    ''' <param name="angularVelocity">搅拌器角速度 (rad/时间单位)</param>
+    ''' <param name="stirrerRadius">搅拌器半径（默认胶囊半径的 0.8 倍）</param>
+    ''' <param name="stirrerZ">搅拌器中心高度（默认 1/3 高度处）</param>
+    Public Shared Function CreateCapsule(width As Integer, height As Integer, depth As Integer,
+                                         radius As Double, cylHalfHeight As Double,
+                                         Optional angularVelocity As Double = 3.0,
+                                         Optional stirrerRadius As Double = -1,
+                                         Optional stirrerZ As Double = -1) As FluidSim
+
+        ' 生成竖直（沿 Z 轴）胶囊体素模型
+        Dim shape = VoxelShape.Capsule(width, height, depth, radius, cylHalfHeight)
+
+        ' 搅拌器：位于胶囊轴中心，半径略小于胶囊半径，高度在圆柱段内
+        Dim sRadius = If(stirrerRadius > 0, stirrerRadius, radius * 0.8)
+        Dim sZ = If(stirrerZ >= 0, stirrerZ, depth * (1.0 / 3.0))
+        Dim stirrer As New Stirrer(
+            centerX:=(width - 1) * 0.5,
+            centerY:=(height - 1) * 0.5,
+            zCenter:=sZ,
+            radius:=sRadius,
+            height:=2.0,
+            angularVelocity:=angularVelocity)
+
+        Dim tank As New FermentationTank(shape, stirrer)
+        Return New FluidSim(tank)
+
+    End Function
+
+#End Region
+
 #Region "模拟控制"
 
     ''' <summary>
