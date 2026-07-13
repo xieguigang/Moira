@@ -1,19 +1,16 @@
 ﻿Imports CFD_win32.RibbonLib.Controls
 Imports Galaxy.Workbench
-Imports Galaxy.Workbench.CommonDialogs
 Imports Microsoft.VisualStudio.WinForms.Docking
-Imports RibbonLib
 Imports ThemeVS2015
 
 Public Class FormMain : Implements AppHost
-
-
 
     ReadOnly vS2015LightTheme1 As New VS2015LightTheme
     ReadOnly _toolStripProfessionalRenderer As New ToolStripProfessionalRenderer()
 
     Public Event ResizeForm As AppHost.ResizeFormEventHandler Implements AppHost.ResizeForm
     Public Event CloseWorkbench As AppHost.CloseWorkbenchEventHandler Implements AppHost.CloseWorkbench
+
     Private ReadOnly Property AppHost_ClientRectangle As Rectangle Implements AppHost.ClientRectangle
         Get
             Return New Rectangle(Location, Size)
@@ -22,30 +19,22 @@ Public Class FormMain : Implements AppHost
 
     Public ReadOnly Property ActiveDocument As Form Implements AppHost.ActiveDocument
         Get
-            Return DirectCast(dockPanel.ActiveDocument, Form)
+            Return DirectCast(DockPanel1.ActiveDocument, Form)
         End Get
     End Property
 
     Sub New()
-
         ' 此调用是设计器所必需的。
         InitializeComponent()
-
-        VisualStudioToolStripExtender1.DefaultRenderer = _toolStripProfessionalRenderer
-        ribbonItems = New RibbonItems(Ribbon1)
-
-        Globals.ribbonItems = ribbonItems
-        Globals.dockPanel = dockPanel
-        Globals.main = Me
-
-        Call AppEnvironment.StartGlobalHttp()
     End Sub
 
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        dockPanel.Theme = vS2015LightTheme1
-        EnableVSRenderer(StatusStrip1)
+        DockPanel1.Theme = vS2015LightTheme1
+        VisualStudioToolStripExtender1.DefaultRenderer = _toolStripProfessionalRenderer
 
-        Call RibbonMenu.Setup(ribbonItems)
+        Call AppEnvironment.StartGlobalHttp()
+        Call EnableVSRenderer(StatusStrip1)
+        Call RibbonMenu.Setup(New RibbonItems(Ribbon1))
         Call CommonRuntime.Hook(Me)
         Call Globals.SetupBackendUI()
     End Sub
@@ -78,11 +67,11 @@ Public Class FormMain : Implements AppHost
     End Function
 
     Public Function GetDocuments() As IEnumerable(Of Form) Implements AppHost.GetDocuments
-        Return dockPanel.Documents.OfType(Of Form)
+        Return DockPanel1.Documents.OfType(Of Form)
     End Function
 
     Public Function GetDockPanel() As Control Implements AppHost.GetDockPanel
-        Return DirectCast(dockPanel, Control)
+        Return DirectCast(DockPanel1, Control)
     End Function
 
     Public Function GetWindowState() As FormWindowState Implements AppHost.GetWindowState
@@ -90,7 +79,7 @@ Public Class FormMain : Implements AppHost
     End Function
 
     Public Sub SetTitle(title As String) Implements AppHost.SetTitle
-        Me.Text = title
+        Call Invoke(Sub() Me.Text = title)
     End Sub
 
     Public Sub StatusMessage(msg As String, Optional icon As Image = Nothing) Implements AppHost.StatusMessage

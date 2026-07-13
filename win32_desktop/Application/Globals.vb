@@ -1,17 +1,12 @@
 ﻿Imports BackgroundHost
 Imports CFD_clr
 Imports CFD_win32.My
-Imports CFD_win32.RibbonLib.Controls
 Imports Galaxy.Workbench
 Imports Microsoft.VisualBasic.Drawing
 Imports Microsoft.VisualBasic.Net
-Imports Microsoft.VisualStudio.WinForms.Docking
 
 Module Globals
 
-    Public ribbonItems As RibbonItems
-    Public main As FormMain
-    Public dockPanel As DockPanel
     Public ReadOnly toolkit As New toolCFDParameters
     Public ReadOnly settings As Settings
 
@@ -26,12 +21,11 @@ Module Globals
         Return client
     End Function
 
-    Public current As CFDTcpProtocols
+    Public Current As CFDTcpProtocols
 
     Public Sub SetupBackendUI()
-        AddHandler ribbonItems.ButtonSimulationStart.ExecuteEvent, Sub() Call current.start()
-        AddHandler ribbonItems.ButtonSimulationPause.ExecuteEvent, Sub() Call current.pause()
-
+        AddHandler Ribbon.ButtonSimulationStart.ExecuteEvent, Sub() Call Current.start()
+        AddHandler Ribbon.ButtonSimulationPause.ExecuteEvent, Sub() Call Current.pause()
     End Sub
 
 End Module

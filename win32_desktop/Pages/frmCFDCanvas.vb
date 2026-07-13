@@ -12,6 +12,7 @@ Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
 Imports Microsoft.VisualBasic.Linq
 Imports Microsoft.VisualBasic.Math.Distributions
 Imports Microsoft.VisualBasic.Parallel.Tasks
+Imports Microsoft.VisualStudio.WinForms.Docking
 Imports RibbonLib.Interop
 Imports bitmap = System.Drawing.Bitmap
 Imports brushes = System.Drawing.Brushes
@@ -123,8 +124,8 @@ Public Class frmCFDCanvas
             Next
         Next
 
-        Dim showTracer As Boolean = Invoke(Function() ribbonItems.CheckShowTracer.BooleanValue)
-        Dim showFlowline As Boolean = Invoke(Function() ribbonItems.CheckShowFlowLine.BooleanValue)
+        Dim showTracer As Boolean = Invoke(Function() Ribbon.CheckShowTracer.BooleanValue)
+        Dim showFlowline As Boolean = Invoke(Function() Ribbon.CheckShowFlowLine.BooleanValue)
 
         If Not model Is Nothing Then
             Call g.DrawImage(model, New Rectangle(New Point, bitmap.Size))
@@ -220,7 +221,7 @@ Public Class frmCFDCanvas
     End Sub
 
     Private Function CheckDrawBarrier() As Boolean
-        Return ribbonItems.CheckDrawBarrier.BooleanValue
+        Return Ribbon.CheckDrawBarrier.BooleanValue
     End Function
 
     Private Sub PictureBox1_MouseClick(sender As Object, e As MouseEventArgs) Handles PictureBox1.MouseClick
@@ -281,10 +282,10 @@ Public Class frmCFDCanvas
         CFD = Globals.CreateService
         CFD.config(setup)
 
-        AddHandler ribbonItems.ButtonReset.ExecuteEvent, Sub() resetCFD()
-        AddHandler ribbonItems.ButtonClearBarrier.ExecuteEvent, Sub()
-                                                                    ' CFD.clearBarrier()
-                                                                End Sub
+        AddHandler Ribbon.ButtonReset.ExecuteEvent, Sub() resetCFD()
+        AddHandler Ribbon.ButtonClearBarrier.ExecuteEvent, Sub()
+                                                               ' CFD.clearBarrier()
+                                                           End Sub
 
         toolkit.Show(DockPanel)
         toolkit.DockState = DockState.DockLeft
@@ -293,7 +294,7 @@ Public Class frmCFDCanvas
         TabText = $"CFD Project - {Now.Year}{Now.Month.ToString.PadLeft(1, "0"c)}{Now.Day.ToString.PadLeft(1, "0"c)}-{App.ElapsedMilliseconds}"
 
         Call SetCurrent()
-        Call main.EnableVSRenderer(ContextMenuStrip1)
+        Call ApplyVsTheme(ContextMenuStrip1)
         Call timer1.Start()
 
         If setup.modelfile.FileExists Then
@@ -316,9 +317,9 @@ Public Class frmCFDCanvas
     End Sub
 
     Private Sub SetCurrent()
-        Globals.current = CFD
+        Globals.Current = CFD
         toolkit.SetTarget(callback:=Me)
-        ribbonItems.TabSimulationPage.ContextAvailable = ContextAvailability.Active
+        Ribbon.TabSimulationPage.ContextAvailable = ContextAvailability.Active
 
         Call UpdatePalette()
     End Sub

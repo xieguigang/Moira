@@ -9,12 +9,12 @@ Module RibbonMenu
     Public Sub Setup(ribbon As RibbonItems)
         _Ribbon = ribbon
 
-        AddHandler ribbonItems.ButtonAbout.ExecuteEvent, Sub() Call New SplashScreen() With {.ShowAbout = True}.Show()
-        AddHandler ribbonItems.ButtonAppExit.ExecuteEvent, Sub() Call DirectCast(CommonRuntime.AppHost, Form).Close()
-        AddHandler ribbonItems.FileNew.ExecuteEvent, Sub() Call CreateNewSimulation()
-        AddHandler ribbonItems.ButtonLicense.ExecuteEvent, Sub() Call InputDialog.Input(Of FormLicense)()
-        AddHandler ribbonItems.Button3DModelTool.ExecuteEvent, Sub() Call CommonRuntime.ShowSingleDocument(Of frm3DModelTool)()
-        AddHandler ribbonItems.ButtonCFDPlay.ExecuteEvent, Sub() Call CommonRuntime.ShowSingleDocument(Of frmCFDPlayer)()
+        AddHandler ribbon.ButtonAbout.ExecuteEvent, Sub() Call New SplashScreen() With {.ShowAbout = True}.Show()
+        AddHandler ribbon.ButtonAppExit.ExecuteEvent, Sub() Call DirectCast(CommonRuntime.AppHost, Form).Close()
+        AddHandler ribbon.FileNew.ExecuteEvent, Sub() Call CreateNewSimulation()
+        AddHandler ribbon.ButtonLicense.ExecuteEvent, Sub() Call InputDialog.Input(Of FormLicense)()
+        AddHandler ribbon.Button3DModelTool.ExecuteEvent, Sub() Call CommonRuntime.ShowSingleDocument(Of frm3DModelTool)()
+        AddHandler ribbon.ButtonCFDPlay.ExecuteEvent, Sub() Call CommonRuntime.ShowSingleDocument(Of frmCFDPlayer)()
     End Sub
 
     Private Sub CreateNewSimulation()
