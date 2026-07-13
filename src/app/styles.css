@@ -296,6 +296,20 @@ html, body {
 .field { margin-bottom: 14px; }
 .field > label { display: block; font-size: 12px; color: var(--text-1); margin-bottom: 8px; }
 .res-row { display: flex; flex-direction: column; gap: 8px; }
+/* 自动体素信息展示 */
+.voxel-auto-info {
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-1);
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+}
+.voxel-auto-info .auto-hint { width: 100%; }
+.voxel-auto-info .auto-hint b { color: var(--text-0); font-weight: 600; }
 #resInput {
   width: 100%; background: var(--surface);
   border: 1px solid var(--border); border-radius: 9px;

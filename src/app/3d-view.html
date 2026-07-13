@@ -131,20 +131,13 @@
       <section class="panel glass">
         <div class="panel-head">
           <h2>体素化 (CFD)</h2>
-          <span class="tag tag-accent">Solid</span>
+          <span class="tag tag-accent">泛洪填充</span>
         </div>
 
         <div class="field">
-          <label for="resInput">网格分辨率 (最长边体素数)</label>
-          <div class="res-row">
-            <input id="resInput" type="number" min="8" max="512" step="8" value="64" />
-            <div class="res-presets">
-              <button class="chip" data-res="32">32</button>
-              <button class="chip" data-res="64">64</button>
-              <button class="chip" data-res="128">128</button>
-              <button class="chip" data-res="256">256</button>
-              <button class="chip" data-res="512">512</button>
-            </div>
+          <label>体素尺寸</label>
+          <div class="voxel-auto-info" id="voxelAutoInfo">
+            <span class="auto-hint">加载模型后将自动计算体素尺寸</span>
           </div>
         </div>
 
@@ -164,7 +157,7 @@
 
         <label class="check-row">
           <input type="checkbox" id="previewChk" checked />
-          <span>在视口预览体素 (低分辨率)</span>
+          <span>在视口预览体素</span>
         </label>
 
         <div class="legend">

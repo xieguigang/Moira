@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { loadFromUrl, loadFromFile, getExtension } from './loaders.js';
 import { collectGeometry } from './geometry.js';
-import { voxelizeMesh, voxelizePoints } from './voxelizer.js';
+import { voxelizeMesh, voxelizePoints, autoComputeGridDims } from './voxelizer.js';
 import { buildVoxelJson, downloadJson, suggestFilename } from './exporter.js';
 
 // ---------------- DOM ----------------
@@ -26,7 +26,7 @@ const el = {
   rotResetBtn: $('rotResetBtn'),
   rotLevelBtn: $('rotLevelBtn'),
   rotHint: $('rotHint'),
-  resInput: $('resInput'),
+  voxelAutoInfo: $('voxelAutoInfo'),
   voxelizeBtn: $('voxelizeBtn'),
   downloadBtn: $('downloadBtn'),
   progressBar: $('progressBar'),
@@ -306,6 +306,7 @@ async function loadModel(source, isFile) {
     const geo = collectGeometry(object);
     state.geometryData = geo;
     updateStats(geo, result.ext);
+    displayAutoVoxelInfo(geo);
 
     el.voxelizeBtn.disabled = false;
     setProgress(1, '就绪');
@@ -329,6 +330,7 @@ function updateStats(geo, ext) {
     el.statPoints.textContent = '—';
     el.statBBox.textContent = '—';
     el.modelType.textContent = '—';
+    el.voxelAutoInfo.innerHTML = '<span class="auto-hint">加载模型后将自动计算体素尺寸</span>';
     return;
   }
   el.statVertices.textContent = fmt(geo.vertexCount);
@@ -341,11 +343,26 @@ function updateStats(geo, ext) {
   el.statBBox.textContent = `${s.x.toFixed(3)} × ${s.y.toFixed(3)} × ${s.z.toFixed(3)}`;
 }
 
+// 在模型加载后显示自动计算的体素尺寸
+function displayAutoVoxelInfo(geo) {
+  if (!geo || geo.isPointCloud) {
+    el.voxelAutoInfo.innerHTML = '<span class="auto-hint">加载三维模型后将自动计算体素尺寸</span>';
+    return;
+  }
+  try {
+    const dims = autoComputeGridDims(geo.bbox, geo.triangles);
+    const [W, H, D] = [dims.width, dims.height, dims.depth];
+    const vs = dims.voxelSize[0];
+    el.voxelAutoInfo.innerHTML =
+      `<span class="auto-hint">自动体素尺寸 <b>${vs.toFixed(4)}</b> · 网格 <b>${W}×${H}×${D}</b> (${fmt(W*H*D)} 体素)</span>`;
+  } catch {
+    el.voxelAutoInfo.innerHTML = '<span class="auto-hint">体素尺寸自动计算失败</span>';
+  }
+}
+
 // ---------------- Voxelize flow ----------------
 async function runVoxelize() {
   if (!state.geometryData) return;
-  const resolution = clampInt(parseInt(el.resInput.value, 10) || 64, 8, 512);
-  el.resInput.value = resolution;
 
   el.voxelizeBtn.disabled = true;
   el.downloadBtn.disabled = true;
@@ -359,6 +376,7 @@ async function runVoxelize() {
   const geo = collectGeometry(state.currentObject);
   state.geometryData = geo;
   updateStats(geo, state.sourceFormat);
+  displayAutoVoxelInfo(geo);
 
   // 让 UI 有机会刷新
   await nextFrame();
@@ -367,9 +385,9 @@ async function runVoxelize() {
     const onProg = (p, msg) => setProgress(p, msg);
     let vox;
     if (geo.isPointCloud) {
-      vox = voxelizePoints(geo.points, geo.bbox, resolution, onProg);
+      vox = voxelizePoints(geo.points, geo.bbox, onProg);
     } else {
-      vox = voxelizeMesh(geo.triangles, geo.bbox, resolution, onProg);
+      vox = voxelizeMesh(geo.triangles, geo.bbox, onProg);
     }
     const dt = performance.now() - t0;
 
@@ -521,13 +539,6 @@ el.fileInput.addEventListener('change', (e) => {
 el.voxelizeBtn.addEventListener('click', runVoxelize);
 el.downloadBtn.addEventListener('click', runDownload);
 
-document.querySelectorAll('.chip').forEach((chip) => {
-  chip.addEventListener('click', () => {
-    el.resInput.value = chip.dataset.res;
-    document.querySelectorAll('.chip').forEach((c) => c.classList.remove('active'));
-    chip.classList.add('active');
-  });
-});
 el.previewChk.addEventListener('change', () => {
   if (!state.voxelResult) return;
   if (el.previewChk.checked) buildVoxelPreview(state.voxelResult.vox);
@@ -562,6 +573,13 @@ function invalidateVoxelOnRotate() {
     modelGroup.visible = true;
   }
   el.rotHint.textContent = '模型视图已更新，请重新体素化以使结果生效';
+  // 朝向变化后重新计算自动体素信息
+  if (state.geometryData) {
+    applyOrientation();
+    const geo = collectGeometry(state.currentObject);
+    state.geometryData = geo;
+    displayAutoVoxelInfo(geo);
+  }
 }
 
 function onRotateInput() {
