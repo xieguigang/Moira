@@ -76,13 +76,25 @@ Namespace Snapshot
                 Dim nPoints = nx * ny * nz
                 writer.WriteLine("POINT_DATA {0}", nPoints)
 
+                ' ---- 体素掩膜标量场（1 = 活动体素 / 模拟空间，0 = 空腔 / 固体障碍物）----
+                writer.WriteLine("SCALARS mask unsigned_char 1")
+                writer.WriteLine("LOOKUP_TABLE default")
+                For k = 0 To nz - 1
+                    For j = 0 To ny - 1
+                        For i = 0 To nx - 1
+                            writer.Write("{0} ", If(f.Shape Is Nothing OrElse f.Shape.IsActive(i, j, k), 1, 0))
+                        Next
+                        writer.WriteLine()
+                    Next
+                Next
+
                 ' ---- 压力标量场 ----
                 writer.WriteLine("SCALARS pressure double 1")
                 writer.WriteLine("LOOKUP_TABLE default")
                 For k = 0 To nz - 1
                     For j = 0 To ny - 1
                         For i = 0 To nx - 1
-                            writer.Write("{0:F6} ", f.Pressure(i, j, k))
+                            writer.Write("{0:F6} ", Masked(f.Shape, i, j, k, f.Pressure(i, j, k)))
                         Next
                         writer.WriteLine()
                     Next
@@ -94,7 +106,7 @@ Namespace Snapshot
                 For k = 0 To nz - 1
                     For j = 0 To ny - 1
                         For i = 0 To nx - 1
-                            writer.Write("{0:F6} ", f.Density(i, j, k))
+                            writer.Write("{0:F6} ", Masked(f.Shape, i, j, k, f.Density(i, j, k)))
                         Next
                         writer.WriteLine()
                     Next
@@ -106,7 +118,7 @@ Namespace Snapshot
                 For k = 0 To nz - 1
                     For j = 0 To ny - 1
                         For i = 0 To nx - 1
-                            writer.Write("{0:F6} ", f.U(i, j, k))
+                            writer.Write("{0:F6} ", Masked(f.Shape, i, j, k, f.U(i, j, k)))
                         Next
                         writer.WriteLine()
                     Next
@@ -118,7 +130,7 @@ Namespace Snapshot
                 For k = 0 To nz - 1
                     For j = 0 To ny - 1
                         For i = 0 To nx - 1
-                            writer.Write("{0:F6} ", f.V(i, j, k))
+                            writer.Write("{0:F6} ", Masked(f.Shape, i, j, k, f.V(i, j, k)))
                         Next
                         writer.WriteLine()
                     Next
@@ -130,7 +142,7 @@ Namespace Snapshot
                 For k = 0 To nz - 1
                     For j = 0 To ny - 1
                         For i = 0 To nx - 1
-                            writer.Write("{0:F6} ", f.W(i, j, k))
+                            writer.Write("{0:F6} ", Masked(f.Shape, i, j, k, f.W(i, j, k)))
                         Next
                         writer.WriteLine()
                     Next
@@ -142,9 +154,9 @@ Namespace Snapshot
                 For k = 0 To nz - 1
                     For j = 0 To ny - 1
                         For i = 0 To nx - 1
-                            Dim u = f.U(i, j, k)
-                            Dim v = f.V(i, j, k)
-                            Dim w = f.W(i, j, k)
+                            Dim u = Masked(f.Shape, i, j, k, f.U(i, j, k))
+                            Dim v = Masked(f.Shape, i, j, k, f.V(i, j, k))
+                            Dim w = Masked(f.Shape, i, j, k, f.W(i, j, k))
                             writer.Write("{0:F6} ", std.Sqrt(u * u + v * v + w * w))
                         Next
                         writer.WriteLine()
@@ -157,7 +169,9 @@ Namespace Snapshot
                     For j = 0 To ny - 1
                         For i = 0 To nx - 1
                             writer.WriteLine("{0:F6} {1:F6} {2:F6}",
-                                             f.U(i, j, k), f.V(i, j, k), f.W(i, j, k))
+                                             Masked(f.Shape, i, j, k, f.U(i, j, k)),
+                                             Masked(f.Shape, i, j, k, f.V(i, j, k)),
+                                             Masked(f.Shape, i, j, k, f.W(i, j, k)))
                         Next
                     Next
                 Next
@@ -165,6 +179,16 @@ Namespace Snapshot
             End Using
 
         End Sub
+
+        ''' <summary>
+        ''' 返回体素 (i, j, k) 处的物理量；若该体素为空腔（固体障碍物）则返回 0。
+        ''' 用于 VTK 导出时显式把非活动体素的速度 / 压力 / 密度写为 0。
+        ''' </summary>
+        Private Shared Function Masked(shape As VoxelShape, i As Integer, j As Integer, k As Integer, value As Double) As Double
+            If shape Is Nothing Then Return value
+            If shape.IsActive(i, j, k) Then Return value
+            Return 0.0
+        End Function
 
         ''' <summary>
         ''' 导出快照到 VTK 文件（重载，便于逐帧导出）。
