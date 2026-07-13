@@ -34,7 +34,7 @@
 Imports System.IO
 Imports std = System.Math
 
-Namespace CFDEngine
+Namespace Snapshot
 
     ''' <summary>
     ''' 将 CFD 模拟结果导出为 VTK 文件（可用 ParaView 打开）。

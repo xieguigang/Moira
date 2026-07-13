@@ -30,7 +30,7 @@
 Imports System.IO
 Imports std = System.Math
 
-Namespace CFDEngine
+Namespace Snapshot.JSON
 
     ''' <summary>
     ''' 基于 JSON 的逐帧数据快照记录器 —— 实现 ISnapshotRecorder。
@@ -127,7 +127,7 @@ Namespace CFDEngine
             WriteFrame(field, stepIndex, time, fullPath)
 
             ' 仅缓存轻量帧引用（用于 metadata.json 的 frames 列表）
-            _metadata.Frames.Add(New FrameRef With {.StepIndex = stepIndex, .Time = time, .File = fileName})
+            _metadata.Frames.Add(New FrameRef With {.stepIndex = stepIndex, .time = time, .File = fileName})
 
         End Sub
 
