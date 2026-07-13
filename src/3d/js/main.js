@@ -507,7 +507,34 @@ el.toggleWireBtn.addEventListener('click', () => {
   el.toggleWireBtn.classList.toggle('active', state.wireframe);
 });
 
+// ---------------- 主题切换（亮/暗） ----------------
+function applyTheme(theme, immediate = false) {
+  currentTheme = theme;
+  document.documentElement.setAttribute('data-theme', theme);
+  try { localStorage.setItem('moira-theme', theme); } catch (_) {}
+  setSceneThemeTarget(theme, immediate);
+}
+el.themeToggle.addEventListener('click', () => {
+  const next = currentTheme === 'dark' ? 'light' : 'dark';
+  applyTheme(next, false); // 场景平滑过渡
+  // UI 闪光遮罩动画
+  document.body.classList.remove('theme-anim');
+  void document.body.offsetWidth; // 重置动画
+  document.body.classList.add('theme-anim');
+});
+document.body.addEventListener('animationend', (e) => {
+  if (e.target === document.body && e.animationName === 'themeFlash') {
+    document.body.classList.remove('theme-anim');
+  }
+});
+
 // ---------------- Boot ----------------
+(function initTheme() {
+  let saved = 'dark';
+  try { saved = localStorage.getItem('moira-theme') || 'dark'; } catch (_) {}
+  currentTheme = saved;
+  document.documentElement.setAttribute('data-theme', saved);
+})();
 initThree();
 setStatus('等待加载模型…');
 // 自动加载默认测试模型
