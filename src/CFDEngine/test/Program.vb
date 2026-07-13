@@ -34,11 +34,29 @@ Module Program
         Console.WriteLine()
 
         ' ---- 1. 创建引擎 ----
-        Dim nx, ny, nz As Integer
-        nx = 48 : ny = 48 : nz = 48
+        ' 命令行参数：--capsule 使用胶囊形（竖直 Z 轴）体素计算空间；--json/--vtk 选择快照格式
+        Dim useCapsule As Boolean = False
+        Dim format As SnapshotFormat = SnapshotFormat.Json
+        For Each a In System.Environment.GetCommandLineArgs()
+            Dim lower = a.ToLower()
+            If lower = "--capsule" Then useCapsule = True
+            If lower = "--json" OrElse lower = "json" Then format = SnapshotFormat.Json
+            If lower = "--vtk" OrElse lower = "vtk" Then format = SnapshotFormat.Vtk
+        Next
 
-        Console.WriteLine($"[1] 创建 {nx}×{ny}×{nz} 发酵罐，放置旋转搅拌器...")
-        Dim engine = FluidSim.CreateDefault(nx, ny, nz, angularVelocity:=4.0)
+        Dim engine As FluidSim
+        Dim nx, ny, nz As Integer
+        If useCapsule Then
+            nx = 48 : ny = 48 : nz = 64
+            Dim capRadius = 18.0
+            Dim capCylHalf = 14.0
+            Console.WriteLine($"[1] 创建胶囊形（竖直 Z 轴）发酵罐 {nx}×{ny}×{nz}，胶囊半径={capRadius}，圆柱段半高={capCylHalf}...")
+            engine = FluidSim.CreateCapsule(nx, ny, nz, capRadius, capCylHalf, angularVelocity:=4.0)
+        Else
+            nx = 48 : ny = 48 : nz = 48
+            Console.WriteLine($"[1] 创建 {nx}×{ny}×{nz} 长方体发酵罐，放置旋转搅拌器...")
+            engine = FluidSim.CreateDefault(nx, ny, nz, angularVelocity:=4.0)
+        End If
 
         Dim tank = engine.Tank
         Console.WriteLine($"    搅拌器位置: 轴=({tank.Stirrer.CenterX:F1}, {tank.Stirrer.CenterY:F1}), " &
@@ -59,13 +77,6 @@ Module Program
         Console.WriteLine()
 
         ' 选择快照格式：默认 VTK；可通过命令行参数 --json / --vtk 切换
-        Dim format As SnapshotFormat = SnapshotFormat.Json
-        For Each a In System.Environment.GetCommandLineArgs()
-            Dim lower = a.ToLower()
-            If lower = "--json" OrElse lower = "json" Then format = SnapshotFormat.Json
-            If lower = "--vtk" OrElse lower = "vtk" Then format = SnapshotFormat.Vtk
-        Next
-
         Dim framesDir = System.IO.Path.Combine(System.AppContext.BaseDirectory, "frames")
         If format = SnapshotFormat.Json Then
             Console.WriteLine($"    快照格式: JSON (metadata.json + frame_xxx.json)")

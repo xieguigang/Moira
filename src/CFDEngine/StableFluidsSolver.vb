@@ -222,7 +222,7 @@ Public Class StableFluidsSolver
     '''
     ''' 原理：
     '''   扩散方程：∂φ/∂t = ν∇²φ
-    '''   显式格式：φ_new = φ_old + dt*ν*∇²φ_old  （有稳定性限制 dt < dx²/(6ν)）
+    '''   显式格式：φ_new = φ_old + dt*ν*∇²φ_old  （有稳定性限制 dt &lt; dx²/(6ν)）
     '''   隐式格式：φ_new - dt*ν*∇²φ_new = φ_old  （无条件稳定）
     '''
     '''   离散化（7 点拉普拉斯，dx=1）：
