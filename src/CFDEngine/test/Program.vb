@@ -27,6 +27,15 @@ Module Program
 
     Sub Main()
 
+        ' ---- 风洞外流动测试分支：dotnet run -- --windtunnel [模型路径] [--scale N] [--clearance N] ----
+        Dim args = System.Environment.GetCommandLineArgs()
+        For Each a In args
+            If a.ToLower() = "--windtunnel" OrElse a.ToLower() = "windtunnel" Then
+                RunWindTunnelBranch(args)
+                Return
+            End If
+        Next
+
         Console.WriteLine("="c, 70)
         Console.WriteLine("  基础 CFD 引擎演示 —— 发酵罐搅拌模拟")
         Console.WriteLine("  Basic CFD Engine Demo - Fermentation Tank Stirring Simulation")
@@ -153,6 +162,39 @@ Module Program
         Console.WriteLine("="c, 70)
 
     End Sub
+
+#Region "风洞测试分支"
+
+    ''' <summary>
+    ''' 解析命令行参数并运行风洞外流动测试。
+    ''' 用法：dotnet run -- --windtunnel [模型路径] [--scale N] [--clearance N]
+    ''' </summary>
+    Sub RunWindTunnelBranch(args As String())
+        Dim modelPath As String = Nothing
+        Dim domainScale As Double = 2.0
+        Dim groundClearance As Integer = 0
+
+        Dim i As Integer = 0
+        While i < args.Length
+            Dim a = args(i)
+            Dim lower = a.ToLower()
+            If lower = "--scale" AndAlso i + 1 < args.Length Then
+                Double.TryParse(args(i + 1), domainScale)
+                i += 1
+            ElseIf lower = "--clearance" AndAlso i + 1 < args.Length Then
+                Integer.TryParse(args(i + 1), groundClearance)
+                i += 1
+            ElseIf lower.EndsWith(".json") Then
+                modelPath = a
+            End If
+            i += 1
+        End While
+
+        Dim pass = WindTunnelTest.RunWindTunnelTest(modelPath, domainScale, groundClearance)
+        System.Environment.ExitCode = If(pass, 0, 1)
+    End Sub
+
+#End Region
 
 #Region "辅助打印函数"
 

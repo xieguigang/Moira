@@ -128,6 +128,53 @@ Public Class FluidSim
 
 #End Region
 
+#Region "风洞工厂"
+
+    ''' <summary>
+    ''' 从体素模型创建一个 "风洞外流动" 模拟（水平向右 +X 来流吹过模型表面）。
+    ''' 计算空间按 domainScale 放大到模型 grid 尺寸的倍数，模型在放大空间中 X/Z 居中、
+    ''' 底部抬至指定离地高度 groundClearance，用于模拟贴地行驶或空中飞行的风洞测试。
+    ''' </summary>
+    ''' <param name="model">已加载的体素模型（见 VoxelModelLoader.Load）</param>
+    ''' <param name="freestream">来流速度 U∞（沿 +X）</param>
+    ''' <param name="domainScale">计算空间相对模型 grid 的放大倍数（默认 2）</param>
+    ''' <param name="groundClearance">模型最低固体体素离地面 (j=0) 的高度（默认 0，贴地）</param>
+    ''' <param name="viscosity">运动粘度 ν</param>
+    ''' <param name="groundNoSlip">底面地壁是否无滑移（默认 False，自由滑移）</param>
+    Public Shared Function CreateWindTunnel(model As VoxelModel,
+                                            Optional freestream As Double = 2.0,
+                                            Optional domainScale As Double = 2.0,
+                                            Optional groundClearance As Integer = 0,
+                                            Optional viscosity As Double = 0.0001,
+                                            Optional groundNoSlip As Boolean = False) As WindTunnel
+
+        Return WindTunnel.FromVoxelModel(model, freestream, domainScale, groundClearance, viscosity, groundNoSlip)
+
+    End Function
+
+    ''' <summary>
+    ''' 从体素模型 JSON 文件路径直接创建风洞模拟（先加载再构建）。
+    ''' </summary>
+    ''' <param name="modelPath">体素模型 JSON 文件路径</param>
+    ''' <param name="freestream">来流速度 U∞（沿 +X）</param>
+    ''' <param name="domainScale">计算空间相对模型 grid 的放大倍数（默认 2）</param>
+    ''' <param name="groundClearance">模型最低固体体素离地面 (j=0) 的高度（默认 0，贴地）</param>
+    ''' <param name="viscosity">运动粘度 ν</param>
+    ''' <param name="groundNoSlip">底面地壁是否无滑移（默认 False，自由滑移）</param>
+    Public Shared Function CreateWindTunnel(modelPath As String,
+                                            Optional freestream As Double = 2.0,
+                                            Optional domainScale As Double = 2.0,
+                                            Optional groundClearance As Integer = 0,
+                                            Optional viscosity As Double = 0.0001,
+                                            Optional groundNoSlip As Boolean = False) As WindTunnel
+
+        Dim model = VoxelModelLoader.Load(modelPath)
+        Return WindTunnel.FromVoxelModel(model, freestream, domainScale, groundClearance, viscosity, groundNoSlip)
+
+    End Function
+
+#End Region
+
 #Region "模拟控制"
 
     ''' <summary>
