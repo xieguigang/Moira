@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Moira 3D 查看与体素化</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部导航栏 -->
+    <header class="topbar glass">
+      <div class="brand">
+        <span class="brand-logo"></span>
+        <div class="brand-text">
+          <h1>Moira 3D</h1>
+          <p>查看与体素化 · CFD Voxelizer</p>
+        </div>
+      </div>
+      <div class="loadbar">
+        <div class="input-wrap">
+          <span class="input-icon">/</span>
+          <input id="modelPath" type="text" value="airplane1.3mf" placeholder="模型相对路径，例如 airplane1.3mf" spellcheck="false" />
+        </div>
+        <button id="loadBtn" class="btn btn-primary">
+          <span class="btn-glow"></span>加载模型
+        </button>
+        <label class="btn btn-ghost" for="fileInput">本地文件</label>
+        <input id="fileInput" type="file" accept=".3mf,.obj,.stl,.ply,.dae,.glb,.gltf,.3ds" hidden />
+      </div>
+      <div class="fmt-hint">
+        支持: 3MF · OBJ · STL · PLY · DAE · GLB · GLTF · 3DS
+      </div>
+    </header>
+
+    <!-- 左侧面板 -->
+    <aside class="sidebar">
+      <!-- 属性面板 -->
+      <section class="panel glass">
+        <div class="panel-head">
+          <h2>模型属性</h2>
+          <span id="modelType" class="tag">—</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-label">顶点数</div>
+            <div class="stat-value" id="statVertices">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">三角面数</div>
+            <div class="stat-value" id="statFaces">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">对象数</div>
+            <div class="stat-value" id="statObjects">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">点数(点云)</div>
+            <div class="stat-value" id="statPoints">—</div>
+          </div>
+        </div>
+        <div class="bbox-block">
+          <div class="stat-label">包围盒尺寸 (W × H × D)</div>
+          <div class="bbox-value" id="statBBox">—</div>
+        </div>
+      </section>
+
+      <!-- 体素化面板 -->
+      <section class="panel glass">
+        <div class="panel-head">
+          <h2>体素化 (CFD)</h2>
+          <span class="tag tag-accent">Solid</span>
+        </div>
+
+        <div class="field">
+          <label for="resInput">网格分辨率 (最长边体素数)</label>
+          <div class="res-row">
+            <input id="resInput" type="number" min="8" max="512" step="8" value="64" />
+            <div class="res-presets">
+              <button class="chip" data-res="32">32</button>
+              <button class="chip" data-res="64">64</button>
+              <button class="chip" data-res="128">128</button>
+              <button class="chip" data-res="256">256</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button id="voxelizeBtn" class="btn btn-primary" disabled>
+            <span class="btn-glow"></span>开始体素化
+          </button>
+          <button id="downloadBtn" class="btn btn-ghost" disabled>下载 JSON</button>
+        </div>
+
+        <div class="progress-wrap">
+          <div class="progress-track">
+            <div id="progressBar" class="progress-fill"></div>
+          </div>
+          <span id="progressText" class="progress-text">就绪</span>
+        </div>
+
+        <label class="check-row">
+          <input type="checkbox" id="previewChk" checked />
+          <span>在视口预览体素 (低分辨率)</span>
+        </label>
+
+        <div class="legend">
+          <div class="legend-item"><span class="sw sw-0"></span>0 · 流体/外部空间</div>
+          <div class="legend-item"><span class="sw sw-1"></span>1 · 固体边界</div>
+        </div>
+
+        <div class="voxel-summary" id="voxelSummary" hidden>
+          <div class="vs-row"><span>网格维度</span><b id="vsDims">—</b></div>
+          <div class="vs-row"><span>固体体素</span><b id="vsSolid">—</b></div>
+          <div class="vs-row"><span>体素尺寸</span><b id="vsSize">—</b></div>
+          <div class="vs-row"><span>耗时</span><b id="vsTime">—</b></div>
+        </div>
+      </section>
+    </aside>
+
+    <!-- 主视口 -->
+    <main class="viewport">
+      <canvas id="glCanvas"></canvas>
+      <div class="viewport-overlay" id="loadingOverlay" hidden>
+        <div class="spinner"></div>
+        <span id="loadingText">加载中…</span>
+      </div>
+      <div class="view-controls glass">
+        <button class="vc-btn" id="resetViewBtn" title="重置视角">⟳</button>
+        <button class="vc-btn" id="toggleGridBtn" title="网格开关">▦</button>
+        <button class="vc-btn" id="toggleWireBtn" title="线框模式">◇</button>
+      </div>
+    </main>
+
+    <!-- 底部状态栏 -->
+    <footer class="statusbar glass">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">等待加载模型…</span>
+      <span class="status-spacer"></span>
+      <span id="statusMeta"></span>
+    </footer>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
