@@ -189,7 +189,7 @@ html, body {
   flex: 1; display: flex; align-items: center; gap: 8px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px; padding: 0 12px;
+  border-radius: 9px; padding: 0 12px;
   transition: border-color .2s, box-shadow .2s;
 }
 .input-wrap:focus-within {
@@ -240,22 +240,24 @@ html, body {
   overflow-y: auto; padding-right: 2px;
 }
 .panel {
-  padding: 16px;
+  padding: 14px;
   transition: box-shadow .2s ease, transform .2s ease,
               background var(--theme-dur) ease, border-color var(--theme-dur) ease;
 }
 .panel:hover { box-shadow: var(--shadow-hover); }
 .panel-head {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 14px;
 }
 .panel-head h2 {
-  font-size: 15px; font-weight: 600;
-  display: flex; align-items: center; gap: 8px;
+  flex: 1;
+  font-size: 13px; font-weight: 600; color: var(--text-0);
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 0 10px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
 }
 .panel-head h2::before {
   content: "";
-  width: 3px; height: 15px; border-radius: 2px;
+  width: 3px; height: 13px; border-radius: 2px;
   background: linear-gradient(180deg, var(--primary), var(--primary-3));
 }
 .tag {
@@ -296,7 +298,7 @@ html, body {
 .res-row { display: flex; flex-direction: column; gap: 8px; }
 #resInput {
   width: 100%; background: var(--surface);
-  border: 1px solid var(--border); border-radius: 10px;
+  border: 1px solid var(--border); border-radius: 9px;
   color: var(--text-0); font-size: 14px; padding: 10px 12px; outline: none;
   font-family: inherit;
 }
@@ -379,7 +381,7 @@ html, body {
   z-index: 5; color: var(--text-0); font-size: 14px;
 }
 .spinner {
-  width: 46px; height: 46px; border-radius: 50%;
+  width: 34px; height: 34px; border-radius: 50%;
   border: 3px solid rgba(37, 99, 235, 0.2);
   border-top-color: var(--primary);
   animation: spin .8s linear infinite;
