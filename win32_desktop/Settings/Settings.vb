@@ -4,9 +4,6 @@ Namespace My
 
     Public Class Settings
 
-        Public Property form_pos As Integer() = {100, 100}
-        Public Property form_size As Integer() = {800, 500}
-
         Shared ReadOnly default_file As String = $"{App.ProductProgramData}/workbench_settings.json"
 
         Private Shared Function CreateNew()
@@ -24,13 +21,6 @@ Namespace My
 
             If config Is Nothing Then
                 config = CreateNew()
-            End If
-
-            If config.form_pos.TryCount < 2 Then
-                config.form_pos = {100, 100}
-            End If
-            If config.form_size.TryCount < 2 Then
-                config.form_size = {800, 500}
             End If
 
             Return config
