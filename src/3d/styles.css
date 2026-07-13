@@ -251,7 +251,7 @@ html, body {
 #resInput:focus { border-color: var(--c-cyan); box-shadow: 0 0 0 3px rgba(34,211,238,.15); }
 .res-presets { display: flex; gap: 6px; }
 .chip {
-  flex: 1; background: rgba(148, 163, 184, 0.1);
+  flex: 1; background: var(--chip-bg);
   border: 1px solid var(--glass-brd); border-radius: 8px;
   color: var(--text-1); font-size: 12px; padding: 6px 0; cursor: pointer;
   transition: all .15s; font-family: inherit;
@@ -264,7 +264,7 @@ html, body {
 
 .progress-wrap { margin-bottom: 14px; }
 .progress-track {
-  height: 8px; background: rgba(11, 17, 32, 0.7);
+  height: 8px; background: var(--surface-solid);
   border-radius: 20px; overflow: hidden; border: 1px solid var(--glass-brd);
 }
 .progress-fill {
@@ -299,14 +299,14 @@ html, body {
   grid-area: view; position: relative;
   border-radius: var(--radius); overflow: hidden;
   border: 1px solid var(--glass-brd);
-  background: radial-gradient(ellipse at 50% 40%, #142033, #0a0f1c 80%);
+  background: radial-gradient(ellipse at 50% 40%, var(--viewport-bg-1), var(--viewport-bg-2) 80%);
 }
 #glCanvas { display: block; width: 100%; height: 100%; }
 
 .viewport-overlay {
   position: absolute; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 16px;
-  background: rgba(11, 17, 32, 0.6); backdrop-filter: blur(4px);
+  background: var(--overlay); backdrop-filter: blur(4px);
   z-index: 5; color: var(--text-0); font-size: 14px;
 }
 .spinner {
@@ -323,7 +323,7 @@ html, body {
 }
 .vc-btn {
   width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--glass-brd);
-  background: rgba(148, 163, 184, 0.08); color: var(--text-0);
+  background: var(--btn-ghost-bg); color: var(--text-0);
   font-size: 16px; cursor: pointer; transition: all .15s;
 }
 .vc-btn:hover { background: rgba(34,211,238,.18); color: var(--c-cyan); border-color: rgba(34,211,238,.4); }
