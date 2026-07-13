@@ -39,6 +39,7 @@ const el = {
   resetViewBtn: $('resetViewBtn'),
   toggleGridBtn: $('toggleGridBtn'),
   toggleWireBtn: $('toggleWireBtn'),
+  themeToggle: $('themeToggle'),
 };
 
 // ---------------- State ----------------
@@ -103,6 +104,13 @@ function setSceneThemeTarget(theme, immediate) {
   paletteTarget.key.setHex(t.key);
   paletteTarget.fill.setHex(t.fill);
   paletteTarget.rim.setHex(t.rim);
+  // 灯光强度按主题设定（立即，不 lerp）
+  if (keyLight) {
+    keyLight.intensity = t.keyI;
+    fillLight.intensity = t.fillI;
+    rimLight.intensity = t.rimI;
+  }
+
   // 网格地面重建（两色顶点，无法 lerp，故直接切换）
   if (grid) { scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
   grid = new THREE.GridHelper(40, 40, t.grid1, t.grid2);
@@ -149,21 +157,21 @@ function initThree() {
   controls.dampingFactor = 0.08;
 
   // 光照（三点光）
-  scene.add(new THREE.HemisphereLight(0xbcd4ff, 0x1a2233, 0.9));
-  const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(8, 12, 6); scene.add(key);
-  const fill = new THREE.DirectionalLight(0x88bbff, 0.7); fill.position.set(-8, 4, -6); scene.add(fill);
-  const rim = new THREE.DirectionalLight(0x22d3ee, 0.5); rim.position.set(0, -6, -8); scene.add(rim);
+  hemiLight = new THREE.HemisphereLight(0xbcd4ff, 0x1a2233, 0.9); scene.add(hemiLight);
+  keyLight = new THREE.DirectionalLight(0xffffff, 1.6); keyLight.position.set(8, 12, 6); scene.add(keyLight);
+  fillLight = new THREE.DirectionalLight(0x88bbff, 0.7); fillLight.position.set(-8, 4, -6); scene.add(fillLight);
+  rimLight = new THREE.DirectionalLight(0x22d3ee, 0.5); rimLight.position.set(0, -6, -8); scene.add(rimLight);
 
-  // 地面网格 + 坐标轴
-  grid = new THREE.GridHelper(40, 40, 0x2b3b57, 0x1b2740);
-  grid.material.transparent = true; grid.material.opacity = 0.55;
-  scene.add(grid);
+  // 地面网格 + 坐标轴（网格由主题调色板创建）
   scene.add(new THREE.AxesHelper(3));
 
   modelGroup = new THREE.Group();
   voxelGroup = new THREE.Group();
   scene.add(modelGroup);
   scene.add(voxelGroup);
+
+  // 应用初始主题（立即，无动画）
+  setSceneThemeTarget(currentTheme, true);
 
   window.addEventListener('resize', onResize);
   animate();
@@ -176,8 +184,11 @@ function onResize() {
   renderer.setSize(w, h, false);
 }
 
+const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  lerpPalette(dt);
   controls.update();
   renderer.render(scene, camera);
 }
