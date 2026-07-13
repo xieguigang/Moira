@@ -148,7 +148,8 @@ Namespace Snapshot.JSON
             File.WriteAllText(metaPath, _metadata.ToJson())
         End Sub
 
-        ''' <summary>写出单帧 frame_xxx.json：step/time + 7 个物理场的扁平数组。</summary>
+        ''' <summary>写出单帧 frame_xxx.json：step/time + 仅活动体素的 7 个物理场扁平数组。
+        ''' 体素掩膜（mask）仅在 metadata.json 写一次，本帧只输出活动体素（顺序同 mask），降低逐帧冗余。</summary>
         Private Sub WriteFrame(field As FluidField, stepIndex As Integer, time As Double, fullPath As String)
             Dim f = field
             Dim nx = f.Nx, ny = f.Ny, nz = f.Nz
@@ -156,58 +157,82 @@ Namespace Snapshot.JSON
             Dim uData = f.U.Data, vData = f.V.Data, wData = f.W.Data
             Dim pData = f.Pressure.Data, dData = f.Density.Data
 
+            ' 体素掩膜（True = 活动体素）；无 shape 时全为活动
+            Dim mask As Boolean()
+            If f.Shape Is Nothing Then
+                mask = New Boolean(n - 1) {}
+                For i = 0 To n - 1 : mask(i) = True : Next
+            Else
+                mask = f.Shape.Shape
+            End If
+            Dim activeCount = If(f.Shape Is Nothing, n, f.Shape.TotalActive)
+
             Using writer As New StreamWriter(fullPath)
                 writer.WriteLine("{")
                 writer.WriteLine("  ""step"": {0},", stepIndex)
                 writer.WriteLine("  ""time"": {0},", Fmt(time))
                 writer.WriteLine("  ""grid"": {{ ""nx"": {0}, ""ny"": {1}, ""nz"": {2} }},", nx, ny, nz)
+                writer.WriteLine("  ""activeCount"": {0},", activeCount)
+                writer.WriteLine("  ""indexOrder"": ""i*ny*nz + j*nz + k"",")
                 writer.WriteLine("  ""fields"": {")
 
-                ' 5 个基础标量场
-                WriteFlat(writer, "pressure", pData, n, "    ", isLast:=False)
-                WriteFlat(writer, "density", dData, n, "    ", isLast:=False)
-                WriteFlat(writer, "u", uData, n, "    ", isLast:=False)
-                WriteFlat(writer, "v", vData, n, "    ", isLast:=False)
-                WriteFlat(writer, "w", wData, n, "    ", isLast:=False)
-                ' 2 个派生场
-                WriteSpeed(writer, uData, vData, wData, n, "    ", isLast:=False)
-                WriteVelocity(writer, uData, vData, wData, n, "    ", isLast:=True)
+                ' 5 个基础标量场（仅活动体素）
+                WriteFlatMasked(writer, "pressure", pData, mask, "    ", isLast:=False)
+                WriteFlatMasked(writer, "density", dData, mask, "    ", isLast:=False)
+                WriteFlatMasked(writer, "u", uData, mask, "    ", isLast:=False)
+                WriteFlatMasked(writer, "v", vData, mask, "    ", isLast:=False)
+                WriteFlatMasked(writer, "w", wData, mask, "    ", isLast:=False)
+                ' 2 个派生场（仅活动体素）
+                WriteSpeedMasked(writer, uData, vData, wData, mask, "    ", isLast:=False)
+                WriteVelocityMasked(writer, uData, vData, wData, mask, "    ", isLast:=True)
 
                 writer.WriteLine("  }")
                 writer.WriteLine("}")
             End Using
         End Sub
 
-        ''' <summary>写出一个命名扁平数组（标量场）。</summary>
-        Private Sub WriteFlat(writer As StreamWriter, name As String, data() As Double, n As Integer,
-                              indent As String, isLast As Boolean)
+        ''' <summary>写出一个命名扁平数组（标量场），仅含活动体素。</summary>
+        Private Sub WriteFlatMasked(writer As StreamWriter, name As String, data() As Double, mask As Boolean(),
+                                    indent As String, isLast As Boolean)
             writer.Write(indent & """" & name & """: [")
-            For i = 0 To n - 1
-                If i > 0 Then writer.Write(",")
-                writer.Write(Fmt(data(i)))
+            Dim first As Boolean = True
+            For i = 0 To data.Length - 1
+                If mask(i) Then
+                    If Not first Then writer.Write(",")
+                    writer.Write(Fmt(data(i)))
+                    first = False
+                End If
             Next
             writer.WriteLine("]" & If(isLast, "", ","))
         End Sub
 
-        ''' <summary>写出 speed 标量场（由 U/V/W 派生，扁平数组）。</summary>
-        Private Sub WriteSpeed(writer As StreamWriter, uData() As Double, vData() As Double, wData() As Double,
-                               n As Integer, indent As String, isLast As Boolean)
+        ''' <summary>写出 speed 标量场（由 U/V/W 派生），仅含活动体素。</summary>
+        Private Sub WriteSpeedMasked(writer As StreamWriter, uData() As Double, vData() As Double, wData() As Double,
+                                     mask As Boolean(), indent As String, isLast As Boolean)
             writer.Write(indent & """speed"": [")
-            For i = 0 To n - 1
-                If i > 0 Then writer.Write(",")
-                Dim s = std.Sqrt(uData(i) * uData(i) + vData(i) * vData(i) + wData(i) * wData(i))
-                writer.Write(Fmt(s))
+            Dim first As Boolean = True
+            For i = 0 To uData.Length - 1
+                If mask(i) Then
+                    If Not first Then writer.Write(",")
+                    Dim s = std.Sqrt(uData(i) * uData(i) + vData(i) * vData(i) + wData(i) * wData(i))
+                    writer.Write(Fmt(s))
+                    first = False
+                End If
             Next
             writer.WriteLine("]" & If(isLast, "", ","))
         End Sub
 
-        ''' <summary>写出 velocity 向量场（u,v,w 交错扁平数组，长度 3N）。</summary>
-        Private Sub WriteVelocity(writer As StreamWriter, uData() As Double, vData() As Double, wData() As Double,
-                                  n As Integer, indent As String, isLast As Boolean)
+        ''' <summary>写出 velocity 向量场（u,v,w 交错扁平数组），仅含活动体素。</summary>
+        Private Sub WriteVelocityMasked(writer As StreamWriter, uData() As Double, vData() As Double, wData() As Double,
+                                        mask As Boolean(), indent As String, isLast As Boolean)
             writer.Write(indent & """velocity"": [")
-            For i = 0 To n - 1
-                If i > 0 Then writer.Write(",")
-                writer.Write(Fmt(uData(i)) & "," & Fmt(vData(i)) & "," & Fmt(wData(i)))
+            Dim first As Boolean = True
+            For i = 0 To uData.Length - 1
+                If mask(i) Then
+                    If Not first Then writer.Write(",")
+                    writer.Write(Fmt(uData(i)) & "," & Fmt(vData(i)) & "," & Fmt(wData(i)))
+                    first = False
+                End If
             Next
             writer.WriteLine("]" & If(isLast, "", ","))
         End Sub

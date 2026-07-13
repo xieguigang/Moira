@@ -105,10 +105,10 @@ Public Class FermentationTank
     ''' 交给求解器（求解器据此把空腔单元当作实体障碍物处理）。
     ''' </summary>
     Private Sub Initialize(shape As VoxelShape, stirrer As Stirrer)
-        Me.Field = New FluidField(shape)
-        Me.Stirrer = stirrer
-        Me.Solver = New StableFluidsSolver()
-        Me.Solver.SolidMask = shape.ToSolidMask()
+        _Field = New FluidField(shape)
+        _Stirrer = stirrer
+        _Solver = New StableFluidsSolver()
+        _Solver.SolidMask = shape.ToSolidMask()
     End Sub
 
 #End Region
