@@ -114,9 +114,9 @@ Namespace CFDEngine
                         Dim z = k - dt * cw
 
                         ' 把位置限制在网格有效范围内（留出边界用于插值）
-                        x = Clamp(x, 0.5, nx - 1.5)
-                        y = Clamp(y, 0.5, ny - 1.5)
-                        z = Clamp(z, 0.5, nz - 1.5)
+                        x = std.Clamp(x, 0.5, nx - 1.5)
+                        y = std.Clamp(y, 0.5, ny - 1.5)
+                        z = std.Clamp(z, 0.5, nz - 1.5)
 
                         ' 三线性插值采样旧场
                         result(i, j, k) = TrilinearSample(field, x, y, z)
@@ -336,9 +336,9 @@ Namespace CFDEngine
             Dim fz = z - k0
 
             ' 钳制到合法范围
-            i0 = ClampInt(i0, 0, nx - 1) : i1 = ClampInt(i1, 0, nx - 1)
-            j0 = ClampInt(j0, 0, ny - 1) : j1 = ClampInt(j1, 0, ny - 1)
-            k0 = ClampInt(k0, 0, nz - 1) : k1 = ClampInt(k1, 0, nz - 1)
+            i0 = std.Clamp(i0, 0, nx - 1) : i1 = std.Clamp(i1, 0, nx - 1)
+            j0 = std.Clamp(j0, 0, ny - 1) : j1 = std.Clamp(j1, 0, ny - 1)
+            k0 = std.Clamp(k0, 0, nz - 1) : k1 = std.Clamp(k1, 0, nz - 1)
 
             ' 8 个角点的值
             Dim c000 = field(i0, j0, k0)
@@ -473,24 +473,6 @@ Namespace CFDEngine
             Next
 
         End Sub
-
-#End Region
-
-#Region "辅助函数"
-
-        ''' <summary>把浮点数钳制到 [min, max] 区间</summary>
-        Private Function Clamp(x As Double, min As Double, max As Double) As Double
-            If x < min Then Return min
-            If x > max Then Return max
-            Return x
-        End Function
-
-        ''' <summary>把整数钳制到 [min, max] 区间</summary>
-        Private Function ClampInt(x As Integer, min As Integer, max As Integer) As Integer
-            If x < min Then Return min
-            If x > max Then Return max
-            Return x
-        End Function
 
 #End Region
 
