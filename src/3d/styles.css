@@ -91,6 +91,9 @@ body, .glass, .panel, .stat-card, .bbox-value, .input-wrap, #resInput,
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* 确保 hidden 属性始终生效（覆盖 .viewport-overlay/.voxel-summary 的 display:flex） */
+[hidden] { display: none !important; }
+
 html, body {
   height: 100%;
   font-family: "Roboto", system-ui, sans-serif;
