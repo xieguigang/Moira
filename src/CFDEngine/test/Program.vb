@@ -20,6 +20,8 @@
 ' /********************************************************************************/
 
 Imports CFDEngine.CFDEngine
+Imports Moira.CFDEngine
+Imports Moira.CFDEngine.Snapshot
 Imports std = System.Math
 
 Module Program

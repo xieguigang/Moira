@@ -20,6 +20,8 @@
 '
 ' /********************************************************************************/
 
+Imports Moira.CFDEngine.Snapshot
+Imports Moira.CFDEngine.Snapshot.JSON
 Imports std = System.Math
 
 ''' <summary>

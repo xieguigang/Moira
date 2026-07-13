@@ -25,6 +25,7 @@
 ' /********************************************************************************/
 
 Imports System.IO
+Imports Moira.CFDEngine.Snapshot
 Imports std = System.Math
 
 ''' <summary>
