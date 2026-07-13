@@ -125,6 +125,26 @@ Public Class StableFluidsSolver
         Return p(ni, nj, nk)
     End Function
 
+    ''' <summary>
+    ''' 把整个流体场中固体单元的速度（U/V/W）、压力与密度全部置零。
+    ''' 供 FermentationTank 在每个时间步末尾调用，保证空腔单元恒为 0，
+    ''' 不被搅拌器写入或密度扩散污染。
+    ''' </summary>
+    Public Sub EnforceSolidMask(velU As Tensor, velV As Tensor, velW As Tensor,
+                                pressure As Tensor, density As Tensor)
+        If SolidMask Is Nothing Then Return
+        Dim n = velU.Length
+        For idx = 0 To n - 1
+            If SolidMask(idx) Then
+                velU.Data(idx) = 0.0
+                velV.Data(idx) = 0.0
+                velW.Data(idx) = 0.0
+                pressure.Data(idx) = 0.0
+                density.Data(idx) = 0.0
+            End If
+        Next
+    End Sub
+
 #End Region
 
 #Region "半拉格朗日平流 (Semi-Lagrangian Advection)"
@@ -315,6 +335,11 @@ Public Class StableFluidsSolver
         For i = 1 To nx - 2
             For j = 1 To ny - 2
                 For k = 1 To nz - 2
+                    ' 固体单元散度强制为 0（不向 Poisson 方程贡献源项）
+                    If IsSolid(i, j, k, nx, ny, nz) Then
+                        div(i, j, k) = 0.0
+                        Continue For
+                    End If
                     ' 中心差分计算散度（dx=1）
                     Dim dudx = (velU(i + 1, j, k) - velU(i - 1, j, k)) * 0.5
                     Dim dvdy = (velV(i, j + 1, k) - velV(i, j - 1, k)) * 0.5
@@ -328,8 +353,9 @@ Public Class StableFluidsSolver
         SetScalarBoundary(div)
 
         ' ---- Step 2: 求解 Poisson 方程 ∇²p = div ----
-        ' 离散形式：p(i-1)+p(i+1)+p(j-1)+p(j+1)+p(k-1)+p(k+1) - 6p = div
-        ' Jacobi 迭代：p_new = (邻居之和 - div) / 6
+        ' 离散形式：对流体邻居求平均；固体邻居按 Neumann 零梯度用本格压力代替，
+        '          除数取流体邻居数 nFluid（保证壁面无通量）。
+        '          Σ(流体邻居 p) - nFluid·p = div  →  p = (Σ流体邻居 - div) / nFluid
         For iter = 0 To JacobiIterations - 1
 
             Dim prev As Tensor = CType(pressure.Clone(), Tensor)
@@ -337,14 +363,23 @@ Public Class StableFluidsSolver
             For i = 1 To nx - 2
                 For j = 1 To ny - 2
                     For k = 1 To nz - 2
-                        Dim sumP As Double = 0
-                        sumP += prev(i - 1, j, k)
-                        sumP += prev(i + 1, j, k)
-                        sumP += prev(i, j - 1, k)
-                        sumP += prev(i, j + 1, k)
-                        sumP += prev(i, j, k - 1)
-                        sumP += prev(i, j, k + 1)
-                        pressure(i, j, k) = (sumP - div(i, j, k)) / 6.0
+                        ' 固体单元压力恒为 0
+                        If IsSolid(i, j, k, nx, ny, nz) Then
+                            pressure(i, j, k) = 0.0
+                            Continue For
+                        End If
+
+                        Dim sumP As Double = 0.0
+                        Dim nFluid As Integer = 0
+                        If IsSolid(i - 1, j, k, nx, ny, nz) Then sumP += prev(i, j, k) Else sumP += prev(i - 1, j, k) : nFluid += 1
+                        If IsSolid(i + 1, j, k, nx, ny, nz) Then sumP += prev(i, j, k) Else sumP += prev(i + 1, j, k) : nFluid += 1
+                        If IsSolid(i, j - 1, k, nx, ny, nz) Then sumP += prev(i, j, k) Else sumP += prev(i, j - 1, k) : nFluid += 1
+                        If IsSolid(i, j + 1, k, nx, ny, nz) Then sumP += prev(i, j, k) Else sumP += prev(i, j + 1, k) : nFluid += 1
+                        If IsSolid(i, j, k - 1, nx, ny, nz) Then sumP += prev(i, j, k) Else sumP += prev(i, j, k - 1) : nFluid += 1
+                        If IsSolid(i, j, k + 1, nx, ny, nz) Then sumP += prev(i, j, k) Else sumP += prev(i, j, k + 1) : nFluid += 1
+
+                        Dim divisor = If(nFluid > 0, CDbl(nFluid), 1.0)
+                        pressure(i, j, k) = (sumP - div(i, j, k)) / divisor
                     Next
                 Next
             Next
@@ -357,13 +392,23 @@ Public Class StableFluidsSolver
         Next
 
         ' ---- Step 3: 速度减去压力梯度 ----
-        ' u -= dt * ∇p
+        ' u -= dt * ∇p；固体单元法向速度恒为 0（无滑移）
         For i = 1 To nx - 2
             For j = 1 To ny - 2
                 For k = 1 To nz - 2
-                    Dim dpdx = (pressure(i + 1, j, k) - pressure(i - 1, j, k)) * 0.5
-                    Dim dpdy = (pressure(i, j + 1, k) - pressure(i, j - 1, k)) * 0.5
-                    Dim dpdz = (pressure(i, j, k + 1) - pressure(i, j, k - 1)) * 0.5
+                    If IsSolid(i, j, k, nx, ny, nz) Then
+                        velU(i, j, k) = 0.0
+                        velV(i, j, k) = 0.0
+                        velW(i, j, k) = 0.0
+                        Continue For
+                    End If
+                    ' 固体邻居用本格压力代替（零梯度），保证壁面无通量
+                    Dim dpdx = (Pneighbor(pressure, i + 1, j, k, i, j, k, nx, ny, nz) -
+                                Pneighbor(pressure, i - 1, j, k, i, j, k, nx, ny, nz)) * 0.5
+                    Dim dpdy = (Pneighbor(pressure, i, j + 1, k, i, j, k, nx, ny, nz) -
+                                Pneighbor(pressure, i, j - 1, k, i, j, k, nx, ny, nz)) * 0.5
+                    Dim dpdz = (Pneighbor(pressure, i, j, k + 1, i, j, k, nx, ny, nz) -
+                                Pneighbor(pressure, i, j, k - 1, i, j, k, nx, ny, nz)) * 0.5
                     velU(i, j, k) -= dt * dpdx
                     velV(i, j, k) -= dt * dpdy
                     velW(i, j, k) -= dt * dpdz
@@ -375,6 +420,9 @@ Public Class StableFluidsSolver
         SetVelocityBoundary(velU, 0)
         SetVelocityBoundary(velV, 1)
         SetVelocityBoundary(velW, 2)
+
+        ' 最终保证所有固体单元速度/压力为 0
+        ZeroSolidVelocity(velU, velV, velW, pressure, nx, ny, nz)
 
     End Sub
 

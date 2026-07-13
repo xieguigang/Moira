@@ -74,7 +74,7 @@ Public Class FermentationTank
 #Region "构造函数"
 
     ''' <summary>
-    ''' 创建发酵罐模拟。
+    ''' 创建发酵罐模拟（长方体空间，等价于旧版 nx×ny×nz）。
     ''' </summary>
     ''' <param name="nx">X 方向格子数</param>
     ''' <param name="ny">Y 方向格子数</param>
@@ -83,10 +83,32 @@ Public Class FermentationTank
     Public Sub New(nx As Integer, ny As Integer, nz As Integer,
                    Optional stirrer As Stirrer = Nothing)
 
-        Me.Field = New FluidField(nx, ny, nz)
+        Initialize(VoxelShape.FullBox(nx, ny, nz), stirrer)
+
+    End Sub
+
+    ''' <summary>
+    ''' 创建发酵罐模拟（用给定的三维体素空间模型定义计算空间）。
+    ''' 体素模型中 False 的体素视为固体障碍物（空腔，不参与 CFD 计算）。
+    ''' </summary>
+    ''' <param name="voxelShape">三维体素空间模型（计算空间形状）</param>
+    ''' <param name="stirrer">搅拌器（若 Nothing 则不放置搅拌器）</param>
+    Public Sub New(voxelShape As VoxelShape,
+                   Optional stirrer As Stirrer = Nothing)
+
+        Initialize(voxelShape, stirrer)
+
+    End Sub
+
+    ''' <summary>
+    ''' 初始化发酵罐：构造流体场、绑定求解器，并把体素模型的固体掩膜
+    ''' 交给求解器（求解器据此把空腔单元当作实体障碍物处理）。
+    ''' </summary>
+    Private Sub Initialize(shape As VoxelShape, stirrer As Stirrer)
+        Me.Field = New FluidField(shape)
         Me.Stirrer = stirrer
         Me.Solver = New StableFluidsSolver()
-
+        Me.Solver.SolidMask = shape.ToSolidMask()
     End Sub
 
 #End Region
@@ -139,7 +161,7 @@ Public Class FermentationTank
 
         ' 扩散后再次应用搅拌器（保持搅拌器区域）
         If Stirrer IsNot Nothing Then
-            Stirrer.ApplyToFieldInternal(u1, v1, w1)
+            Stirrer.ApplyToFieldInternal(u1, v1, w1, Field.Shape)
         End If
 
         Solver.SetVelocityBoundary(u1, 0)
@@ -181,6 +203,10 @@ Public Class FermentationTank
         v1.Dispose()
         w1.Dispose()
         d1.Dispose()
+
+        ' 最终保证所有空腔（固体）单元的速度/压力/密度恒为 0：
+        ' 不被最后的搅拌器写入或密度扩散污染，形成清晰壁面
+        Solver.EnforceSolidMask(u0, v0, w0, Field.Pressure, Field.Density)
 
         ' 更新统计
         Time += dt

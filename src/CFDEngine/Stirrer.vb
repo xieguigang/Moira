@@ -169,7 +169,8 @@ Public Class Stirrer
         For i = iMin To iMax
             For j = jMin To jMax
                 For k = kMin To kMax
-                    If IsInside(i, j, k) Then
+                    ' 仅作用于活动体素（空腔 / 固体处不施加搅拌速度）
+                    If field.IsActive(i, j, k) AndAlso IsInside(i, j, k) Then
                         Dim su, sv, sw As Double
                         GetSurfaceVelocity(i, j, k, su, sv, sw)
                         field.U(i, j, k) = su
@@ -186,7 +187,8 @@ Public Class Stirrer
     ''' 把搅拌器边界条件直接应用到三个独立的速度 Tensor（u, v, w）。
     ''' 用于求解器内部双缓冲阶段，避免构造完整 FluidField。
     ''' </summary>
-    Public Sub ApplyToFieldInternal(uTensor As Tensor, vTensor As Tensor, wTensor As Tensor)
+    Public Sub ApplyToFieldInternal(uTensor As Tensor, vTensor As Tensor, wTensor As Tensor,
+                                    Optional shape As VoxelShape = Nothing)
 
         Dim nx = uTensor.Shape(0)
         Dim ny = uTensor.Shape(1)
@@ -203,7 +205,8 @@ Public Class Stirrer
         For i = iMin To iMax
             For j = jMin To jMax
                 For k = kMin To kMax
-                    If IsInside(i, j, k) Then
+                    ' 仅作用于活动体素（空腔 / 固体处不施加搅拌速度）
+                    If (shape Is Nothing OrElse shape.IsActive(i, j, k)) AndAlso IsInside(i, j, k) Then
                         Dim su, sv, sw As Double
                         GetSurfaceVelocity(i, j, k, su, sv, sw)
                         uTensor(i, j, k) = su
@@ -239,7 +242,8 @@ Public Class Stirrer
         For i = iMin To iMax
             For j = jMin To jMax
                 For k = kMin To kMax
-                    If IsInside(i, j, k) Then
+                    ' 仅向活动体素注入示踪剂（空腔处不注入）
+                    If field.IsActive(i, j, k) AndAlso IsInside(i, j, k) Then
                         field.Density(i, j, k) = amount
                     End If
                 Next
