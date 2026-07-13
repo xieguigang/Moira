@@ -11,7 +11,6 @@
 Imports System
 Imports RibbonLib
 Imports RibbonLib.Controls
-Imports RibbonLib.Interop
 
 Namespace RibbonLib.Controls
     Partial Class RibbonItems
@@ -36,6 +35,7 @@ Namespace RibbonLib.Controls
             Public Const cmdTabApplicationMain As UInteger = 21
             Public Const cmdCommandGroup As UInteger = 4
             Public Const cmdFileNew As UInteger = 23
+            Public Const cmdButton3DModelTool As UInteger = 25
             Public Const cmdGroupApp As UInteger = 14
         End Class
 
@@ -167,6 +167,12 @@ Namespace RibbonLib.Controls
                 Return _FileNew
             End Get
         End Property
+        Private _Button3DModelTool As RibbonButton
+        Public ReadOnly Property Button3DModelTool As RibbonButton
+            Get
+                Return _Button3DModelTool
+            End Get
+        End Property
         Private _GroupApp As RibbonGroup
         Public ReadOnly Property GroupApp As RibbonGroup
             Get
@@ -199,6 +205,7 @@ Namespace RibbonLib.Controls
             _TabApplicationMain = New RibbonTab(_ribbon, Cmd.cmdTabApplicationMain)
             _CommandGroup = New RibbonGroup(_ribbon, Cmd.cmdCommandGroup)
             _FileNew = New RibbonButton(_ribbon, Cmd.cmdFileNew)
+            _Button3DModelTool = New RibbonButton(_ribbon, Cmd.cmdButton3DModelTool)
             _GroupApp = New RibbonGroup(_ribbon, Cmd.cmdGroupApp)
         End Sub
 

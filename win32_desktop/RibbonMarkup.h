@@ -109,5 +109,9 @@
 #define cmdButtonLicense_TooltipDescription_RESID 60079
 #define cmdButtonLicense_SmallImages_192__RESID 60080
 #define cmdButtonLicense_LargeImages_192__RESID 60081
-#define InternalCmd2_LabelTitle_RESID 60082
-#define InternalCmd4_LabelTitle_RESID 60083
+#define cmdButton3DModelTool 25 
+#define cmdButton3DModelTool_LabelTitle_RESID 60082
+#define cmdButton3DModelTool_SmallImages_192__RESID 60083
+#define cmdButton3DModelTool_LargeImages_192__RESID 60084
+#define InternalCmd2_LabelTitle_RESID 60085
+#define InternalCmd4_LabelTitle_RESID 60086

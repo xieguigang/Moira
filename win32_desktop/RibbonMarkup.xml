@@ -115,6 +115,14 @@
         <Image MinDPI="192">Resources/icons8-software-license-96.png</Image>
       </Command.LargeImages>
     </Command>
+    <Command Name="cmdButton3DModelTool" Id="25" LabelTitle="3D Model Tool">
+      <Command.SmallImages>
+        <Image MinDPI="192">Resources/icons8-edit-96.png</Image>
+      </Command.SmallImages>
+      <Command.LargeImages>
+        <Image MinDPI="192">Resources/icons8-edit-96.png</Image>
+      </Command.LargeImages>
+    </Command>
   </Application.Commands>
   <Application.Views>
     <Ribbon>
@@ -158,9 +166,10 @@
       </Ribbon.ContextualTabs>
       <Ribbon.Tabs>
         <Tab CommandName="cmdTabApplicationMain">
-          <Group CommandName="cmdCommandGroup" SizeDefinition="TwoButtons">
+          <Group CommandName="cmdCommandGroup" SizeDefinition="ThreeButtons">
             <Button CommandName="cmdFileOpen" />
             <Button CommandName="cmdFileNew" />
+            <Button CommandName="cmdButton3DModelTool" />
           </Group>
           <Group CommandName="cmdGroupApp" SizeDefinition="TwoButtons">
             <Button CommandName="cmdButtonLicense" />

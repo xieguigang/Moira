@@ -65,6 +65,7 @@ Public Class FormMain : Implements AppHost
         AddHandler ribbonItems.ButtonAppExit.ExecuteEvent, Sub() Call Me.Close()
         AddHandler ribbonItems.FileNew.ExecuteEvent, Sub() Call CreateNewSimulation()
         AddHandler ribbonItems.ButtonLicense.ExecuteEvent, Sub() Call InputDialog.Input(Of FormLicense)()
+        AddHandler ribbonItems.Button3DModelTool.ExecuteEvent, Sub() Call CommonRuntime.ShowSingleDocument(Of frm3DModelTool)()
 
         Call CommonRuntime.Hook(Me)
         Call Globals.SetupBackendUI()
