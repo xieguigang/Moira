@@ -232,6 +232,9 @@ Public Class StableFluidsSolver
         ' 先把 result 初始化为 field（作为迭代的初始猜测）
         Array.Copy(field.Data, result.Data, field.Length)
 
+        ' 固体单元初始猜测即置零
+        ZeroSolidScalar(result)
+
         ' Jacobi 迭代
         For iter = 0 To JacobiIterations - 1
 
@@ -242,7 +245,14 @@ Public Class StableFluidsSolver
                 For j = 1 To ny - 2
                     For k = 1 To nz - 2
 
-                        ' 6 个邻居之和（用上一轮的值 prev）
+                        ' 固体单元跳过（保持 0）；其邻居在 prev 中亦为 0，
+                        ' 相当于以 "固定 0" 壁值参与隐式方程（无滑移壁近似）
+                        If IsSolid(i, j, k, nx, ny, nz) Then
+                            result(i, j, k) = 0.0
+                            Continue For
+                        End If
+
+                        ' 6 个邻居之和（用上一轮的值 prev；固体邻居恒为 0）
                         Dim sumNeighbors As Double = 0
                         sumNeighbors += prev(i - 1, j, k)
                         sumNeighbors += prev(i + 1, j, k)
@@ -260,6 +270,9 @@ Public Class StableFluidsSolver
 
             ' 处理边界（零梯度：把边界值设为相邻内部值）
             SetScalarBoundary(result)
+
+            ' 再次保证固体单元为 0
+            ZeroSolidScalar(result)
 
             prev.Dispose()
 
