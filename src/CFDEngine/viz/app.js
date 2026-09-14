@@ -3,7 +3,8 @@
  *
  * 设计要点：
  *  1. VTK.js v37 是纯 ESM 包，浏览器无法直接解析裸模块名，
- *     因此统一经 esm.sh 加载（它会把内部依赖改写为 CDN URL）。
+ *     因此用 index.html 里的 importmap 把裸模块名映射到 CDN，
+ *     让浏览器按原始单文件 ESM 逐个加载（保证 vtk 类注册表只有一份）。
  *     加载失败时在页面顶部给出本地 npm 兜底指引，而不是白屏。
  *  2. 不一次性加载整个时间序列：先读 frames.json 拿到帧清单，
  *     再按当前帧 fetch 单个 .vti（约 5.5 MB），内存里永远只有一帧。
@@ -14,7 +15,9 @@
 /* ==================== 配置 ==================== */
 
 const VTK_VERSION = '37.0.0';
-const VTK_BASE = `https://esm.sh/@kitware/vtk.js@${VTK_VERSION}`;
+// 经 index.html 的 importmap 映射到 CDN；改本地时把这里换成
+// './node_modules/@kitware/vtk.js' 并同步修改 importmap。
+const VTK_BASE = '@kitware/vtk.js';
 
 // 帧目录：默认指向 demo 的输出目录；可用 ?frames=xxx 覆盖
 const params = new URLSearchParams(location.search);
