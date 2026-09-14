@@ -58,24 +58,25 @@ function setStatus(text, kind = '') {
 let V = null; // 模块集合
 
 async function loadVtk() {
+  // 注：vtk.js v37 取消了独立的 Core/PolyDataMapper，
+  // 统一使用 Rendering/Core/Mapper.js 的 vtkMapper（OpenGL 层按输入类型注册覆盖实现）。
   const paths = {
-    profiles: '/Rendering/OpenGL/Profiles/All',
-    GenericRenderWindow: '/Rendering/Misc/GenericRenderWindow',
-    XMLImageDataReader: '/IO/XML/XMLImageDataReader',
-    Volume: '/Rendering/Core/Volume',
-    VolumeMapper: '/Rendering/Core/VolumeMapper',
-    ColorTransferFunction: '/Rendering/Core/ColorTransferFunction',
-    PiecewiseFunction: '/Common/DataModel/PiecewiseFunction',
-    ImageSlice: '/Rendering/Core/ImageSlice',
-    ImageMapper: '/Rendering/Core/ImageMapper',
-    PolyData: '/Common/DataModel/PolyData',
-    DataArray: '/Common/Core/DataArray',
-    // 注意：vtk.js 从 v37 起取消了独立的 Core/PolyDataMapper，
-    // 统一使用 Rendering/Core/Mapper.js 的 vtkMapper（由 OpenGL 层按输入类型注册覆盖实现）
-    Mapper: '/Rendering/Core/Mapper',
-    Actor: '/Rendering/Core/Actor',
-    CubeAxesActor: '/Rendering/Core/CubeAxesActor',
-    OutlineFilter: '/Filters/General/OutlineFilter',
+    profiles: '/Rendering/OpenGL/Profiles/All.js',
+    GenericRenderWindow: '/Rendering/Misc/GenericRenderWindow.js',
+    XMLImageDataReader: '/IO/XML/XMLImageDataReader.js',
+    Volume: '/Rendering/Core/Volume.js',
+    VolumeMapper: '/Rendering/Core/VolumeMapper.js',
+    ColorTransferFunction: '/Rendering/Core/ColorTransferFunction.js',
+    PiecewiseFunction: '/Common/DataModel/PiecewiseFunction.js',
+    ImageSlice: '/Rendering/Core/ImageSlice.js',
+    ImageMapper: '/Rendering/Core/ImageMapper.js',
+    PolyData: '/Common/DataModel/PolyData.js',
+    DataArray: '/Common/Core/DataArray.js',
+    Mapper: '/Rendering/Core/Mapper.js',
+    Actor: '/Rendering/Core/Actor.js',
+    CubeAxesActor: '/Rendering/Core/CubeAxesActor.js',
+    OutlineFilter: '/Filters/General/OutlineFilter.js',
+    TubeFilter: '/Filters/General/TubeFilter.js',
   };
 
   setStatus('加载 VTK.js…');
@@ -341,8 +342,20 @@ function buildScene() {
   if (streamActor) { renderer.removeActor(streamActor); streamActor = null; }
   if (boundsActor) { renderer.removeActor(boundsActor); boundsActor = null; }
 
+  // 显式指定"活动标量数组"。
+  // vtk.js 的 VolumeMapper / ImageMapper 取的是 PointData 的 active scalars，
+  // 而导出的 .vti 里第一个数组是 mask(UInt8)，若不指定就会拿它当标量来渲染。
+  const pd = imageData.getPointData();
+  const target = pd.getArrayByName(state.field) || pd.getArrayByName('density');
+  if (target) {
+    try { pd.setActiveScalars(target.getName()); } catch (_) { /* 老版本可能没有该 API */ }
+    if (!pd.getScalars()) {
+      try { pd.setScalars(target); } catch (_) {}
+    }
+  }
+
   // 标量范围与传输函数
-  const values = getArray(state.field) || getArray('density');
+  const values = target ? target.getData() : getArray('density');
   const mask = getMask();
   const [mn, mx] = activeRange(values, mask);
 
@@ -418,16 +431,72 @@ function buildScene() {
     try {
       const poly = traceStreamlines();
       if (poly) {
+        const mode = document.querySelector('#streamSeg .seg-btn.active').dataset.mode;
+
+        // 流线按"速度大小"着色，量级与密度/压力完全不同，
+        // 必须用独立的色表，否则会被体绘制的色标范围钳掉而看不见
+        const spdArr = poly.getPointData().getArrayByName('speed');
+        const spd = spdArr ? spdArr.getData() : null;
+        const [smin, smax] = spd ? activeRange(spd, null) : [0, 1];
+        const sctf = V.ColorTransferFunction.newInstance();
+        const sspan = smax - smin || 1;
+        stops.forEach((c, i) => {
+          const t = smin + (i / (stops.length - 1)) * sspan;
+          sctf.addRGBPoint(t, c[0], c[1], c[2]);
+        });
+
+        // WebGL 核心配置下 lineWidth > 1 通常无效，流线会细到看不见，
+        // 因此"流线"模式用 TubeFilter 把折线转成细管；"箭头"模式保留线段。
+        let renderPoly = poly;
+        if (mode === 'line') {
+          try {
+            const tube = V.TubeFilter.newInstance();
+            tube.setInputData(poly);
+            tube.setRadius(0.42);
+            tube.setNumberOfSides(6);
+            tube.setCapping(false);
+            const out = tube.getOutputData();
+            if (out) renderPoly = out;
+          } catch (e) {
+            console.warn('TubeFilter 不可用，退回线段渲染：', e);
+          }
+        }
+        // 若管状几何丢掉了 speed 标量，则退回线段渲染（保证能正确着色）
+        if (!renderPoly.getPointData().getArrayByName('speed')) {
+          renderPoly = poly;
+        }
+
+        // 直接烘焙 RGB 顶点色，绕开 mapper 的标量着色路径。
+        // vtk.js 各版本对 ColorTransferFunction 的映射范围 / 标量着色行为不一致，
+        // 依赖 LUT 很容易出现"整条流线发白"这种问题。
+        const colorSrc = renderPoly.getPointData().getArrayByName('speed');
+        if (colorSrc) {
+          const spd = colorSrc.getData();
+          const span = smax - smin || 1;
+          const rgb = new Float32Array(spd.length * 3);
+          for (let i = 0; i < spd.length; i++) {
+            const t = Math.min(1, Math.max(0, (spd[i] - smin) / span));
+            const c = rampAt(stops, t);
+            rgb[3 * i] = c[0];
+            rgb[3 * i + 1] = c[1];
+            rgb[3 * i + 2] = c[2];
+          }
+          renderPoly.getPointData().setScalars(
+            V.DataArray.newInstance({ name: 'rgb', values: rgb, numberOfComponents: 3 })
+          );
+        }
+
         const m = V.Mapper.newInstance();
-        m.setInputData(poly);
+        m.setInputData(renderPoly);
         m.setScalarVisibility(true);
-        m.setColorModeToMapScalars();
-        try { m.setUseLookupTableScalarRange(true); } catch (_) {}
-        m.setLookupTable(ctf);
+        try { m.setColorModeToDirectScalars(); } catch (_) {
+          try { m.setColorModeToMapScalars(); } catch (_) {}
+        }
+        m.setLookupTable(sctf);
 
         streamActor = V.Actor.newInstance();
         streamActor.setMapper(m);
-        streamActor.getProperty().setLineWidth(2.0);
+        streamActor.getProperty().setLighting(false);
         renderer.addActor(streamActor);
       }
     } catch (e) {
@@ -455,18 +524,35 @@ function buildScene() {
   dom.viewport.querySelector('.vp-axes').style.display =
     $('showAxes').checked ? '' : 'none';
 
-  if (!renderer.getActors().length) {
+  // 相机只在第一帧初始化一次，之后保留用户的视角
+  if (!cameraReady) {
     renderer.resetCamera();
+    renderer.getActiveCamera().setPosition(1.6, -1.6, 1.2);
+    renderer.getActiveCamera().setViewUp(0, 0, 1);
+    renderer.resetCamera();
+    cameraReady = true;
   }
   renderer.resetCameraClippingRange();
   renderWindow.render();
   measureFps();
 }
 
+let cameraReady = false;
+
 function fmtNum(v) {
   const a = Math.abs(v);
   if (a >= 1000 || (a > 0 && a < 0.01)) return v.toExponential(1);
   return v.toFixed(a >= 10 ? 1 : 3);
+}
+
+/** 在多段色标之间线性插值取色。stops 为 [[r,g,b], ...]，t ∈ [0,1]。 */
+function rampAt(stops, t) {
+  const n = stops.length - 1;
+  const x = Math.min(1, Math.max(0, t)) * n;
+  const i = Math.min(n - 1, Math.floor(x));
+  const f = x - i;
+  const a = stops[i], b = stops[i + 1];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
 }
 
 /* ==================== 流线（自行积分，生成 vtkPolyData） ==================== */

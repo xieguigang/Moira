@@ -1,0 +1,122 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e6]: CFDEngine
+      - generic [ref=e7]: 仿真结果查看器
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e10]: 帧
+        - generic [ref=e11]: —
+      - generic [ref=e12]:
+        - generic [ref=e13]: 模拟时间
+        - generic [ref=e14]: —
+      - generic [ref=e15]:
+        - generic [ref=e16]: 网格
+        - generic [ref=e17]: —
+      - generic [ref=e18]:
+        - generic [ref=e19]: 场
+        - generic [ref=e20]: density
+    - generic [ref=e21]:
+      - generic [ref=e22]: 初始化…
+      - generic [ref=e23]: WebGL2
+  - main [ref=e24]:
+    - complementary [ref=e25]:
+      - button "‹" [ref=e26] [cursor=pointer]
+      - generic [ref=e27]:
+        - heading "体绘制" [level=3] [ref=e28]
+        - generic [ref=e29] [cursor=pointer]:
+          - generic [ref=e30]: 启用体渲染
+          - checkbox "启用体渲染" [checked]
+        - generic [ref=e32]:
+          - generic [ref=e33]: 标量场
+          - generic [ref=e34]:
+            - button "密度" [ref=e35] [cursor=pointer]
+            - button "速度" [ref=e36] [cursor=pointer]
+            - button "压力" [ref=e37] [cursor=pointer]
+        - generic [ref=e38]:
+          - generic [ref=e39]: 色表
+          - generic [ref=e40]:
+            - button "青蓝" [ref=e41] [cursor=pointer]
+            - button "琥珀" [ref=e42] [cursor=pointer]
+            - button "翠绿" [ref=e43] [cursor=pointer]
+        - generic [ref=e44]:
+          - generic [ref=e45]: 不透明度
+          - slider "不透明度" [ref=e46] [cursor=pointer]: "42"
+          - status [ref=e47]: "0.42"
+        - generic [ref=e48]:
+          - generic [ref=e49]: 下阈值
+          - slider "下阈值" [ref=e50] [cursor=pointer]: "6"
+          - status [ref=e51]: "0.06"
+        - generic [ref=e52]:
+          - generic [ref=e53]: 上阈值
+          - slider "上阈值" [ref=e54] [cursor=pointer]: "100"
+          - status [ref=e55]: "1.00"
+      - generic [ref=e56]:
+        - heading "正交切片" [level=3] [ref=e57]
+        - generic [ref=e58] [cursor=pointer]:
+          - generic [ref=e59]: 启用切片
+          - checkbox "启用切片"
+        - generic [ref=e61]:
+          - generic [ref=e62]: X
+          - slider "X" [ref=e63] [cursor=pointer]: "32"
+          - status [ref=e64]: "32"
+        - generic [ref=e65]:
+          - generic [ref=e66]: "Y"
+          - slider "Y" [ref=e67] [cursor=pointer]: "32"
+          - status [ref=e68]: "32"
+        - generic [ref=e69]:
+          - generic [ref=e70]: Z
+          - slider "Z" [ref=e71] [cursor=pointer]: "32"
+          - status [ref=e72]: "32"
+      - generic [ref=e73]:
+        - heading "流线 / 矢量箭头" [level=3] [ref=e74]
+        - generic [ref=e75] [cursor=pointer]:
+          - generic [ref=e76]: 启用流线
+          - checkbox "启用流线"
+        - generic [ref=e78]:
+          - generic [ref=e79]: 形态
+          - generic [ref=e80]:
+            - button "流线" [ref=e81] [cursor=pointer]
+            - button "箭头" [ref=e82] [cursor=pointer]
+        - generic [ref=e83]:
+          - generic [ref=e84]: 种子密度
+          - slider "种子密度" [ref=e85] [cursor=pointer]: "6"
+          - status [ref=e86]: "6"
+        - generic [ref=e87]:
+          - generic [ref=e88]: 积分步数
+          - slider "积分步数" [ref=e89] [cursor=pointer]: "260"
+          - status [ref=e90]: "260"
+      - generic [ref=e91]:
+        - heading "显示" [level=3] [ref=e92]
+        - generic [ref=e93] [cursor=pointer]:
+          - generic [ref=e94]: 包围盒边框
+          - checkbox "包围盒边框" [checked]
+        - generic [ref=e96] [cursor=pointer]:
+          - generic [ref=e97]: 坐标轴指示
+          - checkbox "坐标轴指示" [checked]
+    - generic [ref=e99]:
+      - generic:
+        - generic:
+          - generic: "0"
+          - generic: "1"
+      - generic: X → / Y ↑ / Z ↙
+  - contentinfo [ref=e100]:
+    - button "⏮" [ref=e101] [cursor=pointer]
+    - button "▶" [ref=e102] [cursor=pointer]
+    - button "⏭" [ref=e103] [cursor=pointer]
+    - slider [ref=e105] [cursor=pointer]: "0"
+    - generic [ref=e106]:
+      - generic [ref=e107]: FPS
+      - combobox [ref=e108] [cursor=pointer]:
+        - option "2"
+        - option "5" [selected]
+        - option "10"
+        - option "20"
+    - generic [ref=e109] [cursor=pointer]:
+      - checkbox "循环" [checked] [ref=e110]
+      - generic [ref=e111]: 循环
+  - generic:
+    - generic: FPS —
+    - generic: 帧大小 —
+    - generic: "|v|max —"
+    - generic: "|v|avg —"
