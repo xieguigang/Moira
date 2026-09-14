@@ -463,7 +463,19 @@ Public Class StableFluidsSolver
         Array.Copy(f, cur, n)
         ZeroSolidRaw(cur)
 
+        ' 收敛判据的参考尺度：先取场的量级。
+        ' 用绝对阈值会在场量级很大时永不收敛、很小时过早退出，因此按场量级自适应。
+        Dim scale As Double = 0
+        For idx = 0 To n - 1
+            Dim av = std.Abs(f(idx))
+            If av > scale Then scale = av
+        Next
+        Dim tol As Double = 1.0E-6 * If(scale > 1.0, scale, 1.0)
+
+        Dim usedIterations As Integer = 0
+
         For iter = 0 To JacobiIterations - 1
+            usedIterations = iter + 1
 
             ' ping-pong：交换引用即可，不需要每轮 memcpy。
             ' 交换后 prev 是上一轮结果，cur 是待覆盖的缓冲；
@@ -471,6 +483,8 @@ Public Class StableFluidsSolver
             Dim swap = prev
             prev = cur
             cur = swap
+
+            Dim maxDelta As Double = 0
 
             For i = 1 To nx - 2
                 For j = 1 To ny - 2
@@ -491,7 +505,13 @@ Public Class StableFluidsSolver
                         s += prev(idx - 1)
                         s += prev(idx + 1)
 
-                        cur(idx) = CSng((f(idx) + aD * s) * invDenom)
+                        Dim newVal = CSng((f(idx) + aD * s) * invDenom)
+                        cur(idx) = newVal
+
+                        ' 收敛监控：就地累积本轮最大变化量，不需要额外的 O(N) 扫描
+                        Dim dd As Double = newVal - prev(idx)
+                        If dd < 0 Then dd = -dd
+                        If dd > maxDelta Then maxDelta = dd
                     Next
                 Next
             Next
@@ -500,8 +520,16 @@ Public Class StableFluidsSolver
             SetScalarBoundaryRaw(cur, nx, ny, nz)
             ' 再次保证固体单元为 0
             ZeroSolidRaw(cur)
+
+            ' 收敛即退出。
+            ' 扩散项迭代矩阵的谱半径约为 6a/(1+6a)；本引擎典型 a = dt·ν = 1e-5，
+            ' 谱半径约 6e-5 —— 第 2~3 轮就已收敛到单精度极限，剩下 27 轮算出的数
+            ' 完全相同，纯属浪费。若用户把 ν 调到很大导致不收敛，maxDelta 不会
+            ' 降到阈值以下，迭代次数自然回到 JacobiIterations，行为与原来一致。
+            If maxDelta <= tol Then Exit For
         Next
 
+        _LastDiffuseIterations = usedIterations
         Array.Copy(cur, result.Data, n)
 
     End Sub
@@ -567,9 +595,11 @@ Public Class StableFluidsSolver
         ' 于是内层可以无条件累加 6 个邻居，省掉 6 次分支判断与随之而来的
         ' 分支预测失败的代价；除数用查表倒数换成乘法。
         Dim curP = _bufA, prevP = _bufB
+        Dim usedP As Integer = 0
         Array.Clear(curP, 0, n)   ' 初始猜测全零
 
         For iter = 0 To JacobiIterations - 1
+            usedP = iter + 1
 
             ' ping-pong：交换引用
             Dim swapP = prevP
@@ -607,6 +637,7 @@ Public Class StableFluidsSolver
         Next
 
         ' 迭代结果一次性写回压力场
+        _LastPressureIterations = usedP
         Array.Copy(curP, pr, n)
 
         ' ---- Step 3: 速度减去压力梯度 ----

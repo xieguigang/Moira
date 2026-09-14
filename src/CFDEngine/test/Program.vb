@@ -55,7 +55,7 @@ Module Program
         Dim gridSize As Integer = 64
         Dim stepCountArg As Integer = 50
         Dim intervalArg As Integer = 10
-        Dim format As SnapshotFormat = SnapshotFormat.Json
+        Dim format As SnapshotFormat = SnapshotFormat.Vti
         Dim argv = System.Environment.GetCommandLineArgs()
 
         For i = 0 To argv.Length - 1
@@ -63,6 +63,7 @@ Module Program
             If lower = "--capsule" Then useCapsule = True
             If lower = "--json" OrElse lower = "json" Then format = SnapshotFormat.Json
             If lower = "--vtk" OrElse lower = "vtk" Then format = SnapshotFormat.Vtk
+            If lower = "--vti" OrElse lower = "vti" Then format = SnapshotFormat.Vti
             If lower = "--bench" OrElse lower = "bench" Then benchMode = True
             If (lower = "--size" OrElse lower = "size") AndAlso i + 1 < argv.Length Then
                 Integer.TryParse(argv(i + 1), gridSize)
@@ -127,11 +128,14 @@ Module Program
             Console.WriteLine($"    网格 {nx}×{ny}×{nz} = {nx * ny * nz} 体素")
             Console.WriteLine()
         Else
-            If format = SnapshotFormat.Json Then
-                Console.WriteLine($"    快照格式: JSON (metadata.json + frame_xxx.json)")
-            Else
-                Console.WriteLine($"    快照格式: VTK (.vtk + animation.pvd)")
-            End If
+            Select Case format
+                Case SnapshotFormat.Vti
+                    Console.WriteLine($"    快照格式: VTI 二进制 (.vti + animation.pvd + frames.json)")
+                Case SnapshotFormat.Json
+                    Console.WriteLine($"    快照格式: JSON (metadata.json + frame_xxx.json)")
+                Case Else
+                    Console.WriteLine($"    快照格式: VTK legacy ASCII (.vtk + animation.pvd)")
+            End Select
             Console.WriteLine($"    采样间隔: 每 {intervalArg} 步存一帧")
             Console.WriteLine($"    逐帧快照将保存到: {framesDir}")
             Console.WriteLine()
@@ -148,13 +152,19 @@ Module Program
             Dim elapsed = (DateTime.Now - startTime).TotalSeconds
             Console.WriteLine($"    完成！耗时 {elapsed:F2} 秒")
             Console.WriteLine($"    已保存 {tank.StepCount} 步的快照数据")
-            If format = SnapshotFormat.Json Then
-                Console.WriteLine($"    集合索引: {System.IO.Path.Combine(framesDir, "metadata.json")}")
-                Console.WriteLine("    metadata.json 保存网格与配置，frame_xxx.json 逐帧保存全部物理场。")
-            Else
-                Console.WriteLine($"    动画集合: {System.IO.Path.Combine(framesDir, "animation.pvd")}")
-                Console.WriteLine("    在 ParaView 中打开 animation.pvd 即可播放时间动画。")
-            End If
+            Select Case format
+                Case SnapshotFormat.Vti
+                    Console.WriteLine($"    动画集合: {System.IO.Path.Combine(framesDir, "animation.pvd")}")
+                    Console.WriteLine($"    帧清单  : {System.IO.Path.Combine(framesDir, "frames.json")}")
+                    Console.WriteLine("    在 ParaView 中打开 animation.pvd 可播放时间动画；")
+                    Console.WriteLine("    浏览器端打开 viz/index.html 可用 VTK.js 查看。")
+                Case SnapshotFormat.Json
+                    Console.WriteLine($"    集合索引: {System.IO.Path.Combine(framesDir, "metadata.json")}")
+                    Console.WriteLine("    metadata.json 保存网格与配置，frame_xxx.json 逐帧保存全部物理场。")
+                Case Else
+                    Console.WriteLine($"    动画集合: {System.IO.Path.Combine(framesDir, "animation.pvd")}")
+                    Console.WriteLine("    在 ParaView 中打开 animation.pvd 即可播放时间动画。")
+            End Select
             Console.WriteLine()
         End If
 

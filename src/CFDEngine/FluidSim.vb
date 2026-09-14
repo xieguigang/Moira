@@ -261,13 +261,22 @@ Public Class FluidSim
 
         Dim estimatedFrames = CInt(std.Ceiling(steps / interval))
 
-        If format = SnapshotFormat.Json Then
-            Dim md = If(metadata Is Nothing, SnapshotMetadata.FromTank(Tank, dt), metadata)
-            Return New JsonSnapshotRecorder(outputDir, md, baseName, interval, estimatedFrames)
-        Else
-            Return New SnapshotRecorder(outputDir, baseName, interval,
-                                        pvdName:="animation.pvd", estimatedFrames:=estimatedFrames)
-        End If
+        Select Case format
+            Case SnapshotFormat.Vti
+                ' 推荐：二进制 Float32，体积约为 ASCII VTK 的 1/5，
+                ' 同时产出 animation.pvd（ParaView）与 frames.json（浏览器）
+                Return New VtiSnapshotRecorder(outputDir, baseName, interval,
+                                               pvdName:="animation.pvd",
+                                               estimatedFrames:=estimatedFrames)
+
+            Case SnapshotFormat.Json
+                Dim md = If(metadata Is Nothing, SnapshotMetadata.FromTank(Tank, dt), metadata)
+                Return New JsonSnapshotRecorder(outputDir, md, baseName, interval, estimatedFrames)
+
+            Case Else
+                Return New SnapshotRecorder(outputDir, baseName, interval,
+                                            pvdName:="animation.pvd", estimatedFrames:=estimatedFrames)
+        End Select
 
     End Function
 
