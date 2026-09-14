@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CFDEngine 仿真结果查看器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- 顶部错误条：CDN 不可达 / 帧文件缺失时显示修复指引，而不是白屏 -->
+  <div id="errorBar" class="error-bar hidden">
+    <span class="error-icon">!</span>
+    <span id="errorText"></span>
+    <button id="errorClose" class="error-close">×</button>
+  </div>
+
+  <!-- 顶部导航 -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span class="brand-name">CFDEngine</span>
+        <span class="brand-sub">仿真结果查看器</span>
+      </div>
+    </div>
+
+    <div class="topbar-center">
+      <div class="metric">
+        <span class="metric-label">帧</span>
+        <span class="metric-value" id="hudFrame">—</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">模拟时间</span>
+        <span class="metric-value" id="hudTime">—</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">网格</span>
+        <span class="metric-value" id="hudGrid">—</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">场</span>
+        <span class="metric-value accent" id="hudField">density</span>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <span class="status-chip" id="hudStatus">初始化…</span>
+      <span class="backend-chip" id="hudBackend">WebGL2</span>
+    </div>
+  </header>
+
+  <main class="stage">
+    <!-- 左侧控制面板 -->
+    <aside class="panel" id="panel">
+      <button class="panel-collapse" id="panelCollapse" title="折叠面板">‹</button>
+
+      <section class="panel-group">
+        <h3 class="group-title">体绘制</h3>
+
+        <label class="row switch-row">
+          <span>启用体渲染</span>
+          <input type="checkbox" id="volEnabled" checked />
+          <span class="switch"></span>
+        </label>
+
+        <div class="row">
+          <span class="row-label">标量场</span>
+          <div class="seg" id="fieldSeg">
+            <button class="seg-btn active" data-field="density">密度</button>
+            <button class="seg-btn" data-field="speed">速度</button>
+            <button class="seg-btn" data-field="pressure">压力</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="row-label">色表</span>
+          <div class="seg" id="cmapSeg">
+            <button class="seg-btn active" data-cmap="cyan">青蓝</button>
+            <button class="seg-btn" data-cmap="amber">琥珀</button>
+            <button class="seg-btn" data-cmap="viridis">翠绿</button>
+          </div>
+        </div>
+
+        <label class="row slider-row">
+          <span class="row-label">不透明度</span>
+          <input type="range" id="volOpacity" min="0" max="100" value="42" />
+          <output id="volOpacityOut">0.42</output>
+        </label>
+
+        <label class="row slider-row">
+          <span class="row-label">下阈值</span>
+          <input type="range" id="volLow" min="0" max="100" value="6" />
+          <output id="volLowOut">0.06</output>
+        </label>
+
+        <label class="row slider-row">
+          <span class="row-label">上阈值</span>
+          <input type="range" id="volHigh" min="0" max="100" value="100" />
+          <output id="volHighOut">1.00</output>
+        </label>
+      </section>
+
+      <section class="panel-group">
+        <h3 class="group-title">正交切片</h3>
+        <label class="row switch-row">
+          <span>启用切片</span>
+          <input type="checkbox" id="sliceEnabled" />
+          <span class="switch"></span>
+        </label>
+        <label class="row slider-row">
+          <span class="row-label">X</span>
+          <input type="range" id="sliceI" min="0" max="63" value="32" />
+          <output id="sliceIOut">32</output>
+        </label>
+        <label class="row slider-row">
+          <span class="row-label">Y</span>
+          <input type="range" id="sliceJ" min="0" max="63" value="32" />
+          <output id="sliceJOut">32</output>
+        </label>
+        <label class="row slider-row">
+          <span class="row-label">Z</span>
+          <input type="range" id="sliceK" min="0" max="63" value="32" />
+          <output id="sliceKOut">32</output>
+        </label>
+      </section>
+
+      <section class="panel-group">
+        <h3 class="group-title">流线 / 矢量箭头</h3>
+        <label class="row switch-row">
+          <span>启用流线</span>
+          <input type="checkbox" id="streamEnabled" />
+          <span class="switch"></span>
+        </label>
+        <div class="row">
+          <span class="row-label">形态</span>
+          <div class="seg" id="streamSeg">
+            <button class="seg-btn active" data-mode="line">流线</button>
+            <button class="seg-btn" data-mode="arrow">箭头</button>
+          </div>
+        </div>
+        <label class="row slider-row">
+          <span class="row-label">种子密度</span>
+          <input type="range" id="seedDensity" min="2" max="12" value="6" />
+          <output id="seedDensityOut">6</output>
+        </label>
+        <label class="row slider-row">
+          <span class="row-label">积分步数</span>
+          <input type="range" id="streamSteps" min="20" max="600" value="260" />
+          <output id="streamStepsOut">260</output>
+        </label>
+      </section>
+
+      <section class="panel-group">
+        <h3 class="group-title">显示</h3>
+        <label class="row switch-row">
+          <span>包围盒边框</span>
+          <input type="checkbox" id="showBounds" checked />
+          <span class="switch"></span>
+        </label>
+        <label class="row switch-row">
+          <span>坐标轴指示</span>
+          <input type="checkbox" id="showAxes" checked />
+          <span class="switch"></span>
+        </label>
+      </section>
+    </aside>
+
+    <!-- 中央 3D 视口 -->
+    <div class="viewport" id="viewport">
+      <div class="vp-legend">
+        <div class="legend-bar"></div>
+        <div class="legend-scale">
+          <span id="legendMin">0</span>
+          <span id="legendMax">1</span>
+        </div>
+      </div>
+      <div class="vp-axes" id="axesHint">X → / Y ↑ / Z ↙</div>
+      <div class="vp-loading hidden" id="loading">
+        <div class="loading-bar"><i></i></div>
+        <span>加载中…</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- 底部时间轴 -->
+  <footer class="timeline">
+    <button class="tl-btn" id="btnPrev" title="上一帧">⏮</button>
+    <button class="tl-btn primary" id="btnPlay" title="播放 / 暂停">▶</button>
+    <button class="tl-btn" id="btnNext" title="下一帧">⏭</button>
+
+    <div class="tl-track">
+      <input type="range" id="tlSlider" min="0" max="0" value="0" />
+      <div class="tl-ticks" id="tlTicks"></div>
+    </div>
+
+    <div class="tl-rate">
+      <span class="row-label">FPS</span>
+      <select id="fpsSel">
+        <option value="2">2</option>
+        <option value="5" selected>5</option>
+        <option value="10">10</option>
+        <option value="20">20</option>
+      </select>
+    </div>
+
+    <label class="tl-loop">
+      <input type="checkbox" id="loopChk" checked />
+      <span>循环</span>
+    </label>
+  </footer>
+
+  <!-- 右下状态栏 -->
+  <div class="statusbar">
+    <span>FPS <b id="statFps">—</b></span>
+    <span>帧大小 <b id="statSize">—</b></span>
+    <span>|v|max <b id="statVmax">—</b></span>
+    <span>|v|avg <b id="statVavg">—</b></span>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
