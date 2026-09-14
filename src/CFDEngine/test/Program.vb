@@ -43,15 +43,41 @@ Module Program
         Console.WriteLine()
 
         ' ---- 1. 创建引擎 ----
-        ' 命令行参数：--capsule 使用胶囊形（竖直 Z 轴）体素计算空间；--json/--vtk 选择快照格式
+        ' 命令行参数：
+        '   --capsule          使用胶囊形（竖直 Z 轴）体素计算空间
+        '   --json / --vtk / --vti   选择快照格式
+        '   --size N           长方体网格边长 N（默认 64）
+        '   --steps N          时间步数（默认 50）
+        '   --interval N       快照采样间隔，每隔多少步存一帧（默认 10）
+        '   --bench            纯求解器基准模式：不写任何快照文件，只统计求解耗时
         Dim useCapsule As Boolean = False
+        Dim benchMode As Boolean = False
+        Dim gridSize As Integer = 64
+        Dim stepCountArg As Integer = 50
+        Dim intervalArg As Integer = 10
         Dim format As SnapshotFormat = SnapshotFormat.Json
-        For Each a In System.Environment.GetCommandLineArgs()
-            Dim lower = a.ToLower()
+        Dim argv = System.Environment.GetCommandLineArgs()
+
+        For i = 0 To argv.Length - 1
+            Dim lower = argv(i).ToLower()
             If lower = "--capsule" Then useCapsule = True
             If lower = "--json" OrElse lower = "json" Then format = SnapshotFormat.Json
             If lower = "--vtk" OrElse lower = "vtk" Then format = SnapshotFormat.Vtk
+            If lower = "--bench" OrElse lower = "bench" Then benchMode = True
+            If (lower = "--size" OrElse lower = "size") AndAlso i + 1 < argv.Length Then
+                Integer.TryParse(argv(i + 1), gridSize)
+            End If
+            If (lower = "--steps" OrElse lower = "steps") AndAlso i + 1 < argv.Length Then
+                Integer.TryParse(argv(i + 1), stepCountArg)
+            End If
+            If (lower = "--interval" OrElse lower = "interval") AndAlso i + 1 < argv.Length Then
+                Integer.TryParse(argv(i + 1), intervalArg)
+            End If
         Next
+
+        If gridSize < 8 Then gridSize = 8
+        If stepCountArg < 1 Then stepCountArg = 1
+        If intervalArg < 1 Then intervalArg = 1
 
         Dim engine As FluidSim
         Dim nx, ny, nz As Integer
@@ -62,7 +88,7 @@ Module Program
             Console.WriteLine($"[1] 创建胶囊形（竖直 Z 轴）发酵罐 {nx}×{ny}×{nz}，胶囊半径={capRadius}，圆柱段半高={capCylHalf}...")
             engine = FluidSim.CreateCapsule(nx, ny, nz, capRadius, capCylHalf, angularVelocity:=4.0)
         Else
-            nx = 128 : ny = 128 : nz = 128
+            nx = gridSize : ny = gridSize : nz = gridSize
             Console.WriteLine($"[1] 创建 {nx}×{ny}×{nz} 长方体发酵罐，放置旋转搅拌器...")
             engine = FluidSim.CreateDefault(nx, ny, nz, angularVelocity:=4.0)
         End If
@@ -80,41 +106,57 @@ Module Program
         Console.WriteLine()
 
         ' ---- 3. 运行模拟 ----
-        Dim steps As Integer = 200
+        Dim steps As Integer = stepCountArg
         Dim dt As Double = 0.1
         Console.WriteLine($"[3] 运行 {steps} 个时间步，dt={dt}...")
         Console.WriteLine()
 
-        ' 选择快照格式：默认 VTK；可通过命令行参数 --json / --vtk 切换
         Dim framesDir = System.IO.Path.Combine(System.AppContext.BaseDirectory, "frames")
-        If format = SnapshotFormat.Json Then
-            Console.WriteLine($"    快照格式: JSON (metadata.json + frame_xxx.json)")
-        Else
-            Console.WriteLine($"    快照格式: VTK (.vtk + animation.pvd)")
-        End If
-        Console.WriteLine($"    逐帧快照将保存到: {framesDir}")
-        Console.WriteLine()
 
-        Dim startTime = DateTime.Now
-        engine.Run(steps, dt,
-                   Sub(stepIdx, time)
-                       If stepIdx Mod 10 = 0 OrElse stepIdx = steps Then
-                           Console.WriteLine($"    步 {stepIdx,3} / {steps}  时间={time:F2}  " &
-                                             $"最大速度={MaxSpeed(tank):F3}")
-                       End If
-                   End Sub,
-                   format, framesDir)
-        Dim elapsed = (DateTime.Now - startTime).TotalSeconds
-        Console.WriteLine($"    完成！耗时 {elapsed:F2} 秒")
-        Console.WriteLine($"    已保存 {tank.StepCount} 步的快照数据")
-        If format = SnapshotFormat.Json Then
-            Console.WriteLine($"    集合索引: {System.IO.Path.Combine(framesDir, "metadata.json")}")
-            Console.WriteLine("    metadata.json 保存网格与配置，frame_xxx.json 逐帧保存全部物理场。")
+        If benchMode Then
+            ' 纯求解器基准：不落盘、不做快照，只测量 StepForward 的耗时
+            Console.WriteLine("    基准模式(--bench)：不写任何快照文件")
+            Console.WriteLine()
+            Dim sw = System.Diagnostics.Stopwatch.StartNew()
+            For s = 1 To steps
+                tank.StepForward(dt)
+            Next
+            sw.Stop()
+            Dim per = sw.Elapsed.TotalMilliseconds / steps
+            Console.WriteLine($"    完成！总耗时 {sw.Elapsed.TotalSeconds:F2} 秒，平均每步 {per:F2} ms")
+            Console.WriteLine($"    网格 {nx}×{ny}×{nz} = {nx * ny * nz} 体素")
+            Console.WriteLine()
         Else
-            Console.WriteLine($"    动画集合: {System.IO.Path.Combine(framesDir, "animation.pvd")}")
-            Console.WriteLine("    在 ParaView 中打开 animation.pvd 即可播放时间动画。")
+            If format = SnapshotFormat.Json Then
+                Console.WriteLine($"    快照格式: JSON (metadata.json + frame_xxx.json)")
+            Else
+                Console.WriteLine($"    快照格式: VTK (.vtk + animation.pvd)")
+            End If
+            Console.WriteLine($"    采样间隔: 每 {intervalArg} 步存一帧")
+            Console.WriteLine($"    逐帧快照将保存到: {framesDir}")
+            Console.WriteLine()
+
+            Dim startTime = DateTime.Now
+            engine.Run(steps, dt,
+                       Sub(stepIdx, time)
+                           If stepIdx Mod 10 = 0 OrElse stepIdx = steps Then
+                               Console.WriteLine($"    步 {stepIdx,3} / {steps}  时间={time:F2}  " &
+                                                 $"最大速度={MaxSpeed(tank):F3}")
+                           End If
+                       End Sub,
+                       format, framesDir, interval:=intervalArg)
+            Dim elapsed = (DateTime.Now - startTime).TotalSeconds
+            Console.WriteLine($"    完成！耗时 {elapsed:F2} 秒")
+            Console.WriteLine($"    已保存 {tank.StepCount} 步的快照数据")
+            If format = SnapshotFormat.Json Then
+                Console.WriteLine($"    集合索引: {System.IO.Path.Combine(framesDir, "metadata.json")}")
+                Console.WriteLine("    metadata.json 保存网格与配置，frame_xxx.json 逐帧保存全部物理场。")
+            Else
+                Console.WriteLine($"    动画集合: {System.IO.Path.Combine(framesDir, "animation.pvd")}")
+                Console.WriteLine("    在 ParaView 中打开 animation.pvd 即可播放时间动画。")
+            End If
+            Console.WriteLine()
         End If
-        Console.WriteLine()
 
         ' ---- 4. 打印切片 ----
         Dim kSlice = CInt(std.Floor(tank.Stirrer.ZCenter))

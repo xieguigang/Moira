@@ -173,9 +173,9 @@ Public Class Stirrer
                     If field.IsActive(i, j, k) AndAlso IsInside(i, j, k) Then
                         Dim su, sv, sw As Double
                         GetSurfaceVelocity(i, j, k, su, sv, sw)
-                        field.U(i, j, k) = su
-                        field.V(i, j, k) = sv
-                        field.W(i, j, k) = sw
+                        field.U(i, j, k) = CSng(su)
+                        field.V(i, j, k) = CSng(sv)
+                        field.W(i, j, k) = CSng(sw)
                     End If
                 Next
             Next
@@ -184,10 +184,10 @@ Public Class Stirrer
     End Sub
 
     ''' <summary>
-    ''' 把搅拌器边界条件直接应用到三个独立的速度 Tensor（u, v, w）。
+    ''' 把搅拌器边界条件直接应用到三个独立的速度张量（u, v, w）。
     ''' 用于求解器内部双缓冲阶段，避免构造完整 FluidField。
     ''' </summary>
-    Public Sub ApplyToFieldInternal(uTensor As Tensor, vTensor As Tensor, wTensor As Tensor,
+    Public Sub ApplyToFieldInternal(uTensor As TensorF, vTensor As TensorF, wTensor As TensorF,
                                     Optional shape As VoxelShape = Nothing)
 
         Dim nx = uTensor.Shape(0)
@@ -209,9 +209,9 @@ Public Class Stirrer
                     If (shape Is Nothing OrElse shape.IsActive(i, j, k)) AndAlso IsInside(i, j, k) Then
                         Dim su, sv, sw As Double
                         GetSurfaceVelocity(i, j, k, su, sv, sw)
-                        uTensor(i, j, k) = su
-                        vTensor(i, j, k) = sv
-                        wTensor(i, j, k) = sw
+                        uTensor(i, j, k) = CSng(su)
+                        vTensor(i, j, k) = CSng(sv)
+                        wTensor(i, j, k) = CSng(sw)
                     End If
                 Next
             Next
@@ -244,7 +244,7 @@ Public Class Stirrer
                 For k = kMin To kMax
                     ' 仅向活动体素注入示踪剂（空腔处不注入）
                     If field.IsActive(i, j, k) AndAlso IsInside(i, j, k) Then
-                        field.Density(i, j, k) = amount
+                        field.Density(i, j, k) = CSng(amount)
                     End If
                 Next
             Next

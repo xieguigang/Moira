@@ -44,6 +44,37 @@ Public Class FermentationTank
 
 #End Region
 
+#Region "求解器临时缓冲（预分配）"
+
+    ''' <summary>速度场 X 分量临时缓冲（预分配，避免每步 New 造成 GC 压力）</summary>
+    Private _u1 As TensorF
+
+    ''' <summary>速度场 Y 分量临时缓冲（预分配）</summary>
+    Private _v1 As TensorF
+
+    ''' <summary>速度场 Z 分量临时缓冲（预分配）</summary>
+    Private _w1 As TensorF
+
+    ''' <summary>密度场临时缓冲（预分配）</summary>
+    Private _d1 As TensorF
+
+    ''' <summary>确保临时缓冲已按当前网格尺寸分配。</summary>
+    Private Sub EnsureScratch(nx As Integer, ny As Integer, nz As Integer)
+        If _u1 IsNot Nothing AndAlso _u1.Length = nx * ny * nz Then Return
+
+        _u1?.Dispose()
+        _v1?.Dispose()
+        _w1?.Dispose()
+        _d1?.Dispose()
+
+        _u1 = New TensorF(nx, ny, nz)
+        _v1 = New TensorF(nx, ny, nz)
+        _w1 = New TensorF(nx, ny, nz)
+        _d1 = New TensorF(nx, ny, nz)
+    End Sub
+
+#End Region
+
 #Region "物理参数"
 
     ''' <summary>
@@ -126,16 +157,17 @@ Public Class FermentationTank
         Dim ny = Field.Ny
         Dim nz = Field.Nz
 
-        ' ---- 临时缓冲场（双缓冲，避免平流时污染源场）----
+        ' ---- 临时缓冲场（预分配的双缓冲，避免平流时污染源场）----
         Dim u0 = Field.U
         Dim v0 = Field.V
         Dim w0 = Field.W
         Dim d0 = Field.Density
 
-        Dim u1 As New Tensor(nx, ny, nz)
-        Dim v1 As New Tensor(nx, ny, nz)
-        Dim w1 As New Tensor(nx, ny, nz)
-        Dim d1 As New Tensor(nx, ny, nz)
+        EnsureScratch(nx, ny, nz)
+        Dim u1 = _u1
+        Dim v1 = _v1
+        Dim w1 = _w1
+        Dim d1 = _d1
 
         ' ---- Step 1: 应用搅拌器（强制搅拌器区域速度）----
         If Stirrer IsNot Nothing Then
@@ -169,10 +201,9 @@ Public Class FermentationTank
         Solver.SetVelocityBoundary(w1, 2)
 
         ' ---- Step 3: 平流速度（半拉格朗日）----
-        ' 用 (u1,v1,w1) 作为速度场，把 (u1,v1,w1) 自身平流到 (u0,v0,w0)
-        Solver.Advect(u1, u1, v1, w1, dt, u0)
-        Solver.Advect(v1, u1, v1, w1, dt, v0)
-        Solver.Advect(w1, u1, v1, w1, dt, w0)
+        ' 用 (u1,v1,w1) 作为速度场，把 (u1,v1,w1) 自身平流到 (u0,v0,w0)。
+        ' 三个分量共用同一回溯位置与插值权重，合并为一次遍历（省约 2/3 采样开销）。
+        Solver.AdvectVelocity(u1, v1, w1, dt, u0, v0, w0)
 
         Solver.SetVelocityBoundary(u0, 0)
         Solver.SetVelocityBoundary(v0, 1)
@@ -197,12 +228,6 @@ Public Class FermentationTank
         Else
             Array.Copy(d1.Data, d0.Data, d0.Length)
         End If
-
-        ' 清理临时缓冲
-        u1.Dispose()
-        v1.Dispose()
-        w1.Dispose()
-        d1.Dispose()
 
         ' 最终保证所有空腔（固体）单元的速度/压力/密度恒为 0：
         ' 不被最后的搅拌器写入或密度扩散污染，形成清晰壁面
@@ -233,38 +258,59 @@ Public Class FermentationTank
     End Function
 
     ''' <summary>
-    ''' 获取整个速度场 U 分量的 Tensor（只读引用）。
+    ''' 获取整个速度场 U 分量的单精度张量（只读引用）。
     ''' </summary>
-    Public Function GetVelocityU() As Tensor
+    Public Function GetVelocityU() As TensorF
         Return Field.U
     End Function
 
     ''' <summary>
-    ''' 获取整个速度场 V 分量的 Tensor。
+    ''' 获取整个速度场 V 分量的单精度张量。
     ''' </summary>
-    Public Function GetVelocityV() As Tensor
+    Public Function GetVelocityV() As TensorF
         Return Field.V
     End Function
 
     ''' <summary>
-    ''' 获取整个速度场 W 分量的 Tensor。
+    ''' 获取整个速度场 W 分量的单精度张量。
     ''' </summary>
-    Public Function GetVelocityW() As Tensor
+    Public Function GetVelocityW() As TensorF
         Return Field.W
     End Function
 
     ''' <summary>
-    ''' 获取整个压力场 Tensor。
+    ''' 获取整个压力场的单精度张量。
     ''' </summary>
-    Public Function GetPressure() As Tensor
+    Public Function GetPressure() As TensorF
         Return Field.Pressure
     End Function
 
     ''' <summary>
-    ''' 获取整个密度/示踪剂场 Tensor。
+    ''' 获取整个密度/示踪剂场的单精度张量。
     ''' </summary>
-    Public Function GetDensity() As Tensor
+    Public Function GetDensity() As TensorF
         Return Field.Density
+    End Function
+
+    ''' <summary>
+    ''' 获取整个速度场 U 分量的双精度张量副本（与旧 Double 接口兼容）。
+    ''' </summary>
+    Public Function GetVelocityU64() As Tensor
+        Return Field.U.ToTensor()
+    End Function
+
+    ''' <summary>
+    ''' 获取整个压力场的双精度张量副本（与旧 Double 接口兼容）。
+    ''' </summary>
+    Public Function GetPressure64() As Tensor
+        Return Field.Pressure.ToTensor()
+    End Function
+
+    ''' <summary>
+    ''' 获取整个密度/示踪剂场的双精度张量副本（与旧 Double 接口兼容）。
+    ''' </summary>
+    Public Function GetDensity64() As Tensor
+        Return Field.Density.ToTensor()
     End Function
 
 #End Region

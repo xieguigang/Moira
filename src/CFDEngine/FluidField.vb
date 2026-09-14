@@ -64,7 +64,7 @@ End Structure
 
 ''' <summary>
 ''' 流体场 —— 存储三维网格上所有物理量。
-''' 所有场量都基于 Tensor 对象实现。
+''' 所有场量都基于单精度张量 <see cref="TensorF"/> 实现（Single / float32 存储）。
 ''' </summary>
 Public Class FluidField
 
@@ -95,22 +95,22 @@ Public Class FluidField
 
 #End Region
 
-#Region "物理量场（Tensor 对象）"
+#Region "物理量场（TensorF 单精度张量对象）"
 
     ''' <summary>X 方向速度场，形状 (Nx, Ny, Nz)</summary>
-    Public Property U As Tensor
+    Public Property U As TensorF
 
     ''' <summary>Y 方向速度场，形状 (Nx, Ny, Nz)</summary>
-    Public Property V As Tensor
+    Public Property V As TensorF
 
     ''' <summary>Z 方向速度场，形状 (Nx, Ny, Nz)</summary>
-    Public Property W As Tensor
+    Public Property W As TensorF
 
     ''' <summary>压力场，形状 (Nx, Ny, Nz)</summary>
-    Public Property Pressure As Tensor
+    Public Property Pressure As TensorF
 
     ''' <summary>密度/示踪剂场，形状 (Nx, Ny, Nz)</summary>
-    Public Property Density As Tensor
+    Public Property Density As TensorF
 
 #End Region
 
@@ -138,14 +138,14 @@ Public Class FluidField
         Me.Ny = voxelShape.Height
         Me.Nz = voxelShape.Depth
 
-        ' 使用 Tensor 的工厂方法创建零张量
+        ' 使用单精度张量的工厂方法创建零张量
         ' 形状为 (Nx, Ny, Nz)，对应三维索引器 (i, j, k)
         Dim dims As Integer() = {Nx, Ny, Nz}
-        Me.U = Tensor.Zeros(dims)
-        Me.V = Tensor.Zeros(dims)
-        Me.W = Tensor.Zeros(dims)
-        Me.Pressure = Tensor.Zeros(dims)
-        Me.Density = Tensor.Zeros(dims)
+        Me.U = TensorF.Zeros(dims)
+        Me.V = TensorF.Zeros(dims)
+        Me.W = TensorF.Zeros(dims)
+        Me.Pressure = TensorF.Zeros(dims)
+        Me.Density = TensorF.Zeros(dims)
     End Sub
 
 #End Region
@@ -229,11 +229,11 @@ Public Class FluidField
     ''' </summary>
     Public Function Clone() As FluidField
         Dim copy As New FluidField(Shape)
-        copy.U = CType(U.Clone(), Tensor)
-        copy.V = CType(V.Clone(), Tensor)
-        copy.W = CType(W.Clone(), Tensor)
-        copy.Pressure = CType(Pressure.Clone(), Tensor)
-        copy.Density = CType(Density.Clone(), Tensor)
+        copy.U = U.CloneT()
+        copy.V = V.CloneT()
+        copy.W = W.CloneT()
+        copy.Pressure = Pressure.CloneT()
+        copy.Density = Density.CloneT()
         Return copy
     End Function
 

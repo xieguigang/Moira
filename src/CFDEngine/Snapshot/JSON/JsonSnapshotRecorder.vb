@@ -176,15 +176,14 @@ Namespace Snapshot.JSON
                 writer.WriteLine("  ""indexOrder"": ""i*ny*nz + j*nz + k"",")
                 writer.WriteLine("  ""fields"": {")
 
-                ' 5 个基础标量场（仅活动体素）
+                ' 只落 5 个基础场（仅活动体素）：
+                ' speed 可由 u/v/w 现算，velocity 交错数组与 u/v/w 完全重复，
+                ' 两者合计占旧格式 9N 中的 4N，去掉后体积直降约 44%。
                 WriteFlatMasked(writer, "pressure", pData, mask, "    ", isLast:=False)
                 WriteFlatMasked(writer, "density", dData, mask, "    ", isLast:=False)
                 WriteFlatMasked(writer, "u", uData, mask, "    ", isLast:=False)
                 WriteFlatMasked(writer, "v", vData, mask, "    ", isLast:=False)
-                WriteFlatMasked(writer, "w", wData, mask, "    ", isLast:=False)
-                ' 2 个派生场（仅活动体素）
-                WriteSpeedMasked(writer, uData, vData, wData, mask, "    ", isLast:=False)
-                WriteVelocityMasked(writer, uData, vData, wData, mask, "    ", isLast:=True)
+                WriteFlatMasked(writer, "w", wData, mask, "    ", isLast:=True)
 
                 writer.WriteLine("  }")
                 writer.WriteLine("}")
@@ -192,7 +191,7 @@ Namespace Snapshot.JSON
         End Sub
 
         ''' <summary>写出一个命名扁平数组（标量场），仅含活动体素。</summary>
-        Private Sub WriteFlatMasked(writer As StreamWriter, name As String, data() As Double, mask As Boolean(),
+        Private Sub WriteFlatMasked(writer As StreamWriter, name As String, data() As Single, mask As Boolean(),
                                     indent As String, isLast As Boolean)
             writer.Write(indent & """" & name & """: [")
             Dim first As Boolean = True
@@ -206,39 +205,8 @@ Namespace Snapshot.JSON
             writer.WriteLine("]" & If(isLast, "", ","))
         End Sub
 
-        ''' <summary>写出 speed 标量场（由 U/V/W 派生），仅含活动体素。</summary>
-        Private Sub WriteSpeedMasked(writer As StreamWriter, uData() As Double, vData() As Double, wData() As Double,
-                                     mask As Boolean(), indent As String, isLast As Boolean)
-            writer.Write(indent & """speed"": [")
-            Dim first As Boolean = True
-            For i = 0 To uData.Length - 1
-                If mask(i) Then
-                    If Not first Then writer.Write(",")
-                    Dim s = std.Sqrt(uData(i) * uData(i) + vData(i) * vData(i) + wData(i) * wData(i))
-                    writer.Write(Fmt(s))
-                    first = False
-                End If
-            Next
-            writer.WriteLine("]" & If(isLast, "", ","))
-        End Sub
-
-        ''' <summary>写出 velocity 向量场（u,v,w 交错扁平数组），仅含活动体素。</summary>
-        Private Sub WriteVelocityMasked(writer As StreamWriter, uData() As Double, vData() As Double, wData() As Double,
-                                        mask As Boolean(), indent As String, isLast As Boolean)
-            writer.Write(indent & """velocity"": [")
-            Dim first As Boolean = True
-            For i = 0 To uData.Length - 1
-                If mask(i) Then
-                    If Not first Then writer.Write(",")
-                    writer.Write(Fmt(uData(i)) & "," & Fmt(vData(i)) & "," & Fmt(wData(i)))
-                    first = False
-                End If
-            Next
-            writer.WriteLine("]" & If(isLast, "", ","))
-        End Sub
-
-        ''' <summary>双精度数转 JSON 数值字符串（net 中默认即最短可往返）。</summary>
-        Private Function Fmt(d As Double) As String
+        ''' <summary>单精度数转 JSON 数值字符串（net 中默认即最短可往返）。</summary>
+        Private Function Fmt(d As Single) As String
             Return d.ToString()
         End Function
 

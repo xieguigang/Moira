@@ -94,10 +94,15 @@ Namespace Snapshot.JSON
         End Function
 
         ''' <summary>
-        ''' 将本对象序列化为缩进 JSON 字符串。
+        ''' 将本对象序列化为 JSON 字符串。
         ''' </summary>
+        ''' <remarks>
+        ''' 刻意不使用缩进输出：Mask 是一个长度等于体素总数的整数数组，
+        ''' 缩进模式下每个元素独占一行，128³ 时仅 metadata.json 就达 20 MB。
+        ''' 改为紧凑输出后同一份数据约为 4 MB。
+        ''' </remarks>
         Public Function ToJson() As String
-            Return JsonSerializer.Serialize(Me, New JsonSerializerOptions With {.WriteIndented = True})
+            Return JsonSerializer.Serialize(Me, New JsonSerializerOptions With {.WriteIndented = False})
         End Function
 
     End Class

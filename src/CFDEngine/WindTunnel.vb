@@ -74,6 +74,32 @@ Public Class WindTunnel
 
 #End Region
 
+#Region "求解器临时缓冲（预分配）"
+
+    ''' <summary>速度场 X 分量临时缓冲（预分配，避免每步 New 造成 GC 压力）</summary>
+    Private _u1 As TensorF
+
+    ''' <summary>速度场 Y 分量临时缓冲（预分配）</summary>
+    Private _v1 As TensorF
+
+    ''' <summary>速度场 Z 分量临时缓冲（预分配）</summary>
+    Private _w1 As TensorF
+
+    ''' <summary>确保临时缓冲已按当前网格尺寸分配。</summary>
+    Private Sub EnsureScratch(nx As Integer, ny As Integer, nz As Integer)
+        If _u1 IsNot Nothing AndAlso _u1.Length = nx * ny * nz Then Return
+
+        _u1?.Dispose()
+        _v1?.Dispose()
+        _w1?.Dispose()
+
+        _u1 = New TensorF(nx, ny, nz)
+        _v1 = New TensorF(nx, ny, nz)
+        _w1 = New TensorF(nx, ny, nz)
+    End Sub
+
+#End Region
+
 #Region "构造函数与工厂"
 
     ''' <summary>
@@ -215,9 +241,10 @@ Public Class WindTunnel
         Dim v0 = Field.V
         Dim w0 = Field.W
 
-        Dim u1 As New Tensor(nx, ny, nz)
-        Dim v1 As New Tensor(nx, ny, nz)
-        Dim w1 As New Tensor(nx, ny, nz)
+        EnsureScratch(nx, ny, nz)
+        Dim u1 = _u1
+        Dim v1 = _v1
+        Dim w1 = _w1
 
         ' ---- 边界（施加来流后再扩散）----
         ApplyWindTunnelBoundary()
@@ -234,20 +261,14 @@ Public Class WindTunnel
         End If
 
         ' ---- Step 2: 平流速度（半拉格朗日）----
-        Solver.Advect(u1, u1, v1, w1, dt, u0)
-        Solver.Advect(v1, u1, v1, w1, dt, v0)
-        Solver.Advect(w1, u1, v1, w1, dt, w0)
+        ' 三个分量共用回溯位置与插值权重，合并为一次遍历
+        Solver.AdvectVelocity(u1, v1, w1, dt, u0, v0, w0)
 
         ' ---- Step 3: 压力投影（强制不可压缩）----
         Solver.Project(u0, v0, w0, Field.Pressure, dt)
 
         ' ---- Step 4: 覆盖风洞边界（取代封闭箱体壁面）----
         ApplyWindTunnelBoundary()
-
-        ' 清理临时缓冲
-        u1.Dispose()
-        v1.Dispose()
-        w1.Dispose()
 
         ' 保证固体（模型本体）单元的速度 / 压力 / 密度恒为 0，形成清晰壁面
         Solver.EnforceSolidMask(u0, v0, w0, Field.Pressure, Field.Density)
