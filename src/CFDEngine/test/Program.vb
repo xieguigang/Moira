@@ -56,13 +56,13 @@ Module Program
         Dim engine As FluidSim
         Dim nx, ny, nz As Integer
         If useCapsule Then
-            nx = 48 : ny = 48 : nz = 64
+            nx = 64 : ny = 64 : nz = 256
             Dim capRadius = 18.0
             Dim capCylHalf = 14.0
             Console.WriteLine($"[1] 创建胶囊形（竖直 Z 轴）发酵罐 {nx}×{ny}×{nz}，胶囊半径={capRadius}，圆柱段半高={capCylHalf}...")
             engine = FluidSim.CreateCapsule(nx, ny, nz, capRadius, capCylHalf, angularVelocity:=4.0)
         Else
-            nx = 48 : ny = 48 : nz = 48
+            nx = 128 : ny = 128 : nz = 128
             Console.WriteLine($"[1] 创建 {nx}×{ny}×{nz} 长方体发酵罐，放置旋转搅拌器...")
             engine = FluidSim.CreateDefault(nx, ny, nz, angularVelocity:=4.0)
         End If
@@ -80,7 +80,7 @@ Module Program
         Console.WriteLine()
 
         ' ---- 3. 运行模拟 ----
-        Dim steps As Integer = 80
+        Dim steps As Integer = 200
         Dim dt As Double = 0.1
         Console.WriteLine($"[3] 运行 {steps} 个时间步，dt={dt}...")
         Console.WriteLine()

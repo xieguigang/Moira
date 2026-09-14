@@ -1,8 +1,7 @@
 {
   "profiles": {
     "test": {
-      "commandName": "Project",
-      "commandLineArgs": "--windtunnel"
+      "commandName": "Project"
     }
   }
 }
