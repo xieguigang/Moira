@@ -100,6 +100,8 @@ const state = {
   cache: new Map(),    // 轻量缓存：file -> ArrayBuffer（最多 4 帧）
   field: 'density',
   cmap: 'cyan',
+  vmax: 0,
+  vavg: 0,
   playing: false,
   timer: null,
   lastBytes: 0,
@@ -286,8 +288,10 @@ function addSpeedArray(imageData) {
   const da = V.DataArray.newInstance({ name: 'speed', values: speed, numberOfComponents: 1 });
   imageData.getPointData().addArray(da);
 
+  state.vmax = vmax;
+  state.vavg = vsum / Math.max(1, n);
   dom.statVmax.textContent = vmax.toFixed(2);
-  dom.statVavg.textContent = (vsum / Math.max(1, n)).toFixed(3);
+  dom.statVavg.textContent = state.vavg.toFixed(3);
 }
 
 function updateHud(frame) {
@@ -430,7 +434,7 @@ function buildScene() {
 
     const sliceFun = V.PiecewiseFunction.newInstance();
     sliceFun.addPoint(mn, sliceFloor);
-    sliceFun.addPoint(hi, sliceTop);
+    if (hi > mn) sliceFun.addPoint(hi, sliceTop);
     if (mx > hi) sliceFun.addPoint(mx, sliceTop);
 
     for (const axis of ['I', 'J', 'K']) {
@@ -463,33 +467,34 @@ function buildScene() {
       if (poly) {
         const mode = document.querySelector('#streamSeg .seg-btn.active').dataset.mode;
 
-        // 流线按"速度大小"着色，量级与密度/压力完全不同，
-        // 必须用独立的色表，否则会被体绘制的色标范围钳掉而看不见
+        // 流线/箭头按"速度大小"着色，量级与密度/压力完全不同，
+        // 必须用独立的色表，否则会被体绘制的色标范围钳掉而看不见。
+        // 低端同样要提亮：否则低速段几乎全黑，整片流线只剩几条亮线。
+        const lineRamp = stops.map((c, i) => (i === 0 ? mixColor(c, stops[1], 0.5) : c));
         const spdArr = poly.getPointData().getArrayByName('speed');
         const spd = spdArr ? spdArr.getData() : null;
         const [smin, smax] = spd ? activeRange(spd, null) : [0, 1];
         const sctf = V.ColorTransferFunction.newInstance();
         const sspan = smax - smin || 1;
-        stops.forEach((c, i) => {
-          const t = smin + (i / (stops.length - 1)) * sspan;
+        lineRamp.forEach((c, i) => {
+          const t = smin + (i / (lineRamp.length - 1)) * sspan;
           sctf.addRGBPoint(t, c[0], c[1], c[2]);
         });
 
-        // WebGL 核心配置下 lineWidth > 1 通常无效，流线会细到看不见，
-        // 因此"流线"模式用 TubeFilter 把折线转成细管；"箭头"模式保留线段。
+        // WebGL 核心配置下 lineWidth > 1 通常无效，裸线段细到看不见，
+        // 因此两种形态都过一遍 TubeFilter 变成有粗细的管：
+        // 流线细一些（否则大量管子糊成一团），箭头粗一些才看得出方向。
         let renderPoly = poly;
-        if (mode === 'line') {
-          try {
-            const tube = V.TubeFilter.newInstance();
-            tube.setInputData(poly);
-            tube.setRadius(0.42);
-            tube.setNumberOfSides(6);
-            tube.setCapping(false);
-            const out = tube.getOutputData();
-            if (out) renderPoly = out;
-          } catch (e) {
-            console.warn('TubeFilter 不可用，退回线段渲染：', e);
-          }
+        try {
+          const tube = V.TubeFilter.newInstance();
+          tube.setInputData(poly);
+          tube.setRadius(mode === 'arrow' ? 0.34 : 0.2);
+          tube.setNumberOfSides(6);
+          tube.setCapping(false);
+          const out = tube.getOutputData();
+          if (out) renderPoly = out;
+        } catch (e) {
+          console.warn('TubeFilter 不可用，退回线段渲染：', e);
         }
         // 若管状几何丢掉了 speed 标量，则退回线段渲染（保证能正确着色）
         if (!renderPoly.getPointData().getArrayByName('speed')) {
@@ -501,12 +506,10 @@ function buildScene() {
         // 依赖 LUT 很容易出现"整条流线发白"这种问题。
         const colorSrc = renderPoly.getPointData().getArrayByName('speed');
         if (colorSrc) {
-          const spd = colorSrc.getData();
-          const span = smax - smin || 1;
-          const rgb = new Float32Array(spd.length * 3);
-          for (let i = 0; i < spd.length; i++) {
-            const t = Math.min(1, Math.max(0, (spd[i] - smin) / span));
-            const c = rampAt(stops, t);
+          const spd2 = colorSrc.getData();
+          const rgb = new Float32Array(spd2.length * 3);
+          for (let i = 0; i < spd2.length; i++) {
+            const c = rampAt(lineRamp, speedNorm(spd2[i], smin, smax));
             rgb[3 * i] = c[0];
             rgb[3 * i + 1] = c[1];
             rgb[3 * i + 2] = c[2];
@@ -586,6 +589,17 @@ function rgbCss(c) {
   return `rgb(${q(c[0])}, ${q(c[1])}, ${q(c[2])})`;
 }
 
+/**
+ * 速度取色的归一化：速度场的动态范围通常横跨两个数量级（本例实测 p50≈3、p90≈59），
+ * 线性映射会把绝大多数流线压到色标最底端，看起来"整片是暗的"。
+ * 这里改用对数映射，慢速区也能分辨。
+ */
+function speedNorm(s, smin, smax) {
+  const denom = Math.log1p(Math.max(1e-6, smax - smin));
+  if (denom < 1e-6) return 0;
+  return Math.min(1, Math.max(0, Math.log1p(Math.max(0, s - smin)) / denom));
+}
+
 /** 在多段色标之间线性插值取色。stops 为 [[r,g,b], ...]，t ∈ [0,1]。 */
 function rampAt(stops, t) {
   const n = stops.length - 1;
@@ -645,12 +659,37 @@ function traceStreamlines() {
   const lines = [];
   const speedAtPoint = [];
 
+  const vmax = state.vmax || 1;
+
   for (let si = 1; si < seeds; si++) {
     for (let sj = 1; sj < seeds; sj++) {
       for (let sk = 1; sk < seeds; sk++) {
         let x = (si / seeds) * (nx - 1);
         let y = (sj / seeds) * (ny - 1);
         let z = (sk / seeds) * (nz - 1);
+
+        // ---- 矢量箭头模式 ----
+        // 每个种子点画一根沿当地速度方向的"针"，长度按速度归一化。
+        // 单像素线段在 WebGL 核心配置下几乎不可见，所以统一交给 TubeFilter 加粗
+        // （见 buildScene 里的 mode === 'line' 分支）。
+        if (mode === 'arrow') {
+          const v0 = sampleVel(x, y, z);
+          const sp0 = Math.hypot(v0[0], v0[1], v0[2]);
+          if (sp0 < 1e-4) continue;
+
+          const a = points.length / 3;
+          const len = 1.8 + 3.6 * speedNorm(sp0, 0, vmax);
+          points.push(x, y, z);
+          speedAtPoint.push(sp0);
+          points.push(
+            x + (v0[0] / sp0) * len,
+            y + (v0[1] / sp0) * len,
+            z + (v0[2] / sp0) * len
+          );
+          speedAtPoint.push(sp0);
+          lines.push(2, a, a + 1);
+          continue;
+        }
 
         const startIdx = points.length / 3;
         let count = 0;
@@ -684,16 +723,8 @@ function traceStreamlines() {
         }
 
         if (count >= 2) {
-          if (mode === 'arrow') {
-            // 箭头模式：每段两端各画一个短线段（十字），近似矢量标记
-            for (let s = 0; s + 1 < count; s += Math.max(1, Math.floor(maxSteps / 12))) {
-              const a = startIdx + s;
-              lines.push(2, a, a + 1);
-            }
-          } else {
-            lines.push(count);
-            for (let s = 0; s < count; s++) lines.push(startIdx + s);
-          }
+          lines.push(count);
+          for (let s = 0; s < count; s++) lines.push(startIdx + s);
         }
       }
     }
@@ -855,15 +886,3 @@ function measureFps() {
 /* ==================== 启动 ==================== */
 
 main();
-
-// TEMP-DEBUG
-window.__dbg = {
-  state,
-  V: () => V,
-  get renderer() { return renderer; },
-  get renderWindow() { return renderWindow; },
-  get apiRenderWindow() { return apiRenderWindow; },
-  get sliceActors() { return sliceActors; },
-  get volumeActor() { return volumeActor; },
-  get boundsActor() { return boundsActor; },
-};

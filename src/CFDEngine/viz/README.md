@@ -10,11 +10,14 @@
 
 ## 1. 先跑 demo 生成数据
 
-在 `test` 项目输出目录下运行（默认已是 64³，50 步，每 5 步存一帧）：
+在 `test` 项目输出目录下运行（默认已是 64³、50 步、每 10 步存一帧）：
 
 ```powershell
 dotnet test.dll --size 64 --steps 50 --interval 5
 ```
+
+> 上面的 `--interval 5` 会得到 10 帧（step 5/10/…/50），与本页示例数据一致；
+> 直接用默认值则每 10 步一帧，共 5 帧。
 
 可选参数：
 
@@ -77,18 +80,28 @@ http://localhost:8080/viz/index.html?frames=myrun/frames
 ### 体绘制
 - **标量场**：`密度 density` / `速度 speed` / `压力 pressure`
   （`speed` 由 `velocity` 三分量在前端现算，导出时未落盘以省体积）
-- **色表**：青蓝 / 琥珀 / 翠绿
+- **色表**：青蓝 / 琥珀 / 翠绿（右下色条会跟着切换）
 - **不透明度**：整体不透明度上限
 - **下阈值 / 上阈值**：传输函数的有效区间，用来滤掉背景噪声、突出结构
 
 ### 正交切片
 - 勾选「启用切片」后，X / Y / Z 三个方向的切片平面可分别拖动定位
-- 切片与体绘制共用同一套颜色/不透明度传输函数
+- 切片**不复用**体绘制的传送函数：体绘制靠沿视线累积几十个采样点出效果，
+  而切片只有一层采样。密度场里 97% 以上的体素接近 0，若沿用"低值 0 不透明 +
+  起始色接近黑"的映射，整张切片会黑到看不见。
+  因此切片单独一套映射——调色板不变，但最暗一档提亮到可见的暗色调，
+  并给不透明度加了下限，保证切片平面始终可见。
 
 ### 流线 / 矢量箭头
 - 在速度场上做 **RK2（中点法）积分**生成流线，按速度大小着色
 - 可调**种子密度**（每轴种子数）与**积分步数**
-- 可切换「流线」/「箭头」形态
+- **形态**可在「流线」/「箭头」之间切换：
+  - 流线：整条轨迹做成细管
+  - 箭头：每个种子点画一根沿当地速度方向的"针"，长度按速度归一化
+- 速度取色用**对数归一化**。速度场常横跨两个数量级（本例 p50≈3、p90≈59），
+  线性映射会把绝大多数流线压到色标最底端，看起来"整片是暗的"
+- 两种形态都过 TubeFilter 加粗：WebGL 核心配置下 `lineWidth > 1` 无效，
+  裸线段细到看不见
 - 流线由本页自行积分生成 `vtkPolyData`，不依赖 vtk.js 里 API 不稳定的 filter
 
 ### 时间轴
@@ -103,8 +116,21 @@ http://localhost:8080/viz/index.html?frames=myrun/frames
 
 ## 4. VTK.js 依赖说明
 
-页面通过 **esm.sh** 从 CDN 加载 `@kitware/vtk.js@37.0.0`
-（该版本是纯 ESM 包，浏览器无法直接解析裸模块名，需要 CDN 做依赖改写）。
+`index.html` 里用 **import map** 把裸模块名映射到 **jsDelivr**：
+
+```html
+<script type="importmap">
+{ "imports": { "@kitware/vtk.js/": "https://cdn.jsdelivr.net/npm/@kitware/vtk.js@37.0.0/" } }
+</script>
+```
+
+vtk.js v37 是纯 ESM 包，且内部各模块通过 `registerOverride` 共享一份全局类注册表。
+因此必须让浏览器按「原始单文件 ESM」逐个加载（相对导入解析到同一 URL），
+**不能**用 esm.sh 那类"按入口整体打包"的方式——打包会让注册表出现多份副本，
+渲染 Profile 注册不到渲染器上，报 `No vtkOpenGLViewNodeFactory implementation found`。
+
+> 首次打开需要拉取约 250 个模块（几秒到数十秒，取决于网络），之后走浏览器缓存。
+> 期间顶部状态显示「加载 VTK.js…」。
 
 ### CDN 不可达时的本地兜底
 
@@ -115,18 +141,14 @@ cd viz
 npm i @kitware/vtk.js@37.0.0
 ```
 
-然后编辑 `app.js` 顶部的常量：
+然后把 `index.html` 的 import map 指向本地目录：
 
-```js
-// 改前
-const VTK_BASE = `https://esm.sh/@kitware/vtk.js@${VTK_VERSION}`;
-// 改后
-const VTK_BASE = './node_modules/@kitware/vtk.js';
+```json
+"@kitware/vtk.js/": "./node_modules/@kitware/vtk.js/"
 ```
 
-> 本地方式仍需要一个支持裸模块名解析的开发服务器（例如 `npx vite`），
-> 或者改用 import map。若只是临时离线查看，更简单的方式是把 esm.sh 换成
-> 任意可达的镜像 CDN。
+> 本地方式同样需要一个能按真实路径提供 ESM 文件的服务器（本仓库的 `serve.js`
+> 即可），不需要打包器。
 
 ---
 
