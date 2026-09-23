@@ -34,7 +34,7 @@ const dom = {
   hudFrame: $('hudFrame'), hudTime: $('hudTime'), hudGrid: $('hudGrid'),
   hudField: $('hudField'), hudStatus: $('hudStatus'), hudBackend: $('hudBackend'),
   viewport: $('viewport'), loading: $('loading'),
-  legendMin: $('legendMin'), legendMax: $('legendMax'),
+  legendBar: $('legendBar'), legendMin: $('legendMin'), legendMax: $('legendMax'),
   statFps: $('statFps'), statSize: $('statSize'), statVmax: $('statVmax'), statVavg: $('statVavg'),
   tlSlider: $('tlSlider'), tlTicks: $('tlTicks'),
   btnPlay: $('btnPlay'), btnPrev: $('btnPrev'), btnNext: $('btnNext'),
@@ -74,7 +74,6 @@ async function loadVtk() {
     DataArray: '/Common/Core/DataArray.js',
     Mapper: '/Rendering/Core/Mapper.js',
     Actor: '/Rendering/Core/Actor.js',
-    CubeAxesActor: '/Rendering/Core/CubeAxesActor.js',
     OutlineFilter: '/Filters/General/OutlineFilter.js',
     TubeFilter: '/Filters/General/TubeFilter.js',
   };
@@ -367,6 +366,11 @@ function buildScene() {
 
   const stops = COLOR_MAPS[state.cmap] || COLOR_MAPS.cyan;
   const span = mx - mn;
+
+  // 图例色条跟随当前色表，避免"换了色表色条还是青蓝"的错配
+  dom.legendBar.style.background =
+    'linear-gradient(90deg, ' + stops.map(rgbCss).join(', ') + ')';
+
   stops.forEach((c, i) => {
     const t = mn + (i / (stops.length - 1)) * span;
     ctf.addRGBPoint(t, c[0], c[1], c[2]);
@@ -376,10 +380,11 @@ function buildScene() {
   const lo = mn + (Number($('volLow').value) / 100) * span;
   const hi = mn + (Number($('volHigh').value) / 100) * span;
   ofun.addPoint(mn, 0);
-  ofun.addPoint(lo, 0);
+  if (lo > mn) ofun.addPoint(lo, 0);
   ofun.addPoint(lo + 0.18 * (hi - lo), opacity * 0.32);
   ofun.addPoint(hi, opacity);
-  ofun.addPoint(mx, opacity);
+  // 重复的 x 采样点对传送函数没有意义，仅在阈值真的截断时才补最后一点
+  if (mx > hi) ofun.addPoint(mx, opacity);
 
   // ---- 体积渲染 ----
   if ($('volEnabled').checked) {
@@ -407,7 +412,27 @@ function buildScene() {
   }
 
   // ---- 正交切片 ----
+  //
+  // 切片不能直接复用体绘制的传送函数：体绘制沿视线累积几十个采样点才出效果，
+  // 而切片只有一层采样。密度场里 97% 以上的体素接近 0，若沿用"低值 0 不透明 +
+  // 起始色接近黑"的映射，整张切片会黑到看不见（实测问题）。
+  // 因此切片单独一套映射：调色板不变（与体绘制的颜色语义一致），
+  // 但把最暗的一档按调色板提亮到可见的暗色调，并给不透明度加下限。
   if ($('sliceEnabled').checked) {
+    const sliceFloor = Math.max(0.45, opacity * 0.8);
+    const sliceTop = Math.min(1, sliceFloor + 0.35);
+
+    const sliceCtf = V.ColorTransferFunction.newInstance();
+    stops.forEach((c, i) => {
+      const col = i === 0 ? mixColor(c, stops[1], 0.5) : c;
+      sliceCtf.addRGBPoint(mn + (i / (stops.length - 1)) * span, col[0], col[1], col[2]);
+    });
+
+    const sliceFun = V.PiecewiseFunction.newInstance();
+    sliceFun.addPoint(mn, sliceFloor);
+    sliceFun.addPoint(hi, sliceTop);
+    if (mx > hi) sliceFun.addPoint(mx, sliceTop);
+
     for (const axis of ['I', 'J', 'K']) {
       const m = V.ImageMapper.newInstance();
       m.setInputData(imageData);
@@ -417,9 +442,14 @@ function buildScene() {
       const a = V.ImageSlice.newInstance();
       a.setMapper(m);
       const p = a.getProperty();
-      try { p.setRGBTransferFunction(0, ctf); } catch (_) { p.setRGBTransferFunction(ctf); }
-      try { p.setPiecewiseFunction(0, ofun); } catch (_) { p.setPiecewiseFunction(ofun); }
-      p.setOpacity(0.92);
+      try {
+        p.setRGBTransferFunction(0, sliceCtf);
+        p.setPiecewiseFunction(0, sliceFun);
+      } catch (_) {
+        p.setRGBTransferFunction(sliceCtf);
+        p.setPiecewiseFunction(sliceFun);
+      }
+      p.setOpacity(1);
 
       sliceActors[axis] = a;
       renderer.addActor(a);
@@ -543,6 +573,17 @@ function fmtNum(v) {
   const a = Math.abs(v);
   if (a >= 1000 || (a > 0 && a < 0.01)) return v.toExponential(1);
   return v.toFixed(a >= 10 ? 1 : 3);
+}
+
+/** 两个 RGB 颜色线性混合（f=0 取 a，f=1 取 b）。 */
+function mixColor(a, b, f) {
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+}
+
+/** 把 [0..1] 的 RGB 三元组转成 CSS 颜色字符串。 */
+function rgbCss(c) {
+  const q = (v) => Math.round(Math.min(1, Math.max(0, v)) * 255);
+  return `rgb(${q(c[0])}, ${q(c[1])}, ${q(c[2])})`;
 }
 
 /** 在多段色标之间线性插值取色。stops 为 [[r,g,b], ...]，t ∈ [0,1]。 */
@@ -814,3 +855,15 @@ function measureFps() {
 /* ==================== 启动 ==================== */
 
 main();
+
+// TEMP-DEBUG
+window.__dbg = {
+  state,
+  V: () => V,
+  get renderer() { return renderer; },
+  get renderWindow() { return renderWindow; },
+  get apiRenderWindow() { return apiRenderWindow; },
+  get sliceActors() { return sliceActors; },
+  get volumeActor() { return volumeActor; },
+  get boundsActor() { return boundsActor; },
+};
