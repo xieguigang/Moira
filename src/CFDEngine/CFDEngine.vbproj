@@ -37,8 +37,24 @@
 
   <ItemGroup>
     <Compile Remove="test\**" />
+    <Compile Remove="viz\**" />
     <EmbeddedResource Remove="test\**" />
+    <EmbeddedResource Remove="viz\**" />
     <None Remove="test\**" />
+    <None Remove="viz\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="viz-default.png" />
+    <None Remove="viz2.png" />
+    <None Remove="viz3.png" />
+    <None Remove="viz4.png" />
+    <None Remove="viz5.png" />
+    <None Remove="viz6.png" />
+    <None Remove="viz7.png" />
+    <None Remove="viz8.png" />
+    <None Remove="viz9.png" />
+    <None Remove="vizA.png" />
   </ItemGroup>
 
   <ItemGroup>
