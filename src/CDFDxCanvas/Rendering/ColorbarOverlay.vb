@@ -12,7 +12,6 @@
 ' /********************************************************************************/
 
 Imports Microsoft.VisualBasic.Imaging
-Imports Brush = Microsoft.VisualBasic.Imaging.Brush
 Imports Font = Microsoft.VisualBasic.Imaging.Font
 Imports Pen = Microsoft.VisualBasic.Imaging.Pen
 Imports SolidBrush = Microsoft.VisualBasic.Imaging.SolidBrush
