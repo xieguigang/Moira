@@ -8,6 +8,19 @@
     <MyType>WindowsForms</MyType>
     <Platforms>AnyCPU;x64</Platforms>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <!-- CFDCanvas 的公开属性均为运行时驱动，不参与设计器序列化 -->
+    <NoWarn>$(NoWarn);WFO1000</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    DemoTestForm 测试入口（临时，仅开发期使用）：
+      dotnet build CDFDxCanvas.vbproj -p:EnableDemoTest=true
+    默认（不定义 EnableDemoTest）时本项目仍为控件库，不影响消费方。
+  -->
+  <PropertyGroup Condition="'$(EnableDemoTest)' == 'true'">
+    <OutputType>WinExe</OutputType>
+    <UseApplicationFramework>false</UseApplicationFramework>
+    <StartupObject>CDFDxCanvas.DemoTestEntry</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
