@@ -11,6 +11,10 @@
 '       默认加载 G:\fermenter\src\demo\cfd 的 demo 数据。
 '       本窗体仅用于开发期验证，可随时删除。
 '
+'   ★ 标量场下拉由数据集里实际导出的字段动态生成
+'     （字段可配置的 VTI 导出器可以输出压力以外的温度 / pH / 细胞数 /
+'      代谢物浓度 / 逐基因表达量等任意标量场）
+'
 ' /********************************************************************************/
 
 Imports System.Drawing
@@ -153,14 +157,16 @@ Public Class DemoTestForm
 
         ' ---- 标量场 ----
         y = AddTitle(panel, "标量场", y)
-        y = AddLabel(panel, "标量场", y)
+        y = AddLabel(panel, "标量场（由 VTI 实际字段生成）", y)
 
         StyleCombo(cboField)
-        cboField.Items.AddRange(New Object() {"压力 Pressure", "密度 Density", "速度幅值 |V|"})
-        cboField.SelectedIndex = 0
+        cboField.DropDownWidth = 420
         cboField.SetBounds(16, y, 250, 26)
         AddHandler cboField.SelectedIndexChanged,
-            Sub(s, e) m_canvas.Field = CType(cboField.SelectedIndex, CfdField)
+            Sub(s, e)
+                If cboField.SelectedItem Is Nothing Then Return
+                m_canvas.Field = CStr(cboField.SelectedItem)
+            End Sub
         panel.Controls.Add(cboField)
         y += 34
 
@@ -441,9 +447,24 @@ Public Class DemoTestForm
             Return
         End If
 
-        Text = $"CFD 可视化 · 已加载 {m_canvas.Dataset.FrameCount} 帧 " &
-               $"({m_canvas.Dataset.Nx}×{m_canvas.Dataset.Ny}×{m_canvas.Dataset.Nz}，" &
-               $"{m_canvas.Dataset.ActiveVoxels:N0} 活动体素)"
+        Dim dataset = m_canvas.Dataset
+
+        Text = $"CFD 可视化 · 已加载 {dataset.FrameCount} 帧 " &
+               $"({dataset.Nx}×{dataset.Ny}×{dataset.Nz}，" &
+               $"{dataset.ActiveVoxels:N0} 活动体素 · {dataset.FieldNames.Length} 个标量场)"
+
+        ' 标量场下拉：取自 VTI 中实际导出的字段
+        cboField.Items.Clear()
+
+        For Each name As String In dataset.FieldNames
+            Call cboField.Items.Add(name)
+        Next
+
+        If dataset.HasField(m_canvas.Field) Then
+            cboField.SelectedItem = m_canvas.Field
+        ElseIf cboField.Items.Count > 0 Then
+            cboField.SelectedIndex = 0
+        End If
 
         btnPlay.Enabled = True
         trackFrame.Enabled = True
@@ -485,7 +506,6 @@ Public Class DemoTestForm
     ' ---------------- 视口事件 ----------------
 
     Private Sub OnDatasetLoaded(dataset As CfdDataset)
-        ' 该事件可能从后台线程触发
         If InvokeRequired Then
             BeginInvoke(Sub() OnDatasetLoaded(dataset))
             Return
@@ -554,7 +574,7 @@ Public Class DemoTestForm
         If m_selectedVoxel < 0 OrElse Not m_canvas.IsReady Then Return
 
         Dim voxelIdx As Integer = m_selectedVoxel
-        Dim field As CfdField = m_canvas.Field
+        Dim field As String = m_canvas.Field
 
         lblSeriesHint.Text = "时间序列计算中..."
 
@@ -613,7 +633,7 @@ Public Class DemoTestForm
         End If
 
         Dim n As Integer = m_series.Values.Length
-        Dim padL As Single = 44.0F, padR As Single = 10.0F
+        Dim padL As Single = 52.0F, padR As Single = 10.0F
         Dim padT As Single = 10.0F, padB As Single = 22.0F
         Dim plotW As Single = w - padL - padR
         Dim plotH As Single = h - padT - padB
@@ -645,7 +665,6 @@ Public Class DemoTestForm
             Next
         End Using
 
-        ' 渐变面积（折线下方到基线）
         If n >= 2 Then
             Dim points(n - 1) As PointF
 
@@ -655,6 +674,7 @@ Public Class DemoTestForm
                 points(i) = New PointF(x, y)
             Next
 
+            ' 渐变面积（折线下方到基线）
             Dim areaPoints(n + 1) As PointF
 
             For i As Integer = 0 To n - 1

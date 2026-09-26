@@ -28,7 +28,8 @@ Namespace Rendering
     ''' </summary>
     Public Class VoxelViewOptions
 
-        Public Property Field As CfdField
+        ''' <summary>当前显示的标量场名称（如 pressure / ph / gene_glc_fermenter[3]）。</summary>
+        Public Property Field As String
         Public Property RangeMin As Double
         Public Property RangeMax As Double
         ''' <summary>透明阈值 0..1（归一化值 &lt; 阈值的体素被隐藏）。</summary>
@@ -208,12 +209,17 @@ Namespace Rendering
                                        mn As Double, mx As Double,
                                        ox As Double, oy As Double, oz As Double,
                                        lines As List(Of LineSegment))
+            If frame.U Is Nothing Then
+                ' 该数据集没有速度场，画不出箭头
+                Return
+            End If
+
             Dim nx = dataset.Nx, ny = dataset.Ny, nz = dataset.Nz
             Dim sp = dataset.Spacing, org = dataset.Origin
             Dim stride As Integer = Math.Max(1, options.ArrowDensity)
 
             ' 速度箭头固定按速度幅值着色与定长
-            Dim speedMax As Double = dataset.GetRange(CfdField.Speed).Item2
+            Dim speedMax As Double = dataset.GetRange("speed").Item2
             If speedMax <= 0 Then speedMax = 1.0
 
             Dim lut = options.Lut
@@ -324,14 +330,9 @@ Namespace Rendering
             Return $"#{c.R:X2}{c.G:X2}{c.B:X2}"
         End Function
 
-        ''' <summary>读取帧内某标量场数组。</summary>
-        Public Shared Function FieldArray(frame As VtiFrameData, field As CfdField) As Single()
-            Select Case field
-                Case CfdField.Pressure : Return frame.Pressure
-                Case CfdField.Density : Return frame.Density
-                Case CfdField.Speed : Return frame.Speed
-                Case Else : Return frame.Pressure
-            End Select
+        ''' <summary>读取帧内某标量场数组（按字段名；未加载时返回 Nothing）。</summary>
+        Public Shared Function FieldArray(frame As VtiFrameData, field As String) As Single()
+            Return frame.TryGet(field)
         End Function
 
         ''' <summary>体素中心世界坐标。</summary>

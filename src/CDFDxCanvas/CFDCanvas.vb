@@ -35,7 +35,7 @@ Partial Public Class CFDCanvas
     Dim m_frameIndex As Integer = -1
     Dim m_sceneLoaded As Boolean = False
 
-    Dim m_field As CfdField = CfdField.Pressure
+    Dim m_field As String = "pressure"
     Dim m_palette As ScalerPalette = ScalerPalette.Jet
     Dim m_lut As Color()
     Dim m_autoRange As Boolean = True
@@ -59,6 +59,9 @@ Partial Public Class CFDCanvas
     Dim m_loading As Boolean = False
     Dim m_pendingIndex As Integer = -1
     Dim m_appliedIndex As Integer = -1
+
+    ''' <summary>是否已经在速率场缺失时补请求过一次速度场（避免无速度场的数据集死循环）。</summary>
+    Dim m_velocityRequested As Boolean = False
 
     ' 属性变化防抖定时器（阈值 / 截面滑条拖动时的刷新节流）
     ReadOnly m_refreshTimer As New Timer With {.Interval = 80, .Enabled = False}
@@ -111,18 +114,29 @@ Partial Public Class CFDCanvas
         End Get
     End Property
 
-    ''' <summary>当前显示的标量场。</summary>
+    ''' <summary>
+    ''' 当前显示的标量场（字段名，如 pressure / ph / gene_glc_fermenter[3]）。
+    ''' 可选项见 <see cref="AvailableFields"/>。
+    ''' </summary>
     <Description("显示的标量场")>
-    Public Property Field As CfdField
+    Public Property Field As String
         Get
             Return m_field
         End Get
-        Set(value As CfdField)
-            If m_field = value Then Return
+        Set(value As String)
+            If String.Equals(m_field, value, StringComparison.OrdinalIgnoreCase) Then Return
             m_field = value
+            Call EnsureFieldRange(m_field)
+            Call EnsureFrameHasField(value)
             Call ScheduleRefresh()
         End Set
     End Property
+
+    ''' <summary>数据集中可选的全部标量场名称。</summary>
+    Public Function AvailableFields() As String()
+        If m_dataset Is Nothing Then Return New String() {}
+        Return m_dataset.FieldNames
+    End Function
 
     ''' <summary>热图调色板（颜色由 Designer.FromSchema 生成）。</summary>
     <Description("热图调色板")>
@@ -197,6 +211,16 @@ Partial Public Class CFDCanvas
         Set(value As Boolean)
             If m_showArrows = value Then Return
             m_showArrows = value
+
+            If value AndAlso m_currentFrame IsNot Nothing AndAlso m_currentFrame.U Is Nothing Then
+                ' 该帧还没加载速度场：重新请求一次，数据集会把缺失字段并入缓存帧
+                If Not m_velocityRequested Then
+                    m_velocityRequested = True
+                    Call ShowFrame(m_frameIndex)
+                    Return
+                End If
+            End If
+
             Call ScheduleRefresh()
         End Set
     End Property
@@ -331,10 +355,9 @@ Partial Public Class CFDCanvas
     Public Sub LoadDataset(folder As String)
         Dim dataset As CfdDataset = CfdDataset.Load(folder)
 
-        ' 全量值域统计（遍历所有帧，帧数据走数据集内部缓存）
-        Call dataset.ComputeGlobalRange()
-
         AddHandler dataset.RangeUpdated, AddressOf OnDatasetRangeUpdated
+
+        m_field = dataset.DefaultField()
 
         m_dataset = dataset
         m_currentFrame = Nothing
@@ -345,6 +368,7 @@ Partial Public Class CFDCanvas
         m_appliedIndex = -1
         m_loading = False
         m_pendingIndex = -1
+        m_velocityRequested = False
 
         ' 预生成 LUT
         m_lut = Designer.FromSchema(m_palette, 256)
@@ -352,6 +376,50 @@ Partial Public Class CFDCanvas
         RaiseEvent DatasetLoaded(dataset)
 
         Call ShowFrame(0)
+        Call EnsureFieldRange(m_field)
+    End Sub
+
+    ''' <summary>
+    ''' 当前视图真正需要用到的字段：显示标量场 + 箭头所需的速度场。
+    ''' </summary>
+    Private Function WantedFields() As String()
+        Dim list As New List(Of String)()
+
+        If m_field IsNot Nothing Then list.Add(m_field)
+        If m_showArrows Then list.Add("velocity")
+
+        Return list.ToArray()
+    End Function
+
+    ''' <summary>
+    ''' 确保当前帧里已经加载了指定标量场；缺失时重新请求当前帧
+    ''' （数据集会把缺失字段合并进缓存的帧对象）。
+    ''' </summary>
+    Private Sub EnsureFrameHasField(field As String)
+        If field Is Nothing OrElse m_currentFrame Is Nothing Then Return
+        If m_frameIndex < 0 Then Return
+        If m_currentFrame.Fields.ContainsKey(field) Then Return
+
+        Call ShowFrame(m_frameIndex)
+    End Sub
+
+    ''' <summary>
+    ''' 后台计算某标量场的精确全局值域（已完成过则跳过）。
+    ''' </summary>
+    Public Sub EnsureFieldRange(field As String)
+        If field Is Nothing OrElse m_dataset Is Nothing Then Return
+        If m_dataset.HasRange(field) Then Return
+
+        Dim dataset = m_dataset
+
+        Call Task.Run(
+            Sub()
+                Try
+                    Call dataset.ComputeGlobalRange(field)
+                Catch ex As Exception
+                    ' 值域统计失败不影响渲染（退回当前已知值域）
+                End Try
+            End Sub)
     End Sub
 
     ''' <summary>
@@ -369,8 +437,9 @@ Partial Public Class CFDCanvas
         m_loading = True
         Dim dataset = m_dataset
         Dim request As Integer = index
+        Dim wanted As String() = WantedFields()
 
-        Call Task.Run(Function() dataset.GetFrame(request)).ContinueWith(
+        Call Task.Run(Function() dataset.GetFrame(request, wanted)).ContinueWith(
             Sub(t)
                 m_loading = False
 
@@ -411,6 +480,12 @@ Partial Public Class CFDCanvas
     ''' <summary>重建 3D 场景（点云 + 线段）。</summary>
     Private Sub RebuildScene()
         If m_dataset Is Nothing OrElse m_currentFrame Is Nothing Then Return
+
+        ' 当前帧还没加载显示字段（懒加载）：先补载，等新帧应用后再重建
+        If m_field IsNot Nothing AndAlso Not m_currentFrame.Fields.ContainsKey(m_field) Then
+            Call EnsureFrameHasField(m_field)
+            Return
+        End If
 
         Dim range = CurrentRange()
         Dim options As New VoxelViewOptions With {
@@ -480,13 +555,25 @@ Partial Public Class CFDCanvas
         Call m_refreshTimer.Start()
     End Sub
 
-    ''' <summary>标量场显示名。</summary>
-    Public Shared Function FieldLabel(field As CfdField) As String
-        Select Case field
-            Case CfdField.Pressure : Return "压力 Pressure"
-            Case CfdField.Density : Return "密度 Density"
-            Case CfdField.Speed : Return "速度幅值 |V|"
-            Case Else : Return field.ToString
+    ''' <summary>标量场显示名（已知场给出中文标注，其余原样返回）。</summary>
+    Public Shared Function FieldLabel(field As String) As String
+        If field Is Nothing Then Return ""
+
+        Select Case field.ToLowerInvariant()
+            Case "pressure" : Return "压力 Pressure"
+            Case "density" : Return "密度 Density"
+            Case "speed" : Return "速度幅值 |V|"
+            Case "temperature_c" : Return "温度 Temperature (℃)"
+            Case "ph" : Return "酸碱度 pH"
+            Case "ionic_strength_M" : Return "离子强度 (M)"
+            Case "do_mgl" : Return "溶解氧 DO (mg/L)"
+            Case "cells_total" : Return "细胞总量"
+            Case Else
+                If field.StartsWith("cells_") Then Return "菌群 " & field.Substring(6)
+                If field.StartsWith("conc_") Then Return "浓度 " & field.Substring(5).TrimEnd("e"c).Trim("_"c)
+                If field.StartsWith("xfeed_") Then Return "交叉喂养 " & field.Substring(6).TrimEnd("e"c).Trim("_"c)
+                If field.StartsWith("gene_") Then Return "基因 " & field
+                Return field
         End Select
     End Function
 
@@ -587,7 +674,7 @@ Partial Public Class CFDCanvas
     ''' </summary>
     ''' <param name="idx">体素引擎索引</param>
     ''' <param name="field">标量场</param>
-    Public Function GetVoxelSeries(idx As Integer, field As CfdField) As VoxelSeries
+    Public Function GetVoxelSeries(idx As Integer, field As String) As VoxelSeries
         If m_dataset Is Nothing Then
             Return New VoxelSeries With {.Times = New Double() {}, .Values = New Double() {}}
         End If
@@ -702,7 +789,7 @@ Partial Public Class CFDCanvas
     End Function
 
     ''' <summary>数据集全局值域更新（可能来自后台线程）时刷新自动值域的视图。</summary>
-    Private Sub OnDatasetRangeUpdated(field As CfdField)
+    Private Sub OnDatasetRangeUpdated(field As String)
         If Not m_autoRange OrElse field <> m_field Then Return
         If Not IsHandleCreated OrElse IsDisposed Then Return
 
