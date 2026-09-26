@@ -50,7 +50,7 @@ Namespace Rendering
                 Return
             End If
 
-            Dim title As String = If(Title, "")
+            Dim title As String = If(Me.Title, "")
             Dim titleSize As SizeF = g.MeasureString(title, m_titleFont)
             Dim titleHeight As Single = If(String.IsNullOrEmpty(title), 0.0F, titleSize.Height + 4.0F)
 
