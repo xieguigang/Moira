@@ -13,7 +13,10 @@
 '
 ' /********************************************************************************/
 
+Imports System.Drawing
 Imports System.Drawing.Drawing2D
+Imports System.Windows.Forms
+Imports CDFDxCanvas
 Imports CDFDxCanvas.Data
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
 
@@ -642,41 +645,41 @@ Public Class DemoTestForm
             Next
         End Using
 
-            ' 渐变面积（折线下方到基线）
-            If n >= 2 Then
-                Dim points(n - 1) As PointF
+        ' 渐变面积（折线下方到基线）
+        If n >= 2 Then
+            Dim points(n - 1) As PointF
 
-                For i As Integer = 0 To n - 1
-                    Dim x As Single = padL + CSng((m_series.Times(i) - tMin) / (tMax - tMin) * plotW)
-                    Dim y As Single = padT + CSng((mx - m_series.Values(i)) / (mx - mn) * plotH)
-                    points(i) = New PointF(x, y)
-                Next
+            For i As Integer = 0 To n - 1
+                Dim x As Single = padL + CSng((m_series.Times(i) - tMin) / (tMax - tMin) * plotW)
+                Dim y As Single = padT + CSng((mx - m_series.Values(i)) / (mx - mn) * plotH)
+                points(i) = New PointF(x, y)
+            Next
 
-                Dim areaPoints(n + 1) As PointF
+            Dim areaPoints(n + 1) As PointF
 
-                For i As Integer = 0 To n - 1
-                    areaPoints(i) = points(i)
-                Next
-                areaPoints(n) = New PointF(points(n - 1).X, padT + plotH)
-                areaPoints(n + 1) = New PointF(points(0).X, padT + plotH)
+            For i As Integer = 0 To n - 1
+                areaPoints(i) = points(i)
+            Next
+            areaPoints(n) = New PointF(points(n - 1).X, padT + plotH)
+            areaPoints(n + 1) = New PointF(points(0).X, padT + plotH)
 
-                Using area As New GraphicsPath
-                    Call area.AddPolygon(areaPoints)
+            Using area As New GraphicsPath
+                Call area.AddPolygon(areaPoints)
 
-                    Using brush As New LinearGradientBrush(
-                        New RectangleF(padL, padT, plotW, plotH),
-                        Color.FromArgb(70, 37, 99, 235),
-                        Color.FromArgb(5, 37, 99, 235),
-                        LinearGradientMode.Vertical)
-                        Call g.FillPath(brush, area)
-                    End Using
+                Using brush As New LinearGradientBrush(
+                    New RectangleF(padL, padT, plotW, plotH),
+                    Color.FromArgb(70, 37, 99, 235),
+                    Color.FromArgb(5, 37, 99, 235),
+                    LinearGradientMode.Vertical)
+                    Call g.FillPath(brush, area)
                 End Using
+            End Using
 
-                Using pen As New Pen(Color.FromArgb(37, 99, 235), 2.0F)
-                    pen.LineJoin = LineJoin.Round
-                    Call g.DrawLines(pen, points)
-                End Using
-            End If
+            Using pen As New Pen(Color.FromArgb(37, 99, 235), 2.0F)
+                pen.LineJoin = LineJoin.Round
+                Call g.DrawLines(pen, points)
+            End Using
+        End If
 
         ' X 轴标注（时间范围）
         Using font As New Font("Microsoft YaHei UI", 7.5F)
