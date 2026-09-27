@@ -25,10 +25,7 @@ Module RibbonMenu
                 .ShowNewFolderButton = True
             }
                 If folder.ShowDialog = DialogResult.OK Then
-                    Dim pars = wizard.GetParameters(folder.SelectedPath)
-                    Dim CFD As New frmCFDCanvas With {.setup = pars}
 
-                    Call CommonRuntime.ShowDocument(CFD)
                 End If
             End Using
         End If

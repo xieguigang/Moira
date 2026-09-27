@@ -50,7 +50,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="RibbonMarkup.log" />
     <None Remove="RibbonMarkup.ribbon" />
+    <None Remove="RibbonMarkup.xml.bak" />
   </ItemGroup>
 
   <ItemGroup>

@@ -24,24 +24,29 @@ Partial Class toolCFDParameters
     '不要使用代码编辑器修改它。
     <System.Diagnostics.DebuggerStepThrough()> _
     Private Sub InitializeComponent()
+        components = New ComponentModel.Container()
         PropertyGrid1 = New PropertyGrid()
         SuspendLayout()
         ' 
         ' PropertyGrid1
         ' 
+        PropertyGrid1.BackColor = SystemColors.Control
         PropertyGrid1.Dock = DockStyle.Fill
         PropertyGrid1.Location = New Point(0, 0)
         PropertyGrid1.Name = "PropertyGrid1"
-        PropertyGrid1.Size = New Size(800, 450)
+        PropertyGrid1.Size = New Size(417, 622)
         PropertyGrid1.TabIndex = 0
         ' 
         ' toolCFDParameters
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
-        ClientSize = New Size(800, 450)
+        ClientSize = New Size(417, 622)
         Controls.Add(PropertyGrid1)
+        DockAreas = Microsoft.VisualStudio.WinForms.Docking.DockAreas.Float Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockLeft Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockRight Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockTop Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockBottom Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.Document
+        DoubleBuffered = True
         Name = "toolCFDParameters"
+        ShowHint = Microsoft.VisualStudio.WinForms.Docking.DockState.Unknown
         Text = "Form1"
         ResumeLayout(False)
     End Sub
