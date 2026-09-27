@@ -33,8 +33,15 @@ Partial Public Class DemoTestForm
     'Do not modify it using the code editor.
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
-        components = New ComponentModel.Container()
+        components = New Container()
         SuspendLayout()
+
+        ' 
+        ' m_playTimer（播放定时器）
+        ' 
+        m_playTimer = New Timer(components)
+        m_playTimer.Enabled = False
+        ' m_playTimer.Name = "m_playTimer"
 
         ' 
         ' DemoTestForm

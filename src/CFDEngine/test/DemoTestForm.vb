@@ -15,6 +15,10 @@
 '     （字段可配置的 VTI 导出器可以输出压力以外的温度 / pH / 细胞数 /
 '      代谢物浓度 / 逐基因表达量等任意标量场）
 '
+'   ★ 全部 UI 布局（控件创建 / 属性 / 停靠）已迁移至
+'     DemoTestForm.Designer.vb 的 InitializeComponent；控件变量以
+'     WithEvents 声明在模块级，事件统一通过 Handles 关键字绑定。
+'
 ' /********************************************************************************/
 
 Imports System.ComponentModel
@@ -32,351 +36,77 @@ Public Class DemoTestForm
 
     ' ---------------- 视口与数据 ----------------
 
-    ReadOnly m_canvas As New CFDCanvas
-    ReadOnly m_playTimer As New Timer With {.Enabled = False}
     Dim m_playing As Boolean = False
     Dim m_series As VoxelSeries
     Dim m_slice As Bitmap
     Dim m_selectedVoxel As Integer = -1
-
-    ' ---------------- 控件 ----------------
-
-    ReadOnly cboField As New ComboBox With {.Name = "cboField"}
-    ReadOnly cboPalette As New ComboBox With {.Name = "cboPalette"}
-    ReadOnly cboRangeMode As New ComboBox With {.Name = "cboRangeMode"}
-    ReadOnly txtRangeMin As New TextBox With {.Name = "txtRangeMin"}
-    ReadOnly txtRangeMax As New TextBox With {.Name = "txtRangeMax"}
-    ReadOnly lblThresholdVal As New Label With {.Name = "lblThresholdVal"}
-    ReadOnly trackThreshold As New TrackBar With {.Name = "trackThreshold"}
-    ReadOnly chkArrows As New CheckBox With {.Name = "chkArrows"}
-    ReadOnly cboArrowDensity As New ComboBox With {.Name = "cboArrowDensity"}
-    ReadOnly cboSectionMode As New ComboBox With {.Name = "cboSectionMode"}
-    ReadOnly cboSectionAxis As New ComboBox With {.Name = "cboSectionAxis"}
-    ReadOnly lblSectionPosVal As New Label With {.Name = "lblSectionPosVal"}
-    ReadOnly trackSectionPos As New TrackBar With {.Name = "trackSectionPos"}
-
-    ReadOnly lblVoxelInfo As New Label With {.Name = "lblVoxelInfo"}
-    ReadOnly pnlSeries As New Panel With {.Name = "pnlSeries"}
-    ReadOnly lblSeriesHint As New Label With {.Name = "lblSeriesHint"}
-    ReadOnly picSlice As New PictureBox With {.Name = "picSlice"}
-    ReadOnly pgVoxel As New PropertyGrid With {.Name = "pgVoxel"}
 
     ' 体素属性动态对象的类型缓存（避免每次刷新都 Reflection.Emit 新类型）
     Dim m_propDynamicType As Type
     Dim m_propNameMap As Dictionary(Of String, String)
     Dim m_propSignature As String = Nothing
 
-    ReadOnly btnPlay As New Button With {.Name = "btnPlay"}
-    ReadOnly cboSpeed As New ComboBox With {.Name = "cboSpeed"}
-    ReadOnly trackFrame As New TrackBar With {.Name = "trackFrame"}
-    ReadOnly lblFrame As New Label With {.Name = "lblFrame"}
-    ReadOnly chkTooltip As New CheckBox With {.Name = "chkTooltip"}
-    ReadOnly clbTooltipFields As New CheckedListBox With {.Name = "clbTooltipFields"}
-    ReadOnly chkDebug As New CheckBox With {.Name = "chkDebug"}
+    ' ---------------- 控件事件（Handles 绑定） ----------------
 
-    ' ---------------- 布局 ----------------
-
-    Private Sub BuildLayout()
-        ' 中央视口（先加入，占满剩余空间）
-        m_canvas.Dock = DockStyle.Fill
-        Controls.Add(m_canvas)
-
-        ' 左侧控制面板
-        Dim left As New Panel With {.Dock = DockStyle.Left, .Width = 292,
-                                    .BackColor = Color.White, .AutoScroll = True}
-        Call BuildLeftPanel(left)
-        Controls.Add(left)
-
-        ' 右侧信息面板
-        Dim right As New Panel With {.Dock = DockStyle.Right, .Width = 330,
-                                     .BackColor = Color.White, .AutoScroll = True}
-        Call BuildRightPanel(right)
-        Controls.Add(right)
-
-        ' 底部时间轴
-        Dim bottom As New Panel With {.Dock = DockStyle.Bottom, .Height = 64,
-                                      .BackColor = Color.White}
-        Call BuildBottomBar(bottom)
-        Controls.Add(bottom)
-    End Sub
-
-    Private Function AddTitle(parent As Control, text As String, y As Integer) As Integer
-        Dim lbl As New Label With {
-            .Text = text, .Font = New Font("Microsoft YaHei UI", 10.0F, FontStyle.Bold),
-            .ForeColor = Color.FromArgb(30, 41, 59),
-            .Location = New Point(16, y), .AutoSize = True}
-        parent.Controls.Add(lbl)
-        Return y + 28
-    End Function
-
-    Private Function AddLabel(parent As Control, text As String, y As Integer) As Integer
-        Dim lbl As New Label With {
-            .Text = text, .ForeColor = Color.FromArgb(71, 85, 105),
-            .Location = New Point(16, y), .AutoSize = True}
-        parent.Controls.Add(lbl)
-        Return y + 22
-    End Function
-
-    Private Sub StyleCombo(c As ComboBox)
-        c.DropDownStyle = ComboBoxStyle.DropDownList
-        c.FlatStyle = FlatStyle.Flat
-        c.Font = New Font("Microsoft YaHei UI", 9.0F)
-        c.BackColor = Color.FromArgb(248, 250, 252)
-    End Sub
-
-    Private Sub BuildLeftPanel(panel As Panel)
-        Dim y As Integer = 14
-
-        ' ---- 数据加载 ----
-        y = AddTitle(panel, "数据", y)
-
-        Dim btnLoad As New Button With {
-            .Text = "加载数据文件夹", .Size = New Size(140, 32),
-            .Location = New Point(16, y),
-            .FlatStyle = FlatStyle.Flat,
-            .BackColor = Color.FromArgb(37, 99, 235),
-            .ForeColor = Color.White,
-            .Font = New Font("Microsoft YaHei UI", 9.0F)}
-        btnLoad.FlatAppearance.BorderSize = 0
-        AddHandler btnLoad.Click, AddressOf OnLoadClick
-        panel.Controls.Add(btnLoad)
-
-        y += 44
-
-        ' ---- 标量场 ----
-        y = AddTitle(panel, "标量场", y)
-        y = AddLabel(panel, "标量场（由 VTI 实际字段生成）", y)
-
-        StyleCombo(cboField)
-        cboField.DropDownWidth = 420
-        cboField.SetBounds(16, y, 250, 26)
-        AddHandler cboField.SelectedIndexChanged,
-            Sub(s, e)
-                If cboField.SelectedItem Is Nothing Then Return
-                m_canvas.Field = CStr(cboField.SelectedItem)
-            End Sub
-        panel.Controls.Add(cboField)
-        y += 34
-
-        y = AddLabel(panel, "调色板", y)
-        StyleCombo(cboPalette)
-        For Each name As String In [Enum].GetNames(GetType(ScalerPalette))
-            Call cboPalette.Items.Add(name)
-        Next
-        cboPalette.SelectedItem = "Jet"
-        cboPalette.SetBounds(16, y, 250, 26)
-        AddHandler cboPalette.SelectedIndexChanged,
-            Sub(s, e) m_canvas.Palette = CType([Enum].Parse(GetType(ScalerPalette), CStr(cboPalette.SelectedItem)), ScalerPalette)
-        panel.Controls.Add(cboPalette)
-        y += 40
-
-        ' ---- 颜色值域 ----
-        y = AddTitle(panel, "颜色值域", y)
-        StyleCombo(cboRangeMode)
-        cboRangeMode.Items.AddRange(New Object() {"自动", "手动"})
-        cboRangeMode.SelectedIndex = 0
-        cboRangeMode.SetBounds(16, y, 250, 26)
-        AddHandler cboRangeMode.SelectedIndexChanged,
-            Sub(s, e)
-                m_canvas.AutoRange = cboRangeMode.SelectedIndex = 0
-                txtRangeMin.Visible = cboRangeMode.SelectedIndex = 1
-                txtRangeMax.Visible = cboRangeMode.SelectedIndex = 1
-            End Sub
-        panel.Controls.Add(cboRangeMode)
-        y += 34
-
-        Dim lblMin As New Label With {.Text = "最小值", .ForeColor = Color.FromArgb(71, 85, 105),
-                                      .Location = New Point(16, y), .AutoSize = True}
-        panel.Controls.Add(lblMin)
-
-        Dim lblMax As New Label With {.Text = "最大值", .ForeColor = Color.FromArgb(71, 85, 105),
-                                      .Location = New Point(150, y), .AutoSize = True}
-        panel.Controls.Add(lblMax)
-        y += 20
-
-        For Each box As TextBox In {txtRangeMin, txtRangeMax}
-            box.BorderStyle = BorderStyle.FixedSingle
-            box.Font = New Font("Microsoft YaHei UI", 9.0F)
-        Next
-        txtRangeMin.SetBounds(16, y, 115, 24)
-        txtRangeMax.SetBounds(150, y, 115, 24)
-        txtRangeMin.Visible = False
-        txtRangeMax.Visible = False
-        AddHandler txtRangeMin.TextChanged,
-            Sub(s, e)
-                Dim v As Double
-                If Double.TryParse(txtRangeMin.Text, v) Then m_canvas.RangeMin = v
-            End Sub
-        AddHandler txtRangeMax.TextChanged,
-            Sub(s, e)
-                Dim v As Double
-                If Double.TryParse(txtRangeMax.Text, v) Then m_canvas.RangeMax = v
-            End Sub
-        panel.Controls.Add(txtRangeMin)
-        panel.Controls.Add(txtRangeMax)
-        y += 36
-
-        y = AddLabel(panel, "透明阈值", y)
-        lblThresholdVal.Text = "0.00"
-        lblThresholdVal.ForeColor = Color.FromArgb(14, 165, 233)
-        lblThresholdVal.Location = New Point(220, y - 18)
-        panel.Controls.Add(lblThresholdVal)
-
-        trackThreshold.Minimum = 0
-        trackThreshold.Maximum = 100
-        trackThreshold.TickStyle = TickStyle.None
-        trackThreshold.SetBounds(12, y - 8, 260, 30)
-        AddHandler trackThreshold.ValueChanged,
-            Sub(s, e)
-                Dim t As Double = trackThreshold.Value / 100.0
-                lblThresholdVal.Text = t.ToString("F2")
-                m_canvas.Threshold = t
-            End Sub
-        panel.Controls.Add(trackThreshold)
-        y += 38
-
-        ' ---- 速度矢量箭头 ----
-        y = AddTitle(panel, "速度矢量箭头", y)
-
-        chkArrows.Text = "显示箭头"
-        chkArrows.AutoSize = True
-        chkArrows.Location = New Point(16, y)
-        AddHandler chkArrows.CheckedChanged, Sub(s, e) m_canvas.ShowArrows = chkArrows.Checked
-        panel.Controls.Add(chkArrows)
-        y += 28
-
-        y = AddLabel(panel, "箭头密度", y)
-        StyleCombo(cboArrowDensity)
-        cboArrowDensity.Items.AddRange(New Object() {"高 (2×2×2)", "中 (3×3×3)", "低 (4×4×4)"})
-        cboArrowDensity.SelectedIndex = 0
-        cboArrowDensity.SetBounds(16, y, 250, 26)
-        AddHandler cboArrowDensity.SelectedIndexChanged,
-            Sub(s, e) m_canvas.ArrowDensity = cboArrowDensity.SelectedIndex + 2
-        panel.Controls.Add(cboArrowDensity)
-        y += 40
-
-        ' ---- 横截面 ----
-        y = AddTitle(panel, "横截面", y)
-
-        y = AddLabel(panel, "截面模式", y)
-        StyleCombo(cboSectionMode)
-        cboSectionMode.Items.AddRange(New Object() {"不启用", "启用（裁剪远侧）", "切片模式（单层）"})
-        cboSectionMode.SelectedIndex = 0
-        cboSectionMode.SetBounds(16, y, 250, 26)
-        AddHandler cboSectionMode.SelectedIndexChanged, AddressOf ApplySectionMode
-        panel.Controls.Add(cboSectionMode)
-        y += 34
-
-        y = AddLabel(panel, "截面轴", y)
-        StyleCombo(cboSectionAxis)
-        cboSectionAxis.Items.AddRange(New Object() {"X 轴", "Y 轴", "Z 轴"})
-        cboSectionAxis.SelectedIndex = 0
-        cboSectionAxis.SetBounds(16, y, 250, 26)
-        AddHandler cboSectionAxis.SelectedIndexChanged,
-            Sub(s, e)
-                m_canvas.SectionAxis = CType(cboSectionAxis.SelectedIndex, CfdAxis)
-                UpdateSectionBounds()
-            End Sub
-        panel.Controls.Add(cboSectionAxis)
-        y += 34
-
-        y = AddLabel(panel, "位置", y)
-        lblSectionPosVal.Text = "0"
-        lblSectionPosVal.ForeColor = Color.FromArgb(14, 165, 233)
-        lblSectionPosVal.Location = New Point(220, y - 18)
-        panel.Controls.Add(lblSectionPosVal)
-
-        trackSectionPos.Minimum = 0
-        trackSectionPos.Maximum = 47
-        trackSectionPos.TickStyle = TickStyle.None
-        trackSectionPos.SetBounds(12, y - 8, 260, 30)
-        AddHandler trackSectionPos.ValueChanged,
-            Sub(s, e)
-                lblSectionPosVal.Text = trackSectionPos.Value.ToString()
-                m_canvas.SectionPosition = trackSectionPos.Value
-            End Sub
-        panel.Controls.Add(trackSectionPos)
-        y += 40
-
-        ' ---- 悬停提示 ----
-        y = AddTitle(panel, "视口", y)
-
-        chkTooltip.Text = "悬停显示体素数据提示"
-        chkTooltip.AutoSize = True
-        chkTooltip.Location = New Point(16, y)
-        AddHandler chkTooltip.CheckedChanged, Sub(s, e) m_canvas.ShowHoverTooltip = chkTooltip.Checked
-        panel.Controls.Add(chkTooltip)
-        y += 26
-
-        ' tooltip 字段选择清单（不勾选任何项 = 显示全部字段）
-        Dim btnAll As New Button With {
-            .Text = "全选", .Size = New Size(62, 24), .Location = New Point(16, y),
-            .FlatStyle = FlatStyle.Flat,
-            .Font = New Font("Microsoft YaHei UI", 8.0F)}
-        AddHandler btnAll.Click, Sub(s, e) SetAllTooltipFields(True)
-        panel.Controls.Add(btnAll)
-
-        Dim btnNone As New Button With {
-            .Text = "清空", .Size = New Size(62, 24), .Location = New Point(84, y),
-            .FlatStyle = FlatStyle.Flat,
-            .Font = New Font("Microsoft YaHei UI", 8.0F)}
-        AddHandler btnNone.Click, Sub(s, e) SetAllTooltipFields(False)
-        panel.Controls.Add(btnNone)
-        y += 30
-
-        clbTooltipFields.CheckOnClick = True
-        clbTooltipFields.BorderStyle = BorderStyle.FixedSingle
-        clbTooltipFields.Font = New Font("Consolas", 8.0F)
-        clbTooltipFields.HorizontalScrollbar = True
-        clbTooltipFields.SetBounds(12, y, 264, 170)
-        AddHandler clbTooltipFields.ItemCheck, AddressOf OnTooltipFieldCheck
-        panel.Controls.Add(clbTooltipFields)
-        y += 180
-
-        ' ---- DirectX 调试信息 ----
-        chkDebug.Text = "显示 DirectX 调试信息"
-        chkDebug.AutoSize = True
-        chkDebug.Location = New Point(16, y)
-        AddHandler chkDebug.CheckedChanged, Sub(s, e) m_canvas.ShowDebugInfo = chkDebug.Checked
-        panel.Controls.Add(chkDebug)
-    End Sub
-
-    ''' <summary>全选 / 清空 tooltip 字段清单。</summary>
-    Private Sub SetAllTooltipFields(checked As Boolean)
-        ' 批量设置期间挂起 ItemCheck 联动
-        RemoveHandler clbTooltipFields.ItemCheck, AddressOf OnTooltipFieldCheck
-
-        For i As Integer = 0 To clbTooltipFields.Items.Count - 1
-            clbTooltipFields.SetItemChecked(i, checked)
-        Next
-
-        AddHandler clbTooltipFields.ItemCheck, AddressOf OnTooltipFieldCheck
-        Call ApplyTooltipFields()
-    End Sub
-
-    ''' <summary>把勾选的字段清单同步到控件（全部勾选 = 显示全部，传 Nothing）。</summary>
-    Private Sub ApplyTooltipFields()
-        Dim checked As New List(Of String)()
-
-        For i As Integer = 0 To clbTooltipFields.Items.Count - 1
-            If clbTooltipFields.GetItemChecked(i) Then
-                Call checked.Add(CStr(clbTooltipFields.Items(i)))
-            End If
-        Next
-
-        If checked.Count = clbTooltipFields.Items.Count OrElse checked.Count = 0 Then
-            m_canvas.TooltipFields = Nothing
-        Else
-            m_canvas.TooltipFields = checked.ToArray()
+    Private Sub OnFormShown(sender As Object, e As EventArgs) Handles MyBase.Shown
+        If IO.Directory.Exists(DefaultDemoFolder) Then
+            Call LoadFolder(DefaultDemoFolder)
         End If
     End Sub
 
-    Private Sub OnTooltipFieldCheck(sender As Object, e As ItemCheckEventArgs)
-        BeginInvoke(Sub() ApplyTooltipFields())
+    Private Sub OnLoadClick(sender As Object, e As EventArgs) Handles btnLoad.Click
+        Using dialog As New FolderBrowserDialog With {.ShowNewFolderButton = False}
+            If IO.Directory.Exists(DefaultDemoFolder) Then
+                dialog.SelectedPath = DefaultDemoFolder
+            End If
+
+            If dialog.ShowDialog(Me) = DialogResult.OK Then
+                Call LoadFolder(dialog.SelectedPath)
+            End If
+        End Using
+    End Sub
+
+    Private Sub cboField_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cboField.SelectedIndexChanged
+        If cboField.SelectedItem Is Nothing Then Return
+        m_canvas.Field = CStr(cboField.SelectedItem)
+    End Sub
+
+    Private Sub cboPalette_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cboPalette.SelectedIndexChanged
+        m_canvas.Palette = CType([Enum].Parse(GetType(ScalerPalette), CStr(cboPalette.SelectedItem)), ScalerPalette)
+    End Sub
+
+    Private Sub cboRangeMode_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cboRangeMode.SelectedIndexChanged
+        m_canvas.AutoRange = cboRangeMode.SelectedIndex = 0
+        If txtRangeMin IsNot Nothing Then txtRangeMin.Visible = cboRangeMode.SelectedIndex = 1
+        If txtRangeMax IsNot Nothing Then txtRangeMax.Visible = cboRangeMode.SelectedIndex = 1
+    End Sub
+
+    Private Sub txtRangeMin_TextChanged(sender As Object, e As EventArgs) Handles txtRangeMin.TextChanged
+        Dim v As Double
+        If Double.TryParse(txtRangeMin.Text, v) Then m_canvas.RangeMin = v
+    End Sub
+
+    Private Sub txtRangeMax_TextChanged(sender As Object, e As EventArgs) Handles txtRangeMax.TextChanged
+        Dim v As Double
+        If Double.TryParse(txtRangeMax.Text, v) Then m_canvas.RangeMax = v
+    End Sub
+
+    Private Sub trackThreshold_ValueChanged(sender As Object, e As EventArgs) Handles trackThreshold.ValueChanged
+        Dim t As Double = trackThreshold.Value / 100.0
+        lblThresholdVal.Text = t.ToString("F2")
+        m_canvas.Threshold = t
+    End Sub
+
+    Private Sub chkArrows_CheckedChanged(sender As Object, e As EventArgs) Handles chkArrows.CheckedChanged
+        m_canvas.ShowArrows = chkArrows.Checked
+    End Sub
+
+    Private Sub cboArrowDensity_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cboArrowDensity.SelectedIndexChanged
+        m_canvas.ArrowDensity = cboArrowDensity.SelectedIndex + 2
     End Sub
 
     ''' <summary>把截面模式下拉映射到控件属性。</summary>
-    Private Sub ApplySectionMode()
+    Private Sub ApplySectionMode(sender As Object, e As EventArgs) Handles cboSectionMode.SelectedIndexChanged
         Select Case cboSectionMode.SelectedIndex
             Case 1
                 m_canvas.SectionEnabled = True
@@ -391,130 +121,47 @@ Public Class DemoTestForm
         End Select
     End Sub
 
-    Private Sub BuildRightPanel(panel As Panel)
-        ' ---- 右下角：体素属性 PropertyGrid（DynamicType 动态对象） ----
-        Dim propPanel As New Panel With {
-            .Dock = DockStyle.Bottom, .Height = 316, .BackColor = Color.White}
-
-        Dim lblProp As New Label With {
-            .Text = "体素属性", .Font = New Font("Microsoft YaHei UI", 10.0F, FontStyle.Bold),
-            .ForeColor = Color.FromArgb(30, 41, 59),
-            .Dock = DockStyle.Top, .Height = 26,
-            .TextAlign = ContentAlignment.MiddleLeft, .Padding = New Padding(12, 0, 0, 0)}
-        propPanel.Controls.Add(lblProp)
-
-        pgVoxel.Dock = DockStyle.Fill
-        pgVoxel.Font = New Font("Microsoft YaHei UI", 8.5F)
-        pgVoxel.LineColor = Color.FromArgb(226, 232, 240)
-        pgVoxel.ViewBackColor = Color.White
-        pgVoxel.CategoryForeColor = Color.FromArgb(30, 41, 59)
-        pgVoxel.PropertySort = PropertySort.Alphabetical
-        propPanel.Controls.Add(pgVoxel)
-
-        ' ---- 其余信息面板改为停靠布局（自上而下：体素信息 / 时间序列 / 2D 切片） ----
-        lblVoxelInfo.Dock = DockStyle.Top
-        lblVoxelInfo.Height = 92
-        lblVoxelInfo.Padding = New Padding(16, 2, 8, 0)
-
-        pnlSeries.Dock = DockStyle.Top
-        pnlSeries.Height = 172
-        pnlSeries.Margin = New Padding(12, 0, 12, 0)
-
-        lblSeriesHint.Dock = DockStyle.Top
-        lblSeriesHint.Height = 18
-        lblSeriesHint.TextAlign = ContentAlignment.MiddleLeft
-        lblSeriesHint.Padding = New Padding(16, 0, 0, 0)
-
-        picSlice.Dock = DockStyle.Top
-        picSlice.Height = 214
-        picSlice.Margin = New Padding(12, 0, 12, 0)
-
-        ' 停靠布局按添加顺序的逆序处理：最后添加的最先占位
-        ' → propPanel 最先占据底部，其余自上而下依次排列
-        panel.Controls.Add(picSlice)
-        panel.Controls.Add(lblSeriesHint)
-        panel.Controls.Add(pnlSeries)
-        panel.Controls.Add(lblVoxelInfo)
-        panel.Controls.Add(propPanel)
+    Private Sub cboSectionAxis_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cboSectionAxis.SelectedIndexChanged
+        m_canvas.SectionAxis = CType(cboSectionAxis.SelectedIndex, CfdAxis)
+        UpdateSectionBounds()
     End Sub
 
-    Private Sub BuildBottomBar(panel As Panel)
-        btnPlay.Text = "▶"
-        btnPlay.Size = New Size(40, 40)
-        btnPlay.Location = New Point(16, 12)
-        btnPlay.FlatStyle = FlatStyle.Flat
-        btnPlay.FlatAppearance.BorderSize = 0
-        btnPlay.BackColor = Color.FromArgb(37, 99, 235)
-        btnPlay.ForeColor = Color.White
-        btnPlay.Font = New Font("Microsoft YaHei UI", 11.0F)
-        btnPlay.Enabled = False
+    Private Sub trackSectionPos_ValueChanged(sender As Object, e As EventArgs) Handles trackSectionPos.ValueChanged
+        lblSectionPosVal.Text = trackSectionPos.Value.ToString()
+        m_canvas.SectionPosition = trackSectionPos.Value
+    End Sub
 
-        Dim path As New GraphicsPath()
-        path.AddEllipse(0, 0, btnPlay.Width - 1, btnPlay.Height - 1)
-        btnPlay.Region = New Region(path)
-        path.Dispose()
+    Private Sub chkTooltip_CheckedChanged(sender As Object, e As EventArgs) Handles chkTooltip.CheckedChanged
+        m_canvas.ShowHoverTooltip = chkTooltip.Checked
+    End Sub
 
-        AddHandler btnPlay.Click, AddressOf OnPlayClick
-        panel.Controls.Add(btnPlay)
+    Private Sub btnAll_Click(sender As Object, e As EventArgs) Handles btnAll.Click
+        Call SetAllTooltipFields(True)
+    End Sub
 
-        Dim lblSpeed As New Label With {.Text = "速度", .ForeColor = Color.FromArgb(71, 85, 105),
-                                        .Location = New Point(72, 22), .AutoSize = True}
-        panel.Controls.Add(lblSpeed)
+    Private Sub btnNone_Click(sender As Object, e As EventArgs) Handles btnNone.Click
+        Call SetAllTooltipFields(False)
+    End Sub
 
-        StyleCombo(cboSpeed)
-        cboSpeed.Items.AddRange(New Object() {"2 fps", "5 fps", "10 fps", "20 fps", "30 fps"})
-        cboSpeed.SelectedIndex = 1
-        cboSpeed.SetBounds(112, 18, 84, 26)
-        AddHandler cboSpeed.SelectedIndexChanged,
-            Sub(s, e)
-                Dim fps As Integer() = {2, 5, 10, 20, 30}
-                m_playTimer.Interval = CInt(1000 / fps(cboSpeed.SelectedIndex))
-            End Sub
-        panel.Controls.Add(cboSpeed)
+    Private Sub chkDebug_CheckedChanged(sender As Object, e As EventArgs) Handles chkDebug.CheckedChanged
+        m_canvas.ShowDebugInfo = chkDebug.Checked
+    End Sub
 
-        trackFrame.Minimum = 0
-        trackFrame.Maximum = 0
-        trackFrame.TickStyle = TickStyle.None
-        trackFrame.Enabled = False
-        AddHandler trackFrame.ValueChanged,
-            Sub(s, e)
-                If trackFrame.Focused Then m_canvas.ShowFrame(trackFrame.Value)
-            End Sub
+    Private Sub cboSpeed_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cboSpeed.SelectedIndexChanged
+        Dim fps As Integer() = {2, 5, 10, 20, 30}
+        m_playTimer.Interval = CInt(1000 / fps(cboSpeed.SelectedIndex))
+    End Sub
 
-        lblFrame.Text = "— · —"
-        lblFrame.ForeColor = Color.FromArgb(71, 85, 105)
-        lblFrame.AutoSize = True
-        lblFrame.Location = New Point(0, 24)
+    Private Sub trackFrame_ValueChanged(sender As Object, e As EventArgs) Handles trackFrame.ValueChanged
+        If trackFrame.Focused Then m_canvas.ShowFrame(trackFrame.Value)
+    End Sub
 
-        panel.Controls.Add(trackFrame)
-        panel.Controls.Add(lblFrame)
-
-        AddHandler panel.Resize,
-            Sub(s, e)
-                trackFrame.SetBounds(210, 20, panel.Width - 400, 28)
-                lblFrame.Location = New Point(panel.Width - lblFrame.PreferredWidth - 16, 24)
-            End Sub
+    Private Sub bottomPanel_Resize(sender As Object, e As EventArgs) Handles bottomPanel.Resize
+        trackFrame.SetBounds(210, 20, bottomPanel.Width - 400, 28)
+        lblFrame.Location = New Point(bottomPanel.Width - lblFrame.PreferredWidth - 16, 24)
     End Sub
 
     ' ---------------- 数据加载 ----------------
-
-    Private Sub OnFormShown(sender As Object, e As EventArgs)
-        If IO.Directory.Exists(DefaultDemoFolder) Then
-            Call LoadFolder(DefaultDemoFolder)
-        End If
-    End Sub
-
-    Private Sub OnLoadClick(sender As Object, e As EventArgs)
-        Using dialog As New FolderBrowserDialog With {.ShowNewFolderButton = False}
-            If IO.Directory.Exists(DefaultDemoFolder) Then
-                dialog.SelectedPath = DefaultDemoFolder
-            End If
-
-            If dialog.ShowDialog(Me) = DialogResult.OK Then
-                Call LoadFolder(dialog.SelectedPath)
-            End If
-        End Using
-    End Sub
 
     Private Sub LoadFolder(folder As String)
         Text = $"CFD 可视化 · 正在加载 {folder} ..."
@@ -590,7 +237,7 @@ Public Class DemoTestForm
 
     ' ---------------- 播放 ----------------
 
-    Private Sub OnPlayClick(sender As Object, e As EventArgs)
+    Private Sub OnPlayClick(sender As Object, e As EventArgs) Handles btnPlay.Click
         If Not m_canvas.IsReady Then Return
 
         m_playing = Not m_playing
@@ -603,7 +250,7 @@ Public Class DemoTestForm
         End If
     End Sub
 
-    Private Sub OnPlayTick(sender As Object, e As EventArgs)
+    Private Sub OnPlayTick(sender As Object, e As EventArgs) Handles m_playTimer.Tick
         If Not m_canvas.IsReady Then Return
 
         Dim n As Integer = m_canvas.Dataset.FrameCount
@@ -614,7 +261,7 @@ Public Class DemoTestForm
 
     ' ---------------- 视口事件 ----------------
 
-    Private Sub OnDatasetLoaded(dataset As CfdDataset)
+    Private Sub OnDatasetLoaded(dataset As CfdDataset) Handles m_canvas.DatasetLoaded
         If InvokeRequired Then
             BeginInvoke(Sub() OnDatasetLoaded(dataset))
             Return
@@ -624,7 +271,7 @@ Public Class DemoTestForm
         trackFrame.Value = 0
     End Sub
 
-    Private Sub OnFrameChanged(frameIndex As Integer, time As Double)
+    Private Sub OnFrameChanged(frameIndex As Integer, time As Double) Handles m_canvas.FrameChanged
         If InvokeRequired Then
             BeginInvoke(Sub() OnFrameChanged(frameIndex, time))
             Return
@@ -642,7 +289,7 @@ Public Class DemoTestForm
         Call UpdatePropertyGrid()
     End Sub
 
-    Private Sub OnVoxelPicked(e As VoxelPickEventArgs)
+    Private Sub OnVoxelPicked(e As VoxelPickEventArgs) Handles m_canvas.VoxelPicked
         If InvokeRequired Then
             BeginInvoke(Sub() OnVoxelPicked(e))
             Return
@@ -654,7 +301,7 @@ Public Class DemoTestForm
         Call LoadSeries()
     End Sub
 
-    Private Sub OnVoxelPickCleared()
+    Private Sub OnVoxelPickCleared() Handles m_canvas.VoxelPickCleared
         If InvokeRequired Then
             BeginInvoke(Sub() OnVoxelPickCleared())
             Return
@@ -810,9 +457,45 @@ Public Class DemoTestForm
         picSlice.Image = m_slice
     End Sub
 
+    ' ---------------- tooltip 字段清单 ----------------
+
+    ''' <summary>全选 / 清空 tooltip 字段清单。</summary>
+    Private Sub SetAllTooltipFields(checked As Boolean)
+        ' 批量设置期间挂起 ItemCheck 联动
+        RemoveHandler clbTooltipFields.ItemCheck, AddressOf OnTooltipFieldCheck
+
+        For i As Integer = 0 To clbTooltipFields.Items.Count - 1
+            clbTooltipFields.SetItemChecked(i, checked)
+        Next
+
+        AddHandler clbTooltipFields.ItemCheck, AddressOf OnTooltipFieldCheck
+        Call ApplyTooltipFields()
+    End Sub
+
+    ''' <summary>把勾选的字段清单同步到控件（全部勾选 = 显示全部，传 Nothing）。</summary>
+    Private Sub ApplyTooltipFields()
+        Dim checked As New List(Of String)()
+
+        For i As Integer = 0 To clbTooltipFields.Items.Count - 1
+            If clbTooltipFields.GetItemChecked(i) Then
+                Call checked.Add(CStr(clbTooltipFields.Items(i)))
+            End If
+        Next
+
+        If checked.Count = clbTooltipFields.Items.Count OrElse checked.Count = 0 Then
+            m_canvas.TooltipFields = Nothing
+        Else
+            m_canvas.TooltipFields = checked.ToArray()
+        End If
+    End Sub
+
+    Private Sub OnTooltipFieldCheck(sender As Object, e As ItemCheckEventArgs) Handles clbTooltipFields.ItemCheck
+        BeginInvoke(Sub() ApplyTooltipFields())
+    End Sub
+
     ' ---------------- 时间序列绘制（复刻 ECharts 折线 + 面积图） ----------------
 
-    Private Sub DrawSeries(sender As Object, e As PaintEventArgs)
+    Private Sub DrawSeries(sender As Object, e As PaintEventArgs) Handles pnlSeries.Paint
         Dim g As Graphics = e.Graphics
         Call g.Clear(Color.White)
 
@@ -910,18 +593,7 @@ Public Class DemoTestForm
         End Using
     End Sub
 
-    Private Sub DemoTestForm_Load(sender As Object, e As EventArgs) Handles Me.Load
-        Call BuildLayout()
-
-        AddHandler m_playTimer.Tick, AddressOf OnPlayTick
-
-        AddHandler Shown, AddressOf OnFormShown
-        AddHandler m_canvas.DatasetLoaded, AddressOf OnDatasetLoaded
-        AddHandler m_canvas.FrameChanged, AddressOf OnFrameChanged
-        AddHandler m_canvas.VoxelPicked, AddressOf OnVoxelPicked
-        AddHandler m_canvas.VoxelPickCleared, AddressOf OnVoxelPickCleared
-
-        AddHandler pnlSeries.Paint, AddressOf DrawSeries
-        AddHandler pnlSeries.Resize, Sub() pnlSeries.Invalidate()
+    Private Sub pnlSeries_Resize(sender As Object, e As EventArgs) Handles pnlSeries.Resize
+        pnlSeries.Invalidate()
     End Sub
 End Class
