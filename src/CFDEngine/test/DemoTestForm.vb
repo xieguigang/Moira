@@ -17,12 +17,14 @@
 '
 ' /********************************************************************************/
 
+Imports System.ComponentModel
 Imports System.Drawing
 Imports System.Drawing.Drawing2D
 Imports System.Windows.Forms
 Imports CDFDxCanvas
 Imports CDFDxCanvas.Data
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
+Imports Microsoft.VisualBasic.My.JavaScript
 
 Public Class DemoTestForm
 
@@ -57,6 +59,12 @@ Public Class DemoTestForm
     ReadOnly pnlSeries As New Panel With {.Name = "pnlSeries"}
     ReadOnly lblSeriesHint As New Label With {.Name = "lblSeriesHint"}
     ReadOnly picSlice As New PictureBox With {.Name = "picSlice"}
+    ReadOnly pgVoxel As New PropertyGrid With {.Name = "pgVoxel"}
+
+    ' 体素属性动态对象的类型缓存（避免每次刷新都 Reflection.Emit 新类型）
+    Dim m_propDynamicType As Type
+    Dim m_propNameMap As Dictionary(Of String, String)
+    Dim m_propSignature As String = Nothing
 
     ReadOnly btnPlay As New Button With {.Name = "btnPlay"}
     ReadOnly cboSpeed As New ComboBox With {.Name = "cboSpeed"}
@@ -384,39 +392,50 @@ Public Class DemoTestForm
     End Sub
 
     Private Sub BuildRightPanel(panel As Panel)
-        Dim y As Integer = 14
+        ' ---- 右下角：体素属性 PropertyGrid（DynamicType 动态对象） ----
+        Dim propPanel As New Panel With {
+            .Dock = DockStyle.Bottom, .Height = 316, .BackColor = Color.White}
 
-        y = AddTitle(panel, "选中体素", y)
+        Dim lblProp As New Label With {
+            .Text = "体素属性", .Font = New Font("Microsoft YaHei UI", 10.0F, FontStyle.Bold),
+            .ForeColor = Color.FromArgb(30, 41, 59),
+            .Dock = DockStyle.Top, .Height = 26,
+            .TextAlign = ContentAlignment.MiddleLeft, .Padding = New Padding(12, 0, 0, 0)}
+        propPanel.Controls.Add(lblProp)
 
-        lblVoxelInfo.Text = "点击体素查看详情"
-        lblVoxelInfo.ForeColor = Color.FromArgb(71, 85, 105)
-        lblVoxelInfo.Font = New Font("Microsoft YaHei UI", 9.0F)
-        lblVoxelInfo.Location = New Point(16, y)
-        lblVoxelInfo.Size = New Size(296, 84)
-        panel.Controls.Add(lblVoxelInfo)
-        y += 94
+        pgVoxel.Dock = DockStyle.Fill
+        pgVoxel.Font = New Font("Microsoft YaHei UI", 8.5F)
+        pgVoxel.LineColor = Color.FromArgb(226, 232, 240)
+        pgVoxel.ViewBackColor = Color.White
+        pgVoxel.CategoryForeColor = Color.FromArgb(30, 41, 59)
+        pgVoxel.PropertySort = PropertySort.Alphabetical
+        propPanel.Controls.Add(pgVoxel)
 
-        y = AddTitle(panel, "时间序列", y)
+        ' ---- 其余信息面板改为停靠布局（自上而下：体素信息 / 时间序列 / 2D 切片） ----
+        lblVoxelInfo.Dock = DockStyle.Top
+        lblVoxelInfo.Height = 92
+        lblVoxelInfo.Padding = New Padding(16, 2, 8, 0)
 
-        pnlSeries.SetBounds(12, y, 300, 200)
-        pnlSeries.BorderStyle = BorderStyle.FixedSingle
-        pnlSeries.BackColor = Color.White
-        panel.Controls.Add(pnlSeries)
+        pnlSeries.Dock = DockStyle.Top
+        pnlSeries.Height = 172
+        pnlSeries.Margin = New Padding(12, 0, 12, 0)
 
-        lblSeriesHint.Text = ""
-        lblSeriesHint.ForeColor = Color.FromArgb(148, 163, 184)
-        lblSeriesHint.Font = New Font("Microsoft YaHei UI", 8.0F)
-        lblSeriesHint.Location = New Point(16, y + 202)
-        panel.Controls.Add(lblSeriesHint)
-        y += 226
+        lblSeriesHint.Dock = DockStyle.Top
+        lblSeriesHint.Height = 18
+        lblSeriesHint.TextAlign = ContentAlignment.MiddleLeft
+        lblSeriesHint.Padding = New Padding(16, 0, 0, 0)
 
-        y = AddTitle(panel, "2D 横截面", y)
+        picSlice.Dock = DockStyle.Top
+        picSlice.Height = 214
+        picSlice.Margin = New Padding(12, 0, 12, 0)
 
-        picSlice.SetBounds(12, y, 300, 300)
-        picSlice.BorderStyle = BorderStyle.FixedSingle
-        picSlice.BackColor = Color.FromArgb(248, 250, 252)
-        picSlice.SizeMode = PictureBoxSizeMode.StretchImage
+        ' 停靠布局按添加顺序的逆序处理：最后添加的最先占位
+        ' → propPanel 最先占据底部，其余自上而下依次排列
         panel.Controls.Add(picSlice)
+        panel.Controls.Add(lblSeriesHint)
+        panel.Controls.Add(pnlSeries)
+        panel.Controls.Add(lblVoxelInfo)
+        panel.Controls.Add(propPanel)
     End Sub
 
     Private Sub BuildBottomBar(panel As Panel)
@@ -620,6 +639,7 @@ Public Class DemoTestForm
 
         Call UpdateSlice()
         Call UpdateVoxelInfo()
+        Call UpdatePropertyGrid()
     End Sub
 
     Private Sub OnVoxelPicked(e As VoxelPickEventArgs)
@@ -630,6 +650,7 @@ Public Class DemoTestForm
 
         m_selectedVoxel = e.VoxelIndex
         Call UpdateVoxelInfo()
+        Call UpdatePropertyGrid()
         Call LoadSeries()
     End Sub
 
@@ -644,6 +665,7 @@ Public Class DemoTestForm
         lblVoxelInfo.Text = "点击体素查看详情"
         lblSeriesHint.Text = ""
         pnlSeries.Invalidate()
+        pgVoxel.SelectedObject = Nothing
     End Sub
 
     Private Sub UpdateVoxelInfo()
@@ -658,6 +680,92 @@ Public Class DemoTestForm
             $"{CFDCanvas.FieldLabel(m_canvas.Field)}: {args.FieldValue:F4}" & Environment.NewLine &
             $"速度 (u,v,w): ({args.U:F3}, {args.V:F3}, {args.W:F3})" & Environment.NewLine &
             $"|V|: {args.Speed:F4}"
+    End Sub
+
+    ''' <summary>
+    ''' 用 DynamicType.Create 构建动态对象并在 PropertyGrid 中显示
+    ''' 选中体素的全部字段值（clbTooltipFields 列举的所有字段，
+    ''' 不论其是否被勾选用于 tooltip）。
+    ''' </summary>
+    ''' <remarks>
+    ''' 动态类型会被缓存：只有 clbTooltipFields 的字段集合发生变化时
+    ''' 才重新 Reflection.Emit；逐帧刷新只是用缓存类型换一组属性值，
+    ''' 避免播放时每帧都生成新的动态类型。
+    ''' </remarks>
+    Private Sub UpdatePropertyGrid()
+        If m_selectedVoxel < 0 OrElse Not m_canvas.IsReady Then
+            pgVoxel.SelectedObject = Nothing
+            Return
+        End If
+
+        ' clbTooltipFields 列举的全部字段（无论勾选与否）
+        Dim names As New List(Of String)()
+
+        For i As Integer = 0 To clbTooltipFields.Items.Count - 1
+            Call names.Add(CStr(clbTooltipFields.Items(i)))
+        Next
+
+        If names.Count = 0 Then
+            pgVoxel.SelectedObject = Nothing
+            Return
+        End If
+
+        Dim values As Dictionary(Of String, Double) = m_canvas.GetVoxelFields(m_selectedVoxel)
+
+        ' ---- 字段集合变化时重建动态类型 ----
+        Dim signature As String = String.Join("|", names)
+
+        If m_propDynamicType Is Nothing OrElse m_propSignature <> signature Then
+            Dim meta As New Dictionary(Of String, Object)()
+
+            For Each name As String In names
+                Dim v As Double = 0.0
+                Call values.TryGetValue(name, v)
+                meta(name) = v
+            Next
+
+            Dim obj As Object = DynamicType.Create(meta)
+
+            m_propDynamicType = obj.GetType()
+
+            ' 原始字段名（DisplayName 特性）→ 动态属性符号名
+            m_propNameMap = New Dictionary(Of String, String)(StringComparer.OrdinalIgnoreCase)
+
+            For Each prop As Reflection.PropertyInfo In m_propDynamicType.GetProperties()
+                Dim display As String = prop.Name
+
+                For Each attr As Object In prop.GetCustomAttributes(False)
+                    Dim displayName = TryCast(attr, DisplayNameAttribute)
+
+                    If displayName IsNot Nothing AndAlso Not String.IsNullOrEmpty(displayName.DisplayName) Then
+                        display = displayName.DisplayName
+                        Exit For
+                    End If
+                Next
+
+                m_propNameMap(display) = prop.Name
+            Next
+
+            m_propSignature = signature
+        End If
+
+        ' ---- 用缓存的动态类型 + 当前帧数值构建新实例 ----
+        Dim pairs As New List(Of KeyValuePair(Of String, Object))(names.Count)
+
+        For Each name As String In names
+            Dim v As Double = 0.0
+            Call values.TryGetValue(name, v)
+
+            Dim symbol As String = Nothing
+
+            If Not m_propNameMap.TryGetValue(name, symbol) Then
+                symbol = name
+            End If
+
+            Call pairs.Add(New KeyValuePair(Of String, Object)(symbol, v))
+        Next
+
+        pgVoxel.SelectedObject = JavaScriptObject.CreateDynamicObject(m_propDynamicType, pairs)
     End Sub
 
     Private Sub LoadSeries()

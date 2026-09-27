@@ -1091,12 +1091,40 @@ Partial Public Class CFDCanvas
                             End If
 
                             Call m_sceneCanvas.RequestRender()
+
+                            ' 通知宿主：该帧的全部字段已就绪（供 PropertyGrid 等刷新）
+                            Dim meta = m_dataset.GetFrameMeta(m_frameIndex)
+                            RaiseEvent FrameChanged(m_frameIndex, If(meta IsNot Nothing, meta.Time, 0.0))
                         End Sub)
                 Catch ex As Exception
                     ' 全字段加载失败不影响既有提示内容
                 End Try
             End Sub)
     End Sub
+
+    ''' <summary>
+    ''' 提取某体素在当前帧中全部已加载字段的值（键 = 字段名）。
+    ''' 字段是懒加载的：若当前帧尚未加载全部字段，会在后台补齐，
+    ''' 补齐完成后通过 <see cref="FrameChanged"/> 通知宿主刷新。
+    ''' </summary>
+    ''' <param name="idx">体素引擎索引（i*ny*nz + j*nz + k）</param>
+    Public Function GetVoxelFields(idx As Integer) As Dictionary(Of String, Double)
+        Dim out As New Dictionary(Of String, Double)(StringComparer.OrdinalIgnoreCase)
+
+        If m_currentFrame Is Nothing OrElse m_dataset Is Nothing Then Return out
+        If idx < 0 OrElse idx >= m_currentFrame.Count Then Return out
+
+        ' 确保这一帧的字段都被加载（首次调用会在后台补齐并触发一次 FrameChanged）
+        Call EnsureFullFrameFields()
+
+        For Each kv In m_currentFrame.Fields
+            If idx < kv.Value.Length Then
+                out(kv.Key) = kv.Value(idx)
+            End If
+        Next
+
+        Return out
+    End Function
 
     ''' <summary>清除悬停提示并重绘。</summary>
     Private Sub ClearHover()
