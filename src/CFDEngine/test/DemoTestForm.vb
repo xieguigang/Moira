@@ -25,7 +25,6 @@ Imports CDFDxCanvas.Data
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
 
 Public Class DemoTestForm
-    Inherits Form
 
     Const DefaultDemoFolder As String = "G:\fermenter\src\demo\cfd"
 
@@ -66,28 +65,6 @@ Public Class DemoTestForm
     ReadOnly chkTooltip As New CheckBox With {.Name = "chkTooltip"}
     ReadOnly clbTooltipFields As New CheckedListBox With {.Name = "clbTooltipFields"}
     ReadOnly chkDebug As New CheckBox With {.Name = "chkDebug"}
-
-    Public Sub New()
-        Text = "CFD 可视化 · CFDCanvas 控件测试"
-        StartPosition = FormStartPosition.CenterScreen
-        Size = New Size(1440, 860)
-        MinimumSize = New Size(1100, 640)
-        BackColor = Color.FromArgb(244, 246, 250)
-        Font = New Font("Microsoft YaHei UI", 9.0F)
-
-        Call BuildLayout()
-
-        AddHandler m_playTimer.Tick, AddressOf OnPlayTick
-
-        AddHandler Shown, AddressOf OnFormShown
-        AddHandler m_canvas.DatasetLoaded, AddressOf OnDatasetLoaded
-        AddHandler m_canvas.FrameChanged, AddressOf OnFrameChanged
-        AddHandler m_canvas.VoxelPicked, AddressOf OnVoxelPicked
-        AddHandler m_canvas.VoxelPickCleared, AddressOf OnVoxelPickCleared
-
-        AddHandler pnlSeries.Paint, AddressOf DrawSeries
-        AddHandler pnlSeries.Resize, Sub() pnlSeries.Invalidate()
-    End Sub
 
     ' ---------------- 布局 ----------------
 
@@ -825,4 +802,18 @@ Public Class DemoTestForm
         End Using
     End Sub
 
+    Private Sub DemoTestForm_Load(sender As Object, e As EventArgs) Handles Me.Load
+        Call BuildLayout()
+
+        AddHandler m_playTimer.Tick, AddressOf OnPlayTick
+
+        AddHandler Shown, AddressOf OnFormShown
+        AddHandler m_canvas.DatasetLoaded, AddressOf OnDatasetLoaded
+        AddHandler m_canvas.FrameChanged, AddressOf OnFrameChanged
+        AddHandler m_canvas.VoxelPicked, AddressOf OnVoxelPicked
+        AddHandler m_canvas.VoxelPickCleared, AddressOf OnVoxelPickCleared
+
+        AddHandler pnlSeries.Paint, AddressOf DrawSeries
+        AddHandler pnlSeries.Resize, Sub() pnlSeries.Invalidate()
+    End Sub
 End Class
