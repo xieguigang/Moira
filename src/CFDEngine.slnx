@@ -40,7 +40,7 @@
     </Project>
   </Folder>
   <Project Path="CDFDxCanvas/CDFDxCanvas.vbproj" Id="dceb9a7f-7f8a-4f0a-93b0-914f72014854">
-    <Platform Solution="Release|x64" Project="x64" />
+    <Platform Solution="*|x64" Project="x64" />
   </Project>
   <Project Path="CFDEngine/CFDEngine.vbproj">
     <Platform Solution="*|x64" Project="x64" />
