@@ -406,7 +406,7 @@ Namespace Snapshot
                 ms.WriteByte(&H78)
                 ms.WriteByte(&H9C)
 
-                Using ds As New DeflateStream(ms, CompressionLevel.Optimal, leaveOpen:=True)
+                Using ds As New DeflateStream(ms, CompressionLevel.Fastest, leaveOpen:=True)
                     ds.Write(data, 0, data.Length)
                 End Using
 
