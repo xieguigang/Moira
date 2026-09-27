@@ -1,14 +1,10 @@
-﻿Imports System.Drawing
-Imports System.Drawing.Drawing2D
-Imports System.Windows.Forms
+﻿Imports System.Drawing.Drawing2D
 Imports CDFDxCanvas
 Imports CDFDxCanvas.Data
 Imports Galaxy.Workbench
 Imports Microsoft.VisualStudio.WinForms.Docking
 
 Public Class PageCFDPlayer
-
-    Friend Const DefaultDemoFolder As String = "G:\fermenter\src\demo\cfd"
 
     Dim m_playing As Boolean = False
     Dim panelLeft As PanelPlayerLeft
@@ -35,10 +31,6 @@ Public Class PageCFDPlayer
         path.AddEllipse(0, 0, btnPlay.Width - 1, btnPlay.Height - 1)
         btnPlay.Region = New Region(path)
         path.Dispose()
-
-        If IO.Directory.Exists(DefaultDemoFolder) Then
-            Call LoadFolder(DefaultDemoFolder)
-        End If
     End Sub
 
     ' ---------------- 播放控制事件 ----------------
@@ -159,6 +151,9 @@ Public Class PageCFDPlayer
         Text = $"CFD Player · 已加载 {dataset.FrameCount} 帧 " &
                $"({dataset.Nx}×{dataset.Ny}×{dataset.Nz}，" &
                $"{dataset.ActiveVoxels:N0} 活动体素 · {dataset.FieldNames.Length} 个标量场)"
+
+        Call CommonRuntime.Success(Text)
+        Call Globals.host.SetTitle(Text)
 
         Call panelLeft.PopulateFields(dataset.FieldNames)
         btnPlay.Enabled = True

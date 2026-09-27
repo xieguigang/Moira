@@ -50,7 +50,7 @@ Partial Class PageCFDPlayer
         ' m_playTimer
         ' 
         m_playTimer.Enabled = False
-        m_playTimer.Name = "m_playTimer"
+        ' m_playTimer.Name = "m_playTimer"
 
         ' 
         ' m_canvas（中央 3D 视口，占满剩余空间）

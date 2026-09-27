@@ -36,7 +36,7 @@ Public Class FormMain : Implements AppHost
         Call EnableVSRenderer(StatusStrip1)
         Call RibbonMenu.Setup(New RibbonItems(Ribbon1))
         Call CommonRuntime.Hook(Me)
-        Call Globals.SetupBackendUI()
+        Call Globals.SetupBackendUI(Me)
     End Sub
 
     Friend Sub EnableVSRenderer(ParamArray toolStrips As ToolStrip())
@@ -79,7 +79,7 @@ Public Class FormMain : Implements AppHost
     End Function
 
     Public Sub SetTitle(title As String) Implements AppHost.SetTitle
-        Call Invoke(Sub() Me.Text = title)
+        Call Invoke(Sub() Me.Text = "Moira Workshop 2026 - [" & title & "]")
     End Sub
 
     Public Sub StatusMessage(msg As String, Optional icon As Image = Nothing) Implements AppHost.StatusMessage

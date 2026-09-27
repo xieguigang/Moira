@@ -1,9 +1,5 @@
-﻿Imports System.Drawing
-Imports System.Windows.Forms
-Imports CDFDxCanvas
-Imports CDFDxCanvas.Data
+﻿Imports CDFDxCanvas.Data
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
-Imports Galaxy.Workbench.DockDocument
 
 Public Class PanelPlayerLeft
 
@@ -13,10 +9,6 @@ Public Class PanelPlayerLeft
 
     Private Sub OnLoadClick(sender As Object, e As EventArgs) Handles btnLoad.Click
         Using dialog As New FolderBrowserDialog With {.ShowNewFolderButton = False}
-            If IO.Directory.Exists(player.DefaultDemoFolder) Then
-                dialog.SelectedPath = player.DefaultDemoFolder
-            End If
-
             If dialog.ShowDialog(Me) = DialogResult.OK Then
                 Call player.LoadFolder(dialog.SelectedPath)
             End If
