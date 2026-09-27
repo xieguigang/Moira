@@ -64,6 +64,8 @@ Public Class DemoTestForm
     ReadOnly trackFrame As New TrackBar With {.Name = "trackFrame"}
     ReadOnly lblFrame As New Label With {.Name = "lblFrame"}
     ReadOnly chkTooltip As New CheckBox With {.Name = "chkTooltip"}
+    ReadOnly clbTooltipFields As New CheckedListBox With {.Name = "clbTooltipFields"}
+    ReadOnly chkDebug As New CheckBox With {.Name = "chkDebug"}
 
     Public Sub New()
         Text = "CFD 可视化 · CFDCanvas 控件测试"
@@ -319,6 +321,73 @@ Public Class DemoTestForm
         chkTooltip.Location = New Point(16, y)
         AddHandler chkTooltip.CheckedChanged, Sub(s, e) m_canvas.ShowHoverTooltip = chkTooltip.Checked
         panel.Controls.Add(chkTooltip)
+        y += 26
+
+        ' tooltip 字段选择清单（不勾选任何项 = 显示全部字段）
+        Dim btnAll As New Button With {
+            .Text = "全选", .Size = New Size(62, 24), .Location = New Point(16, y),
+            .FlatStyle = FlatStyle.Flat,
+            .Font = New Font("Microsoft YaHei UI", 8.0F)}
+        AddHandler btnAll.Click, Sub(s, e) SetAllTooltipFields(True)
+        panel.Controls.Add(btnAll)
+
+        Dim btnNone As New Button With {
+            .Text = "清空", .Size = New Size(62, 24), .Location = New Point(84, y),
+            .FlatStyle = FlatStyle.Flat,
+            .Font = New Font("Microsoft YaHei UI", 8.0F)}
+        AddHandler btnNone.Click, Sub(s, e) SetAllTooltipFields(False)
+        panel.Controls.Add(btnNone)
+        y += 30
+
+        clbTooltipFields.CheckOnClick = True
+        clbTooltipFields.BorderStyle = BorderStyle.FixedSingle
+        clbTooltipFields.Font = New Font("Consolas", 8.0F)
+        clbTooltipFields.HorizontalScrollbar = True
+        clbTooltipFields.SetBounds(12, y, 264, 170)
+        AddHandler clbTooltipFields.ItemCheck, AddressOf OnTooltipFieldCheck
+        panel.Controls.Add(clbTooltipFields)
+        y += 180
+
+        ' ---- DirectX 调试信息 ----
+        chkDebug.Text = "显示 DirectX 调试信息"
+        chkDebug.AutoSize = True
+        chkDebug.Location = New Point(16, y)
+        AddHandler chkDebug.CheckedChanged, Sub(s, e) m_canvas.ShowDebugInfo = chkDebug.Checked
+        panel.Controls.Add(chkDebug)
+    End Sub
+
+    ''' <summary>全选 / 清空 tooltip 字段清单。</summary>
+    Private Sub SetAllTooltipFields(checked As Boolean)
+        ' 批量设置期间挂起 ItemCheck 联动
+        RemoveHandler clbTooltipFields.ItemCheck, AddressOf OnTooltipFieldCheck
+
+        For i As Integer = 0 To clbTooltipFields.Items.Count - 1
+            clbTooltipFields.SetItemChecked(i, checked)
+        Next
+
+        AddHandler clbTooltipFields.ItemCheck, AddressOf OnTooltipFieldCheck
+        Call ApplyTooltipFields()
+    End Sub
+
+    ''' <summary>把勾选的字段清单同步到控件（全部勾选 = 显示全部，传 Nothing）。</summary>
+    Private Sub ApplyTooltipFields()
+        Dim checked As New List(Of String)()
+
+        For i As Integer = 0 To clbTooltipFields.Items.Count - 1
+            If clbTooltipFields.GetItemChecked(i) Then
+                Call checked.Add(CStr(clbTooltipFields.Items(i)))
+            End If
+        Next
+
+        If checked.Count = clbTooltipFields.Items.Count OrElse checked.Count = 0 Then
+            m_canvas.TooltipFields = Nothing
+        Else
+            m_canvas.TooltipFields = checked.ToArray()
+        End If
+    End Sub
+
+    Private Sub OnTooltipFieldCheck(sender As Object, e As ItemCheckEventArgs)
+        BeginInvoke(Sub() ApplyTooltipFields())
     End Sub
 
     ''' <summary>把截面模式下拉映射到控件属性。</summary>
@@ -498,6 +567,21 @@ Public Class DemoTestForm
         btnPlay.Enabled = True
         trackFrame.Enabled = True
         Call UpdateSectionBounds()
+
+        ' tooltip 字段清单：数据集实际字段，默认全选（= 显示全部）
+        RemoveHandler clbTooltipFields.ItemCheck, AddressOf OnTooltipFieldCheck
+
+        clbTooltipFields.BeginUpdate()
+        clbTooltipFields.Items.Clear()
+
+        For Each name As String In dataset.FieldNames
+            Call clbTooltipFields.Items.Add(name, isChecked:=True)
+        Next
+
+        clbTooltipFields.EndUpdate()
+
+        AddHandler clbTooltipFields.ItemCheck, AddressOf OnTooltipFieldCheck
+        m_canvas.TooltipFields = Nothing
     End Sub
 
     Private Sub UpdateSectionBounds()

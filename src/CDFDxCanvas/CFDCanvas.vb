@@ -20,6 +20,7 @@ Imports CDFDxCanvas.Rendering
 Imports Microsoft.VisualBasic.Drawing.DirectX
 Imports Microsoft.VisualBasic.Drawing.DirectX.Scene3D
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
+Imports Microsoft.VisualBasic.Imaging.Drawing3D
 
 ''' <summary>
 ''' CFD 结果三维可视化视口控件。
@@ -70,6 +71,22 @@ Partial Public Class CFDCanvas
     Dim m_hoverVoxel As Integer = -1
     Dim m_hoverX As Integer = 0
     Dim m_hoverY As Integer = 0
+
+    ' ---------------- 点大小与调试叠加层 ----------------
+
+    Dim m_autoPointSize As Boolean = True
+    Dim m_pointFill As Single = 1.05F
+    Dim m_tooltipFields As String()
+    Dim m_showDebugInfo As Boolean = False
+
+    ' FPS 统计（滚动窗口）
+    ReadOnly m_renderClock As New Stopwatch
+    Dim m_frameCount As Integer = 0
+    Dim m_fps As Double = 0.0
+
+    ''' <summary>鼠标当前位置（视口客户区坐标，调试叠加层显示用）。</summary>
+    Dim m_mousePosX As Integer = -1
+    Dim m_mousePosY As Integer = -1
 
     ''' <summary>
     ''' 是否在鼠标悬停到体素上时显示半透明数据提示框
@@ -124,6 +141,7 @@ Partial Public Class CFDCanvas
 
         AddHandler m_refreshTimer.Tick, AddressOf OnRefreshTimerTick
         AddHandler m_sceneCanvas.Render, AddressOf OnSceneRender
+        AddHandler m_sceneCanvas.ViewChanged, AddressOf OnSceneViewChanged
     End Sub
 
     ' ---------------- 公开属性 ----------------
@@ -342,14 +360,79 @@ Partial Public Class CFDCanvas
         End Set
     End Property
 
-    ''' <summary>点大小（像素）。体渲染的视觉颗粒度。</summary>
+    ''' <summary>
+    ''' 点大小（像素）。设置后将关闭缩放自适应（<see cref="AutoPointSize"/>）。
+    ''' </summary>
     <DefaultValue(6)>
     Public Property PointSize As Integer
         Get
             Return m_sceneCanvas.PointSize
         End Get
         Set(value As Integer)
+            m_autoPointSize = False
             m_sceneCanvas.PointSize = value
+            Call m_sceneCanvas.RequestRender()
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' 缩放自适应点大小：让相邻体素方格始终相互衔接（不出现空隙）。
+    ''' 默认开启；手动设置 <see cref="PointSize"/> 后自动关闭。
+    ''' </summary>
+    <Description("随缩放自适应体素点大小")>
+    Public Property AutoPointSize As Boolean
+        Get
+            Return m_autoPointSize
+        End Get
+        Set(value As Boolean)
+            If m_autoPointSize = value Then Return
+            m_autoPointSize = value
+
+            If value Then
+                Call AdaptPointSize()
+            End If
+        End Set
+    End Property
+
+    ''' <summary>体素点方格相对体素间距的覆盖系数（1.0 = 恰好相接）。</summary>
+    <DefaultValue(1.05F)>
+    Public Property PointFill As Single
+        Get
+            Return m_pointFill
+        End Get
+        Set(value As Single)
+            value = Math.Min(2.0F, Math.Max(0.5F, value))
+            If Math.Abs(m_pointFill - value) < 0.001F Then Return
+            m_pointFill = value
+            Call AdaptPointSize()
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' 悬停提示框中显示的字段清单（Nothing 或空 = 显示全部字段）。
+    ''' </summary>
+    Public Property TooltipFields As String()
+        Get
+            Return m_tooltipFields
+        End Get
+        Set(value As String())
+            m_tooltipFields = value
+            Call m_sceneCanvas.RequestRender()
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' 是否在视口右下角显示三维图形引擎调试信息
+    ''' （FPS / 鼠标位置 / 相机姿态 / FOV / 视距 / DirectX 设备信息等）。
+    ''' </summary>
+    <Description("显示 DirectX 调试信息叠加层")>
+    Public Property ShowDebugInfo As Boolean
+        Get
+            Return m_showDebugInfo
+        End Get
+        Set(value As Boolean)
+            If m_showDebugInfo = value Then Return
+            m_showDebugInfo = value
             Call m_sceneCanvas.RequestRender()
         End Set
     End Property
@@ -586,6 +669,9 @@ Partial Public Class CFDCanvas
         End If
 
         Call m_sceneCanvas.RequestRender()
+
+        ' 场景（相机）就绪后立即校准一次体素点大小
+        Call AdaptPointSize()
     End Sub
 
     Private Sub OnRefreshTimerTick(sender As Object, e As EventArgs)
@@ -731,9 +817,87 @@ Partial Public Class CFDCanvas
     ' ---------------- 视口交互与叠加绘制 ----------------
 
     ''' <summary>
+    ''' 视图变化（旋转/缩放/平移）：自适应点大小并刷新调试叠加层。
+    ''' </summary>
+    Private Sub OnSceneViewChanged(sender As Object, e As EventArgs)
+        Call AdaptPointSize()
+
+        If m_showDebugInfo Then
+            Call m_sceneCanvas.RequestRender()
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' 缩放自适应点大小：把相邻两个体素中心的投影间距实测出来，
+    ''' 令点方格边长 ≈ 间距 × <see cref="PointFill"/>，
+    ''' 从而无论放大多少倍，体素方格都恰好相互衔接不留空隙。
+    ''' </summary>
+    Private Sub AdaptPointSize()
+        If Not m_autoPointSize Then Return
+        If m_dataset Is Nothing OrElse m_currentFrame Is Nothing Then Return
+
+        Dim active = m_dataset.ActiveIndices
+        If active Is Nothing OrElse active.Length < 2 Then Return
+
+        ' 取一个活动体素及其 +X 相邻体素作为测量参照
+        Dim idxA As Integer = active(active.Length \ 2)
+        Dim i, j, k As Integer
+        Call m_dataset.IdxToIJK(idxA, i, j, k)
+
+        Dim idxB As Integer = -1
+
+        If i + 1 < m_dataset.Nx Then
+            idxB = m_dataset.IJKToIdx(i + 1, j, k)
+        ElseIf j + 1 < m_dataset.Ny Then
+            idxB = m_dataset.IJKToIdx(i, j + 1, k)
+        ElseIf k + 1 < m_dataset.Nz Then
+            idxB = m_dataset.IJKToIdx(i, j, k + 1)
+        End If
+
+        If idxB < 0 Then Return
+
+        Dim cA = m_dataset.VoxelCenter(idxA)
+        Dim cB = m_dataset.VoxelCenter(idxB)
+
+        Dim sA As PointF, sB As PointF
+
+        If Not m_sceneCanvas.TryProjectPoint(New Point3D(cA(0), cA(1), cA(2)), sA) Then Return
+        If Not m_sceneCanvas.TryProjectPoint(New Point3D(cB(0), cB(1), cB(2)), sB) Then Return
+
+        Dim dist As Double = Math.Sqrt((sA.X - sB.X) * (sA.X - sB.X) + (sA.Y - sB.Y) * (sA.Y - sB.Y))
+
+        If dist < 0.5 OrElse Double.IsNaN(dist) OrElse Double.IsInfinity(dist) Then Return
+
+        Dim size As Integer = CInt(Math.Min(160.0, Math.Max(2.0, dist * m_pointFill)))
+
+        If size <> m_sceneCanvas.PointSize Then
+            m_sceneCanvas.PointSize = size
+        End If
+    End Sub
+
+    ''' <summary>更新 FPS 统计（每 500ms 刷新一次读数）。</summary>
+    Private Sub UpdateFps()
+        If Not m_renderClock.IsRunning Then
+            Call m_renderClock.Start()
+            Return
+        End If
+
+        m_frameCount += 1
+        Dim elapsed As Double = m_renderClock.Elapsed.TotalSeconds
+
+        If elapsed >= 0.5 Then
+            m_fps = m_frameCount / elapsed
+            m_frameCount = 0
+            Call m_renderClock.Restart()
+        End If
+    End Sub
+
+    ''' <summary>
     ''' Render 事件：在 3D 场景之上绘制色标条、空状态提示与坐标轴提示。
     ''' </summary>
     Private Sub OnSceneRender(sender As Object, e As DxRenderEventArgs)
+        Call UpdateFps()
+
         If Not IsReady OrElse Not m_colorbar.Visible Then
             Call DrawEmptyState(e)
         End If
@@ -744,6 +908,80 @@ Partial Public Class CFDCanvas
         If m_showHoverTooltip AndAlso m_hoverVoxel >= 0 Then
             Call DrawHoverTooltip(e)
         End If
+
+        If m_showDebugInfo Then
+            Call DrawDebugInfo(e)
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' 右下角半透明调试叠加层：FPS、鼠标位置、相机姿态、FOV、视距、
+    ''' DirectX 设备与渲染管线信息。
+    ''' </summary>
+    Private Sub DrawDebugInfo(e As DxRenderEventArgs)
+        Dim g = e.Graphics
+        Dim cam = m_sceneCanvas.Controller.Camera
+        Dim lines As New List(Of String)
+
+        lines.Add($"FPS:        {m_fps:F1}")
+        lines.Add($"鼠标:       ({m_mousePosX}, {m_mousePosY})")
+
+        If cam IsNot Nothing Then
+            lines.Add($"视角:       pitch={cam.AngleX:F1}° yaw={cam.AngleY:F1}° roll={cam.AngleZ:F1}°")
+            lines.Add($"FOV:        {cam.FieldOfView:F0}   视距: {cam.ViewDistance:F1}")
+        End If
+
+        lines.Add($"分辨率:     {e.Size.Width}×{e.Size.Height}")
+        lines.Add($"MSAA:       {m_sceneCanvas.MultisampleCount}x   点大小: {m_sceneCanvas.PointSize}px")
+
+        Dim backend As String = "?"
+        Dim device As String = "?"
+
+        Try
+            If m_sceneCanvas.Renderer IsNot Nothing Then
+                backend = m_sceneCanvas.Renderer.GetType().Name
+            End If
+        Catch ex As Exception
+        End Try
+
+        Try
+            If Not String.IsNullOrEmpty(m_sceneCanvas.DeviceDescription) Then
+                device = m_sceneCanvas.DeviceDescription
+            End If
+        Catch ex As Exception
+        End Try
+
+        lines.Add($"渲染后端:   {backend}")
+        lines.Add($"设备:       {device}")
+
+        If m_pointVoxelMap IsNot Nothing Then
+            lines.Add($"体素点数:   {m_pointVoxelMap.Length:N0}")
+        End If
+
+        Dim font As New Microsoft.VisualBasic.Imaging.Font("Consolas", 8.0F)
+        Dim lineH As Single = font.Size * 1.5F
+        Dim pad As Single = 8.0F
+
+        Dim width As Single = 0.0F
+
+        For Each line As String In lines
+            Dim sz As SizeF = g.MeasureString(line, font)
+            If sz.Width > width Then width = sz.Width
+        Next
+
+        Dim height As Single = lineH * lines.Count
+        Dim x As Single = e.Size.Width - width - pad * 2.0F - 12.0F
+        Dim y As Single = e.Size.Height - height - pad * 2.0F - 12.0F
+
+        Using background As New Microsoft.VisualBasic.Imaging.SolidBrush(Color.FromArgb(170, 15, 23, 42))
+            Call g.FillRectangle(background, x, y, width + pad * 2.0F, height + pad * 1.5F)
+        End Using
+
+        Using textBrush As New Microsoft.VisualBasic.Imaging.SolidBrush(Color.FromArgb(220, 125, 211, 252))
+            For i As Integer = 0 To lines.Count - 1
+                Call g.DrawString(lines(i), font, textBrush, x + pad, y + pad * 0.75F + i * lineH)
+            Next
+        End Using
     End Sub
 
     Private Sub DrawEmptyState(e As DxRenderEventArgs)
@@ -790,6 +1028,9 @@ Partial Public Class CFDCanvas
     End Sub
 
     Private Sub OnCanvasMouseMove(sender As Object, e As MouseEventArgs) Handles m_sceneCanvas.MouseMove
+        m_mousePosX = e.X
+        m_mousePosY = e.Y
+
         If m_mouseDown Then
             ' 只在按下期间累计拖拽位移，避免未按下时误判为拖拽
             If Math.Abs(e.X - m_downX) > 4 OrElse Math.Abs(e.Y - m_downY) > 4 Then
@@ -866,6 +1107,14 @@ Partial Public Class CFDCanvas
     End Sub
 
     ''' <summary>
+    ''' 体素命中判定半径：与当前点大小联动（点方格越大，判定范围越大），
+    ''' 保证放大视图后悬停/拾取依然容易命中。
+    ''' </summary>
+    Private Function HitRadius() As Single
+        Return Math.Max(8.0F, m_sceneCanvas.PointSize * 0.5F + 2.0F)
+    End Function
+
+    ''' <summary>
     ''' 鼠标移动时更新悬停的体素（HitTest 命中的点 → 体素索引）。
     ''' </summary>
     Private Sub UpdateHover(x As Integer, y As Integer)
@@ -878,7 +1127,8 @@ Partial Public Class CFDCanvas
         End If
 
         Dim voxel As Integer = -1
-        Dim hit As SceneHitTest = m_sceneCanvas.HitTest(x, y)
+        ' 命中半径与点大小联动：点方格越大，命中判定范围越大
+        Dim hit As SceneHitTest = m_sceneCanvas.HitTest(x, y, HitRadius())
 
         If hit.HasHit AndAlso hit.Kind = SceneHitKind.Point AndAlso
             hit.Index >= 0 AndAlso hit.Index < m_pointVoxelMap.Length Then
@@ -909,6 +1159,13 @@ Partial Public Class CFDCanvas
         Dim names As New List(Of String)(m_currentFrame.Fields.Keys)
 
         Call names.Sort(StringComparer.OrdinalIgnoreCase)
+
+        ' 宿主配置了字段过滤清单时，只显示被勾选的字段
+        If m_tooltipFields IsNot Nothing AndAlso m_tooltipFields.Length > 0 Then
+            Dim allow As New HashSet(Of String)(m_tooltipFields, StringComparer.OrdinalIgnoreCase)
+
+            Call names.RemoveAll(Function(n) Not allow.Contains(n))
+        End If
 
         Dim items As New List(Of KeyValuePair(Of String, String))(names.Count)
 
@@ -1043,7 +1300,7 @@ Partial Public Class CFDCanvas
 
         If e.Button <> MouseButtons.Left Then Return
 
-        Dim hit As SceneHitTest = m_sceneCanvas.HitTest(e.X, e.Y)
+        Dim hit As SceneHitTest = m_sceneCanvas.HitTest(e.X, e.Y, HitRadius())
 
         If hit.HasHit AndAlso hit.Kind = SceneHitKind.Point AndAlso
             hit.Index >= 0 AndAlso hit.Index < m_pointVoxelMap.Length Then
