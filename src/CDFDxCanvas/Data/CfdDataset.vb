@@ -300,9 +300,16 @@ Namespace Data
                     If missing.Count > 0 Then
                         Dim extra As VtiFrameData = file.ReadFrame(missing)
 
+                        ' 原子替换字典引用：UI 线程可能正在枚举旧字典（悬停提示），
+                        ' 就地写入会造成并发修改
+                        Dim merged As New Dictionary(Of String, Single())(cached.Fields, StringComparer.OrdinalIgnoreCase)
+
                         For Each kv In extra.Fields
-                            cached.Fields(kv.Key) = kv.Value
+                            merged(kv.Key) = kv.Value
                         Next
+
+                        cached.Fields = merged
+
                         If extra.Speed IsNot Nothing Then cached.Speed = extra.Speed
 
                         Call FillVelocityAlias(cached)

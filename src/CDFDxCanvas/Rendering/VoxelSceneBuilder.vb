@@ -36,6 +36,8 @@ Namespace Rendering
         Public Property Threshold As Double
 
         Public Property SectionEnabled As Boolean
+        ''' <summary>切片模式：只显示截面位置处的一层体素（而非裁掉远侧）。</summary>
+        Public Property SliceOnly As Boolean
         Public Property SectionAxis As CfdAxis
         Public Property SectionPosition As Integer
 
@@ -87,10 +89,17 @@ Namespace Rendering
             Dim denom As Double = mx - mn
             Dim threshold As Double = options.Threshold
 
-            ' ---- 截面裁剪参数：保留 c <= cut 一侧（法向 -axis，与网页版一致）----
+            ' ---- 截面裁剪参数 ----
+            '   裁剪模式：保留 c <= cut 一侧（法向 -axis，与网页版一致）
+            '   切片模式：只保留 |c - cut| <= 半格 的一层体素
             Dim cut As Double = 0.0
+            Dim halfSpan As Double = 0.0
+            Dim eps As Double = 0.0
+
             If options.SectionEnabled Then
                 cut = SliceCut(dataset, options.SectionAxis, options.SectionPosition)
+                halfSpan = AxisSpacing(dataset, options.SectionAxis) * 0.5
+                eps = halfSpan * 0.1
             End If
 
             ' ---- 第一遍：计算可见性 ----
@@ -110,7 +119,7 @@ Namespace Rendering
                 Dim visible As Boolean = True
 
                 If options.SectionEnabled Then
-                    visible = SliceCoord(dataset, options.SectionAxis, idx) <= cut
+                    visible = SectionVisible(dataset, options, cut, halfSpan, eps, idx)
                 End If
 
                 If visible AndAlso threshold > 0 Then
@@ -222,6 +231,17 @@ Namespace Rendering
             Dim speedMax As Double = dataset.GetRange("speed").Item2
             If speedMax <= 0 Then speedMax = 1.0
 
+            ' 箭头与点云使用同一套截面过滤规则（裁剪 / 切片）
+            Dim cut As Double = 0.0
+            Dim halfSpan As Double = 0.0
+            Dim eps As Double = 0.0
+
+            If options.SectionEnabled Then
+                cut = SliceCut(dataset, options.SectionAxis, options.SectionPosition)
+                halfSpan = AxisSpacing(dataset, options.SectionAxis) * 0.5
+                eps = halfSpan * 0.1
+            End If
+
             Dim lut = options.Lut
             Dim lutN As Integer = lut.Length
             Dim maxLen As Double = sp(0) * 1.7
@@ -236,9 +256,9 @@ Namespace Rendering
                             Continue For
                         End If
 
-                        ' 箭头同样受截面裁剪约束
+                        ' 箭头同样受截面裁剪/切片约束
                         If options.SectionEnabled AndAlso
-                            SliceCoord(dataset, options.SectionAxis, idx) > SliceCut(dataset, options.SectionAxis, options.SectionPosition) Then
+                            Not SectionVisible(dataset, options, cut, halfSpan, eps, idx) Then
                             Continue For
                         End If
 
@@ -346,6 +366,32 @@ Namespace Rendering
             cy = org(1) + (j + 0.5) * sp(1)
             cz = org(2) + (k + 0.5) * sp(2)
         End Sub
+
+        ''' <summary>
+        ''' 体素是否通过截面过滤：
+        ''' 裁剪模式保留 c &lt;= cut 一侧；切片模式只保留 |c - cut| &lt;= 半格 的一层。
+        ''' </summary>
+        Private Shared Function SectionVisible(dataset As CfdDataset,
+                                               options As VoxelViewOptions,
+                                               cut As Double, halfSpan As Double, eps As Double,
+                                               idx As Integer) As Boolean
+            Dim c As Double = SliceCoord(dataset, options.SectionAxis, idx)
+
+            If options.SliceOnly Then
+                Return Math.Abs(c - cut) <= halfSpan + eps
+            End If
+
+            Return c <= cut
+        End Function
+
+        ''' <summary>某轴上的格子间距。</summary>
+        Public Shared Function AxisSpacing(dataset As CfdDataset, axis As CfdAxis) As Double
+            Select Case axis
+                Case CfdAxis.X : Return dataset.Spacing(0)
+                Case CfdAxis.Y : Return dataset.Spacing(1)
+                Case Else : Return dataset.Spacing(2)
+            End Select
+        End Function
 
         ''' <summary>截面某轴上的切割坐标 cut = origin + (pos + 0.5) * spacing。</summary>
         Public Shared Function SliceCut(dataset As CfdDataset, axis As CfdAxis, pos As Integer) As Double

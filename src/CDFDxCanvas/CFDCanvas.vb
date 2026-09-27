@@ -47,6 +47,7 @@ Partial Public Class CFDCanvas
     Dim m_arrowDensity As Integer = 2
 
     Dim m_sectionEnabled As Boolean = False
+    Dim m_sectionSliceOnly As Boolean = False
     Dim m_sectionAxis As CfdAxis = CfdAxis.X
     Dim m_sectionPosition As Integer = 0
 
@@ -62,6 +63,33 @@ Partial Public Class CFDCanvas
 
     ''' <summary>是否已经在速率场缺失时补请求过一次速度场（避免无速度场的数据集死循环）。</summary>
     Dim m_velocityRequested As Boolean = False
+
+    ' ---------------- 鼠标悬停提示 ----------------
+
+    Dim m_showHoverTooltip As Boolean = False
+    Dim m_hoverVoxel As Integer = -1
+    Dim m_hoverX As Integer = 0
+    Dim m_hoverY As Integer = 0
+
+    ''' <summary>
+    ''' 是否在鼠标悬停到体素上时显示半透明数据提示框
+    ''' （体素坐标 + VTI 中全部字段的数值）。
+    ''' </summary>
+    <Description("悬停显示体素数据提示框")>
+    Public Property ShowHoverTooltip As Boolean
+        Get
+            Return m_showHoverTooltip
+        End Get
+        Set(value As Boolean)
+            If m_showHoverTooltip = value Then Return
+            m_showHoverTooltip = value
+
+            If Not value AndAlso m_hoverVoxel >= 0 Then
+                m_hoverVoxel = -1
+                Call m_sceneCanvas.RequestRender()
+            End If
+        End Set
+    End Property
 
     ' 属性变化防抖定时器（阈值 / 截面滑条拖动时的刷新节流）
     ReadOnly m_refreshTimer As New Timer With {.Interval = 80, .Enabled = False}
@@ -252,6 +280,22 @@ Partial Public Class CFDCanvas
         End Set
     End Property
 
+    ''' <summary>
+    ''' 切片模式：启用横截面时只显示截面轴位置处的一层体素
+    ''' （而不是把远侧裁掉），便于观察某一层的场数据。
+    ''' </summary>
+    <Description("横截面切片模式（只显示一层体素）")>
+    Public Property SliceOnly As Boolean
+        Get
+            Return m_sectionSliceOnly
+        End Get
+        Set(value As Boolean)
+            If m_sectionSliceOnly = value Then Return
+            m_sectionSliceOnly = value
+            Call ScheduleRefresh()
+        End Set
+    End Property
+
     ''' <summary>横截面轴。</summary>
     Public Property SectionAxis As CfdAxis
         Get
@@ -380,13 +424,14 @@ Partial Public Class CFDCanvas
     End Sub
 
     ''' <summary>
-    ''' 当前视图真正需要用到的字段：显示标量场 + 箭头所需的速度场。
+    ''' 当前视图真正需要用到的字段：显示标量场 + 速度场
+    ''' （拾取信息与箭头都要用速度；速度场是懒加载的，随帧一起请求）。
     ''' </summary>
     Private Function WantedFields() As String()
         Dim list As New List(Of String)()
 
         If m_field IsNot Nothing Then list.Add(m_field)
-        If m_showArrows Then list.Add("velocity")
+        list.Add("velocity")
 
         Return list.ToArray()
     End Function
@@ -494,6 +539,7 @@ Partial Public Class CFDCanvas
             .RangeMax = range.Item2,
             .Threshold = m_threshold,
             .SectionEnabled = m_sectionEnabled,
+            .SliceOnly = m_sectionSliceOnly,
             .SectionAxis = m_sectionAxis,
             .SectionPosition = m_sectionPosition,
             .ShowArrows = m_showArrows,
@@ -694,6 +740,10 @@ Partial Public Class CFDCanvas
 
         Call m_colorbar.Draw(e.Graphics, e.Size)
         Call DrawAxisHint(e)
+
+        If m_showHoverTooltip AndAlso m_hoverVoxel >= 0 Then
+            Call DrawHoverTooltip(e)
+        End If
     End Sub
 
     Private Sub DrawEmptyState(e As DxRenderEventArgs)
@@ -727,20 +777,258 @@ Partial Public Class CFDCanvas
 
     Dim m_downX As Integer, m_downY As Integer
     Dim m_dragged As Boolean = False
+    Dim m_mouseDown As Boolean = False
 
     Private Sub OnCanvasMouseDown(sender As Object, e As MouseEventArgs) Handles m_sceneCanvas.MouseDown
         m_downX = e.X
         m_downY = e.Y
         m_dragged = False
+        m_mouseDown = True
+
+        ' 按下期间（相机拖拽）隐藏悬停提示
+        Call ClearHover()
     End Sub
 
     Private Sub OnCanvasMouseMove(sender As Object, e As MouseEventArgs) Handles m_sceneCanvas.MouseMove
-        If Math.Abs(e.X - m_downX) > 4 OrElse Math.Abs(e.Y - m_downY) > 4 Then
-            m_dragged = True
+        If m_mouseDown Then
+            ' 只在按下期间累计拖拽位移，避免未按下时误判为拖拽
+            If Math.Abs(e.X - m_downX) > 4 OrElse Math.Abs(e.Y - m_downY) > 4 Then
+                m_dragged = True
+            End If
+
+            Call ClearHover()
+        Else
+            Call UpdateHover(e.X, e.Y)
         End If
     End Sub
 
+    Private Sub OnCanvasMouseLeave(sender As Object, e As EventArgs) Handles m_sceneCanvas.MouseLeave
+        Call ClearHover()
+    End Sub
+
+    ''' <summary>
+    ''' 悬停提示需要展示 VTI 中的全部字段；当前帧是按需懒加载的，
+    ''' 因此首次悬停时在后台把该帧的全部标量场补齐（只做一次），
+    ''' 完成后在 UI 线程合并回当前帧并刷新提示框。
+    ''' </summary>
+    Private m_fullFieldsRequested As Boolean = False
+
+    Private Sub EnsureFullFrameFields()
+        If m_fullFieldsRequested Then Return
+        If m_currentFrame Is Nothing OrElse m_dataset Is Nothing Then Return
+        If m_currentFrame.Fields.Count >= m_dataset.FieldNames.Length Then Return
+        If m_frameIndex < 0 Then Return
+
+        m_fullFieldsRequested = True
+
+        Dim dataset = m_dataset
+        Dim request As Integer = m_frameIndex
+
+        Call Task.Run(
+            Sub()
+                Try
+                    ' wanted = Nothing → 加载该帧的全部标量场
+                    Dim frame As VtiFrameData = dataset.GetFrame(request)
+
+                    If Not IsHandleCreated OrElse IsDisposed Then Return
+
+                    BeginInvoke(
+                        Sub()
+                            If IsDisposed OrElse m_currentFrame Is Nothing OrElse frame Is Nothing Then Return
+
+                            ' UI 线程内合并，避免与渲染枚举并发
+                            For Each kv In frame.Fields
+                                m_currentFrame.Fields(kv.Key) = kv.Value
+                            Next
+
+                            If frame.Speed IsNot Nothing Then m_currentFrame.Speed = frame.Speed
+
+                            If frame.U IsNot Nothing AndAlso m_currentFrame.U Is Nothing Then
+                                m_currentFrame.U = frame.U
+                                m_currentFrame.V = frame.V
+                                m_currentFrame.W = frame.W
+                            End If
+
+                            Call m_sceneCanvas.RequestRender()
+                        End Sub)
+                Catch ex As Exception
+                    ' 全字段加载失败不影响既有提示内容
+                End Try
+            End Sub)
+    End Sub
+
+    ''' <summary>清除悬停提示并重绘。</summary>
+    Private Sub ClearHover()
+        If m_hoverVoxel < 0 Then Return
+
+        m_hoverVoxel = -1
+        Call m_sceneCanvas.RequestRender()
+    End Sub
+
+    ''' <summary>
+    ''' 鼠标移动时更新悬停的体素（HitTest 命中的点 → 体素索引）。
+    ''' </summary>
+    Private Sub UpdateHover(x As Integer, y As Integer)
+        m_hoverX = x
+        m_hoverY = y
+
+        If Not m_showHoverTooltip OrElse m_dragged OrElse Not IsReady OrElse m_pointVoxelMap Is Nothing Then
+            Call ClearHover()
+            Return
+        End If
+
+        Dim voxel As Integer = -1
+        Dim hit As SceneHitTest = m_sceneCanvas.HitTest(x, y)
+
+        If hit.HasHit AndAlso hit.Kind = SceneHitKind.Point AndAlso
+            hit.Index >= 0 AndAlso hit.Index < m_pointVoxelMap.Length Then
+            voxel = m_pointVoxelMap(hit.Index)
+        End If
+
+        If voxel <> m_hoverVoxel Then
+            m_hoverVoxel = voxel
+            Call m_sceneCanvas.RequestRender()
+        End If
+    End Sub
+
+    ''' <summary>
+    ''' 绘制悬停体素的半透明数据提示框：
+    ''' 体素坐标 + 当前帧 VTI 中全部已加载字段的数值（多列排布）。
+    ''' </summary>
+    Private Sub DrawHoverTooltip(e As DxRenderEventArgs)
+        If m_currentFrame Is Nothing OrElse m_pointVoxelMap Is Nothing Then Return
+        If m_hoverVoxel < 0 OrElse Array.IndexOf(m_pointVoxelMap, m_hoverVoxel) < 0 Then Return
+
+        ' 该帧还没加载全部字段（懒加载）：后台补齐，完成后提示框自动变全
+        Call EnsureFullFrameFields()
+
+        Dim g = e.Graphics
+        Dim viewport As Size = e.Size
+
+        ' ---- 组装内容行（字段名, 值文本），按名称排序便于查找 ----
+        Dim names As New List(Of String)(m_currentFrame.Fields.Keys)
+
+        Call names.Sort(StringComparer.OrdinalIgnoreCase)
+
+        Dim items As New List(Of KeyValuePair(Of String, String))(names.Count)
+
+        For Each name As String In names
+            Dim arr As Single() = m_currentFrame.Fields(name)
+
+            If m_hoverVoxel < arr.Length Then
+                Call items.Add(New KeyValuePair(Of String, String)(name, FormatTooltipValue(arr(m_hoverVoxel))))
+            End If
+        Next
+
+        ' ---- 排版参数 ----
+        Dim titleFont As New Microsoft.VisualBasic.Imaging.Font("Microsoft YaHei UI", 9.0F)
+        Dim itemFont As New Microsoft.VisualBasic.Imaging.Font("Consolas", 7.5F)
+        Dim rowH As Single = itemFont.Size * 1.6F
+        Dim pad As Single = 10.0F
+        Dim nameValueGap As Single = 8.0F
+        Dim colGap As Single = 18.0F
+
+        Dim i, j, k As Integer
+        Call m_dataset.IdxToIJK(m_hoverVoxel, i, j, k)
+        Dim title As String = $"体素 ({i}, {j}, {k})   idx = {m_hoverVoxel}   帧 {m_frameIndex + 1}"
+        Dim titleH As Single = g.MeasureString(title, titleFont).Height + 4.0F
+
+        If items.Count = 0 Then
+            Call items.Add(New KeyValuePair(Of String, String)("(无字段)", "0"))
+        End If
+
+        ' ---- 名字列宽与数值列宽 ----
+        Dim nameW As Single = 0.0F, valueW As Single = 0.0F
+
+        For Each it As KeyValuePair(Of String, String) In items
+            Dim ns As SizeF = g.MeasureString(it.Key, itemFont)
+            Dim vs As SizeF = g.MeasureString(it.Value, itemFont)
+
+            If ns.Width > nameW Then nameW = ns.Width
+            If vs.Width > valueW Then valueW = vs.Width
+        Next
+
+        ' ---- 分列：在视口高度内尽量少列 ----
+        Dim availH As Single = viewport.Height - pad * 2.0F - titleH - 24.0F
+        Dim rowsFit As Integer = Math.Max(1, CInt(Math.Floor(availH / rowH)))
+        Dim cols As Integer = CInt(Math.Ceiling(items.Count / CDbl(rowsFit)))
+        Dim colWidth As Single = nameW + nameValueGap + valueW + colGap
+        Dim cardW As Single = pad * 2.0F + cols * colWidth - colGap
+        Dim rows As Integer = CInt(Math.Ceiling(items.Count / CDbl(cols)))
+        Dim cardH As Single = pad * 2.0F + titleH + rows * rowH
+
+        ' ---- 位置：跟随鼠标，靠边翻转 ----
+        Dim cx As Single = m_hoverX + 18.0F
+
+        If cx + cardW > viewport.Width - 8.0F Then
+            cx = m_hoverX - cardW - 18.0F
+        End If
+
+        Dim cy As Single = m_hoverY + 18.0F
+
+        If cy + cardH > viewport.Height - 8.0F Then
+            cy = m_hoverY - cardH - 18.0F
+        End If
+
+        cx = Math.Max(8.0F, cx)
+        cy = Math.Max(8.0F, cy)
+
+        ' ---- 半透明卡片背景 + 边框 ----
+        Using background As New Microsoft.VisualBasic.Imaging.SolidBrush(Color.FromArgb(226, 255, 255, 255))
+            Call g.FillRectangle(background, cx, cy, cardW, cardH)
+        End Using
+
+        Using border As New Microsoft.VisualBasic.Imaging.Pen(Color.FromArgb(203, 213, 225), 1.0F)
+            Call g.DrawRectangle(border, cx, cy, cardW, cardH)
+        End Using
+
+        ' ---- 标题（体素坐标，主色加粗效果用主色文字近似）----
+        Using titleBrush As New Microsoft.VisualBasic.Imaging.SolidBrush(Color.FromArgb(37, 99, 235))
+            Call g.DrawString(title, titleFont, titleBrush, cx + pad, cy + pad)
+        End Using
+
+        ' ---- 字段行（字段名灰、数值深色，构成富文本观感）----
+        Dim top As Single = cy + pad + titleH
+
+        For c As Integer = 0 To cols - 1
+            Dim colX As Single = cx + pad + c * colWidth
+
+            For r As Integer = 0 To rows - 1
+                Dim index As Integer = c * rows + r
+
+                If index >= items.Count Then Exit For
+
+                Dim y As Single = top + r * rowH
+
+                Using nameBrush As New Microsoft.VisualBasic.Imaging.SolidBrush(Color.FromArgb(100, 116, 139))
+                    Call g.DrawString(items(index).Key, itemFont, nameBrush, colX, y)
+                End Using
+
+                Using valueBrush As New Microsoft.VisualBasic.Imaging.SolidBrush(Color.FromArgb(15, 23, 42))
+                    Call g.DrawString(items(index).Value, itemFont, valueBrush, colX + nameW + nameValueGap, y)
+                End Using
+            Next
+        Next
+    End Sub
+
+    ''' <summary>提示框中的数值格式：常规用 G6，极小/极大值用科学计数。</summary>
+    Private Shared Function FormatTooltipValue(v As Single) As String
+        If Single.IsNaN(v) OrElse Single.IsInfinity(v) Then
+            Return v.ToString()
+        End If
+
+        Dim a As Double = Math.Abs(v)
+
+        If a <> 0 AndAlso (a < 0.001 OrElse a >= 100000.0) Then
+            Return v.ToString("E3")
+        End If
+
+        Return v.ToString("G6")
+    End Function
+
     Private Sub OnCanvasMouseUp(sender As Object, e As MouseEventArgs) Handles m_sceneCanvas.MouseUp
+        m_mouseDown = False
+
         If m_dragged OrElse Not IsReady OrElse m_pointVoxelMap Is Nothing Then Return
 
         ' 右键点击清除拾取
@@ -774,9 +1062,15 @@ Partial Public Class CFDCanvas
         Dim i, j, k As Integer
         Call m_dataset.IdxToIJK(voxelIdx, i, j, k)
 
-        Dim u As Double = m_currentFrame.U(voxelIdx)
-        Dim v As Double = m_currentFrame.V(voxelIdx)
-        Dim w As Double = m_currentFrame.W(voxelIdx)
+        ' 速度场是懒加载的（或数据集里根本没有速度场）：
+        ' 缺失时 u/v/w 取 0，避免 NullReferenceException
+        Dim u As Double = 0.0, v As Double = 0.0, w As Double = 0.0
+
+        If m_currentFrame.U IsNot Nothing AndAlso voxelIdx < m_currentFrame.U.Length Then
+            u = m_currentFrame.U(voxelIdx)
+            v = m_currentFrame.V(voxelIdx)
+            w = m_currentFrame.W(voxelIdx)
+        End If
 
         Return New VoxelPickEventArgs With {
             .VoxelIndex = voxelIdx,

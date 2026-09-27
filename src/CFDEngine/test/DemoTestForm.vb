@@ -49,7 +49,7 @@ Public Class DemoTestForm
     ReadOnly trackThreshold As New TrackBar With {.Name = "trackThreshold"}
     ReadOnly chkArrows As New CheckBox With {.Name = "chkArrows"}
     ReadOnly cboArrowDensity As New ComboBox With {.Name = "cboArrowDensity"}
-    ReadOnly chkSection As New CheckBox With {.Name = "chkSection"}
+    ReadOnly cboSectionMode As New ComboBox With {.Name = "cboSectionMode"}
     ReadOnly cboSectionAxis As New ComboBox With {.Name = "cboSectionAxis"}
     ReadOnly lblSectionPosVal As New Label With {.Name = "lblSectionPosVal"}
     ReadOnly trackSectionPos As New TrackBar With {.Name = "trackSectionPos"}
@@ -63,6 +63,7 @@ Public Class DemoTestForm
     ReadOnly cboSpeed As New ComboBox With {.Name = "cboSpeed"}
     ReadOnly trackFrame As New TrackBar With {.Name = "trackFrame"}
     ReadOnly lblFrame As New Label With {.Name = "lblFrame"}
+    ReadOnly chkTooltip As New CheckBox With {.Name = "chkTooltip"}
 
     Public Sub New()
         Text = "CFD 可视化 · CFDCanvas 控件测试"
@@ -270,12 +271,14 @@ Public Class DemoTestForm
         ' ---- 横截面 ----
         y = AddTitle(panel, "横截面", y)
 
-        chkSection.Text = "启用"
-        chkSection.AutoSize = True
-        chkSection.Location = New Point(16, y)
-        AddHandler chkSection.CheckedChanged, Sub(s, e) m_canvas.SectionEnabled = chkSection.Checked
-        panel.Controls.Add(chkSection)
-        y += 28
+        y = AddLabel(panel, "截面模式", y)
+        StyleCombo(cboSectionMode)
+        cboSectionMode.Items.AddRange(New Object() {"不启用", "启用（裁剪远侧）", "切片模式（单层）"})
+        cboSectionMode.SelectedIndex = 0
+        cboSectionMode.SetBounds(16, y, 250, 26)
+        AddHandler cboSectionMode.SelectedIndexChanged, AddressOf ApplySectionMode
+        panel.Controls.Add(cboSectionMode)
+        y += 34
 
         y = AddLabel(panel, "截面轴", y)
         StyleCombo(cboSectionAxis)
@@ -306,6 +309,32 @@ Public Class DemoTestForm
                 m_canvas.SectionPosition = trackSectionPos.Value
             End Sub
         panel.Controls.Add(trackSectionPos)
+        y += 40
+
+        ' ---- 悬停提示 ----
+        y = AddTitle(panel, "视口", y)
+
+        chkTooltip.Text = "悬停显示体素数据提示"
+        chkTooltip.AutoSize = True
+        chkTooltip.Location = New Point(16, y)
+        AddHandler chkTooltip.CheckedChanged, Sub(s, e) m_canvas.ShowHoverTooltip = chkTooltip.Checked
+        panel.Controls.Add(chkTooltip)
+    End Sub
+
+    ''' <summary>把截面模式下拉映射到控件属性。</summary>
+    Private Sub ApplySectionMode()
+        Select Case cboSectionMode.SelectedIndex
+            Case 1
+                m_canvas.SectionEnabled = True
+                m_canvas.SliceOnly = False
+            Case 2
+                ' 切片模式：先切到启用态再打开切片开关，保证状态按序生效
+                m_canvas.SectionEnabled = True
+                m_canvas.SliceOnly = True
+            Case Else
+                m_canvas.SliceOnly = False
+                m_canvas.SectionEnabled = False
+        End Select
     End Sub
 
     Private Sub BuildRightPanel(panel As Panel)
