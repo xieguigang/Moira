@@ -14,7 +14,7 @@ Module RibbonMenu
         AddHandler ribbon.FileNew.ExecuteEvent, Sub() Call CreateNewSimulation()
         AddHandler ribbon.ButtonLicense.ExecuteEvent, Sub() Call InputDialog.Input(Of FormLicense)()
         AddHandler ribbon.Button3DModelTool.ExecuteEvent, Sub() Call CommonRuntime.ShowSingleDocument(Of frm3DModelTool)()
-        AddHandler ribbon.ButtonCFDPlay.ExecuteEvent, Sub() Call CommonRuntime.ShowSingleDocument(Of frmCFDPlayer)()
+        AddHandler ribbon.ButtonCFDPlay.ExecuteEvent, Sub() Call CommonRuntime.ShowSingleDocument(Of PageCFDPlayer)()
     End Sub
 
     Private Sub CreateNewSimulation()
