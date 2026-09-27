@@ -157,8 +157,10 @@ Public Class DemoTestForm
     End Sub
 
     Private Sub bottomPanel_Resize(sender As Object, e As EventArgs) Handles bottomPanel.Resize
-        trackFrame.SetBounds(210, 20, bottomPanel.Width - 400, 28)
-        lblFrame.Location = New Point(bottomPanel.Width - lblFrame.PreferredWidth - 16, 24)
+        If trackFrame IsNot Nothing Then
+            trackFrame.SetBounds(210, 20, bottomPanel.Width - 400, 28)
+            lblFrame.Location = New Point(bottomPanel.Width - lblFrame.PreferredWidth - 16, 24)
+        End If
     End Sub
 
     ' ---------------- 数据加载 ----------------
@@ -231,8 +233,10 @@ Public Class DemoTestForm
         Dim axis As CfdAxis = CType(cboSectionAxis.SelectedIndex, CfdAxis)
         Dim len As Integer = Math.Max(0, m_canvas.SectionLength(axis) - 1)
 
-        trackSectionPos.Maximum = len
-        trackSectionPos.Value = Math.Min(trackSectionPos.Value, len)
+        If trackSectionPos IsNot Nothing Then
+            trackSectionPos.Maximum = len
+            trackSectionPos.Value = Math.Min(trackSectionPos.Value, len)
+        End If
     End Sub
 
     ' ---------------- 播放 ----------------
