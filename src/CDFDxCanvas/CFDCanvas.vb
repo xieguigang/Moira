@@ -725,6 +725,11 @@ Partial Public Class CFDCanvas
         End If
 
         Dim values = VoxelSceneBuilder.FieldArray(m_currentFrame, m_field)
+
+        If values Is Nothing Then
+            Return New Bitmap(Math.Max(1, width), Math.Max(1, height))
+        End If
+
         Dim range = CurrentRange()
         Dim mn As Double = range.Item1
         Dim denom As Double = Math.Max(range.Item2 - range.Item1, 0.0000001)
