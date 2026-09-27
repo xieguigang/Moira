@@ -54,6 +54,14 @@ Public Class DemoTestForm
         End If
     End Sub
 
+    Private Sub DemoTestForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        ' btnPlay 圆形裁剪区域（需在控件创建后设置）
+        Dim path As New GraphicsPath()
+        path.AddEllipse(0, 0, btnPlay.Width - 1, btnPlay.Height - 1)
+        btnPlay.Region = New Region(path)
+        path.Dispose()
+    End Sub
+
     Private Sub OnLoadClick(sender As Object, e As EventArgs) Handles btnLoad.Click
         Using dialog As New FolderBrowserDialog With {.ShowNewFolderButton = False}
             If IO.Directory.Exists(DefaultDemoFolder) Then

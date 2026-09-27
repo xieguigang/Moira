@@ -139,9 +139,15 @@ Partial Public Class DemoTestForm
         cboPalette.FlatStyle = FlatStyle.Flat
         cboPalette.Font = New Font("Microsoft YaHei UI", 9.0F)
         cboPalette.BackColor = Color.FromArgb(248, 250, 252)
-        For Each name As String In [Enum].GetNames(GetType(ScalerPalette))
-            cboPalette.Items.Add(name)
-        Next
+        cboPalette.Items.AddRange(New Object() {
+            "Jet", "Autumn", "Cool", "Gray", "Hot", "Spring", "Summer", "Winter",
+            "Red", "Green", "Blue",
+            "ColorBrewer_OrRd", "ColorBrewer_PuBu", "ColorBrewer_BuPu", "ColorBrewer_Oranges",
+            "ColorBrewer_BuGn", "ColorBrewer_YlOrBr", "ColorBrewer_YlGn", "ColorBrewer_RdPu",
+            "ColorBrewer_YlGnBu", "ColorBrewer_Purples", "ColorBrewer_GnBu", "ColorBrewer_YlOrRd",
+            "ColorBrewer_PuRd", "ColorBrewer_PuBuGn",
+            "Rainbow", "FlexImaging", "Typhoon", "Icefire", "Seismic",
+            "viridis", "magma", "inferno", "plasma", "cividis", "mako", "rocket", "turbo"})
         cboPalette.SelectedItem = "Jet"
         cboPalette.Location = New Point(16, 192)
         cboPalette.Size = New Size(250, 26)
@@ -512,10 +518,6 @@ Partial Public Class DemoTestForm
         btnPlay.ForeColor = Color.White
         btnPlay.Font = New Font("Microsoft YaHei UI", 11.0F)
         btnPlay.Enabled = False
-        Dim btnPlayPath As New GraphicsPath()
-        btnPlayPath.AddEllipse(0, 0, 39, 39)
-        btnPlay.Region = New Region(btnPlayPath)
-        btnPlayPath.Dispose()
         btnPlay.Name = "btnPlay"
         bottomPanel.Controls.Add(btnPlay)
 
