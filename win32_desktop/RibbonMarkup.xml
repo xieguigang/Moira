@@ -85,10 +85,10 @@
     <Command Name="cmdCommandPanel" Id="5" LabelTitle="Menu" LabelDescription="Menu" TooltipTitle="Menu" TooltipDescription="Menu" />
     <Command Name="cmdFileOpen" Id="8" LabelTitle="Open" LabelDescription="Open" TooltipTitle="Open" TooltipDescription="Open">
       <Command.SmallImages>
-        <Image MinDPI="192">Resources/icons8-open-file-96.png</Image>
+        <Image MinDPI="192">Resources/icons8-file-explorer-new-96.png</Image>
       </Command.SmallImages>
       <Command.LargeImages>
-        <Image MinDPI="192">Resources/icons8-open-file-96.png</Image>
+        <Image MinDPI="192">Resources/icons8-file-explorer-new-96.png</Image>
       </Command.LargeImages>
     </Command>
     <Command Name="cmdGroupApp" Id="14" LabelTitle="Application" />
@@ -109,10 +109,10 @@
     </Command>
     <Command Name="cmdButtonLicense" Id="24" LabelTitle="License" LabelDescription="License" TooltipTitle="License" TooltipDescription="License">
       <Command.SmallImages>
-        <Image MinDPI="192">Resources/icons8-software-license-96.png</Image>
+        <Image MinDPI="192">Resources/icons8-google-docs-96.png</Image>
       </Command.SmallImages>
       <Command.LargeImages>
-        <Image MinDPI="192">Resources/icons8-software-license-96.png</Image>
+        <Image MinDPI="192">Resources/icons8-google-docs-96.png</Image>
       </Command.LargeImages>
     </Command>
     <Command Name="cmdButton3DModelTool" Id="25" LabelTitle="3D Model Tool">
@@ -131,6 +131,8 @@
         <Image MinDPI="192">Resources/icons8-journey-96.png</Image>
       </Command.LargeImages>
     </Command>
+    <Command Name="cmdMenuTools" Id="27" LabelTitle="Tools" />
+    <Command Name="cmdTabTools" Id="28" LabelTitle="Tools" />
   </Application.Commands>
   <Application.Views>
     <Ribbon>
@@ -140,7 +142,12 @@
             <RecentItems />
           </ApplicationMenu.RecentItems>
           <MenuGroup>
+            <Button CommandName="cmdFileNew" />
             <Button CommandName="cmdFileOpen" />
+          </MenuGroup>
+          <MenuGroup>
+            <Button CommandName="cmdButton3DModelTool" />
+            <Button CommandName="cmdButtonCFDPlay" />
           </MenuGroup>
           <MenuGroup>
             <Button CommandName="cmdButtonAbout" />
@@ -174,15 +181,19 @@
       </Ribbon.ContextualTabs>
       <Ribbon.Tabs>
         <Tab CommandName="cmdTabApplicationMain">
-          <Group CommandName="cmdCommandGroup" SizeDefinition="FourButtons">
+          <Group CommandName="cmdCommandGroup" SizeDefinition="TwoButtons">
             <Button CommandName="cmdFileOpen" />
             <Button CommandName="cmdFileNew" />
-            <Button CommandName="cmdButton3DModelTool" />
-            <Button CommandName="cmdButtonCFDPlay" />
           </Group>
           <Group CommandName="cmdGroupApp" SizeDefinition="TwoButtons">
             <Button CommandName="cmdButtonLicense" />
             <Button CommandName="cmdButtonAbout" />
+          </Group>
+        </Tab>
+        <Tab CommandName="cmdMenuTools">
+          <Group CommandName="cmdTabTools" SizeDefinition="TwoButtons">
+            <Button CommandName="cmdButton3DModelTool" />
+            <Button CommandName="cmdButtonCFDPlay" />
           </Group>
         </Tab>
       </Ribbon.Tabs>

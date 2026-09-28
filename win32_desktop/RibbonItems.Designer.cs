@@ -18,7 +18,10 @@ namespace RibbonLib.Controls
     {
         private static class Cmd
         {
+            public const uint cmdFileNew = 23;
             public const uint cmdFileOpen = 8;
+            public const uint cmdButton3DModelTool = 25;
+            public const uint cmdButtonCFDPlay = 26;
             public const uint cmdButtonAbout = 12;
             public const uint cmdButtonLicense = 24;
             public const uint cmdButtonAppExit = 13;
@@ -37,16 +40,18 @@ namespace RibbonLib.Controls
             public const uint cmdCheckDrawBarrier = 7;
             public const uint cmdTabApplicationMain = 21;
             public const uint cmdCommandGroup = 4;
-            public const uint cmdFileNew = 23;
-            public const uint cmdButton3DModelTool = 25;
-            public const uint cmdButtonCFDPlay = 26;
             public const uint cmdGroupApp = 14;
+            public const uint cmdMenuTools = 27;
+            public const uint cmdTabTools = 28;
         }
 
         // ContextPopup CommandName
 
         public Ribbon Ribbon { get; private set; }
+        public RibbonButton FileNew { get; private set; }
         public RibbonButton FileOpen { get; private set; }
+        public RibbonButton Button3DModelTool { get; private set; }
+        public RibbonButton ButtonCFDPlay { get; private set; }
         public RibbonButton ButtonAbout { get; private set; }
         public RibbonButton ButtonLicense { get; private set; }
         public RibbonButton ButtonAppExit { get; private set; }
@@ -65,17 +70,19 @@ namespace RibbonLib.Controls
         public RibbonToggleButton CheckDrawBarrier { get; private set; }
         public RibbonTab TabApplicationMain { get; private set; }
         public RibbonGroup CommandGroup { get; private set; }
-        public RibbonButton FileNew { get; private set; }
-        public RibbonButton Button3DModelTool { get; private set; }
-        public RibbonButton ButtonCFDPlay { get; private set; }
         public RibbonGroup GroupApp { get; private set; }
+        public RibbonTab MenuTools { get; private set; }
+        public RibbonGroup TabTools { get; private set; }
 
         public RibbonItems(Ribbon ribbon)
         {
             if (ribbon == null)
                 throw new ArgumentNullException(nameof(ribbon), "Parameter is null");
             this.Ribbon = ribbon;
+            FileNew = new RibbonButton(ribbon, Cmd.cmdFileNew);
             FileOpen = new RibbonButton(ribbon, Cmd.cmdFileOpen);
+            Button3DModelTool = new RibbonButton(ribbon, Cmd.cmdButton3DModelTool);
+            ButtonCFDPlay = new RibbonButton(ribbon, Cmd.cmdButtonCFDPlay);
             ButtonAbout = new RibbonButton(ribbon, Cmd.cmdButtonAbout);
             ButtonLicense = new RibbonButton(ribbon, Cmd.cmdButtonLicense);
             ButtonAppExit = new RibbonButton(ribbon, Cmd.cmdButtonAppExit);
@@ -94,10 +101,9 @@ namespace RibbonLib.Controls
             CheckDrawBarrier = new RibbonToggleButton(ribbon, Cmd.cmdCheckDrawBarrier);
             TabApplicationMain = new RibbonTab(ribbon, Cmd.cmdTabApplicationMain);
             CommandGroup = new RibbonGroup(ribbon, Cmd.cmdCommandGroup);
-            FileNew = new RibbonButton(ribbon, Cmd.cmdFileNew);
-            Button3DModelTool = new RibbonButton(ribbon, Cmd.cmdButton3DModelTool);
-            ButtonCFDPlay = new RibbonButton(ribbon, Cmd.cmdButtonCFDPlay);
             GroupApp = new RibbonGroup(ribbon, Cmd.cmdGroupApp);
+            MenuTools = new RibbonTab(ribbon, Cmd.cmdMenuTools);
+            TabTools = new RibbonGroup(ribbon, Cmd.cmdTabTools);
         }
 
     }

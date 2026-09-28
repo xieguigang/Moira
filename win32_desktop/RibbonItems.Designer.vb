@@ -15,7 +15,10 @@ Imports RibbonLib.Controls
 Namespace RibbonLib.Controls
     Partial Class RibbonItems
         Private Class Cmd
+            Public Const cmdFileNew As UInteger = 23
             Public Const cmdFileOpen As UInteger = 8
+            Public Const cmdButton3DModelTool As UInteger = 25
+            Public Const cmdButtonCFDPlay As UInteger = 26
             Public Const cmdButtonAbout As UInteger = 12
             Public Const cmdButtonLicense As UInteger = 24
             Public Const cmdButtonAppExit As UInteger = 13
@@ -34,10 +37,9 @@ Namespace RibbonLib.Controls
             Public Const cmdCheckDrawBarrier As UInteger = 7
             Public Const cmdTabApplicationMain As UInteger = 21
             Public Const cmdCommandGroup As UInteger = 4
-            Public Const cmdFileNew As UInteger = 23
-            Public Const cmdButton3DModelTool As UInteger = 25
-            Public Const cmdButtonCFDPlay As UInteger = 26
             Public Const cmdGroupApp As UInteger = 14
+            Public Const cmdMenuTools As UInteger = 27
+            Public Const cmdTabTools As UInteger = 28
         End Class
 
         ' ContextPopup CommandName
@@ -48,10 +50,28 @@ Namespace RibbonLib.Controls
                 Return _ribbon
             End Get
         End Property
+        Private _FileNew As RibbonButton
+        Public ReadOnly Property FileNew As RibbonButton
+            Get
+                Return _FileNew
+            End Get
+        End Property
         Private _FileOpen As RibbonButton
         Public ReadOnly Property FileOpen As RibbonButton
             Get
                 Return _FileOpen
+            End Get
+        End Property
+        Private _Button3DModelTool As RibbonButton
+        Public ReadOnly Property Button3DModelTool As RibbonButton
+            Get
+                Return _Button3DModelTool
+            End Get
+        End Property
+        Private _ButtonCFDPlay As RibbonButton
+        Public ReadOnly Property ButtonCFDPlay As RibbonButton
+            Get
+                Return _ButtonCFDPlay
             End Get
         End Property
         Private _ButtonAbout As RibbonButton
@@ -162,28 +182,22 @@ Namespace RibbonLib.Controls
                 Return _CommandGroup
             End Get
         End Property
-        Private _FileNew As RibbonButton
-        Public ReadOnly Property FileNew As RibbonButton
-            Get
-                Return _FileNew
-            End Get
-        End Property
-        Private _Button3DModelTool As RibbonButton
-        Public ReadOnly Property Button3DModelTool As RibbonButton
-            Get
-                Return _Button3DModelTool
-            End Get
-        End Property
-        Private _ButtonCFDPlay As RibbonButton
-        Public ReadOnly Property ButtonCFDPlay As RibbonButton
-            Get
-                Return _ButtonCFDPlay
-            End Get
-        End Property
         Private _GroupApp As RibbonGroup
         Public ReadOnly Property GroupApp As RibbonGroup
             Get
                 Return _GroupApp
+            End Get
+        End Property
+        Private _MenuTools As RibbonTab
+        Public ReadOnly Property MenuTools As RibbonTab
+            Get
+                Return _MenuTools
+            End Get
+        End Property
+        Private _TabTools As RibbonGroup
+        Public ReadOnly Property TabTools As RibbonGroup
+            Get
+                Return _TabTools
             End Get
         End Property
 
@@ -192,7 +206,10 @@ Namespace RibbonLib.Controls
                 Throw New ArgumentNullException(NameOf(ribbon), "Parameter is Nothing")
             End If
             _ribbon = ribbon
+            _FileNew = New RibbonButton(_ribbon, Cmd.cmdFileNew)
             _FileOpen = New RibbonButton(_ribbon, Cmd.cmdFileOpen)
+            _Button3DModelTool = New RibbonButton(_ribbon, Cmd.cmdButton3DModelTool)
+            _ButtonCFDPlay = New RibbonButton(_ribbon, Cmd.cmdButtonCFDPlay)
             _ButtonAbout = New RibbonButton(_ribbon, Cmd.cmdButtonAbout)
             _ButtonLicense = New RibbonButton(_ribbon, Cmd.cmdButtonLicense)
             _ButtonAppExit = New RibbonButton(_ribbon, Cmd.cmdButtonAppExit)
@@ -211,10 +228,9 @@ Namespace RibbonLib.Controls
             _CheckDrawBarrier = New RibbonToggleButton(_ribbon, Cmd.cmdCheckDrawBarrier)
             _TabApplicationMain = New RibbonTab(_ribbon, Cmd.cmdTabApplicationMain)
             _CommandGroup = New RibbonGroup(_ribbon, Cmd.cmdCommandGroup)
-            _FileNew = New RibbonButton(_ribbon, Cmd.cmdFileNew)
-            _Button3DModelTool = New RibbonButton(_ribbon, Cmd.cmdButton3DModelTool)
-            _ButtonCFDPlay = New RibbonButton(_ribbon, Cmd.cmdButtonCFDPlay)
             _GroupApp = New RibbonGroup(_ribbon, Cmd.cmdGroupApp)
+            _MenuTools = New RibbonTab(_ribbon, Cmd.cmdMenuTools)
+            _TabTools = New RibbonGroup(_ribbon, Cmd.cmdTabTools)
         End Sub
 
     End Class

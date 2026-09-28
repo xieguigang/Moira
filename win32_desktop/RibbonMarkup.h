@@ -117,5 +117,9 @@
 #define cmdButtonCFDPlay_LabelTitle_RESID 60085
 #define cmdButtonCFDPlay_SmallImages_192__RESID 60086
 #define cmdButtonCFDPlay_LargeImages_192__RESID 60087
-#define InternalCmd2_LabelTitle_RESID 60088
-#define InternalCmd4_LabelTitle_RESID 60089
+#define cmdMenuTools 27 
+#define cmdMenuTools_LabelTitle_RESID 60088
+#define cmdTabTools 28 
+#define cmdTabTools_LabelTitle_RESID 60089
+#define InternalCmd2_LabelTitle_RESID 60090
+#define InternalCmd4_LabelTitle_RESID 60091
