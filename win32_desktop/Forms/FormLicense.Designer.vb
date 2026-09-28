@@ -31,19 +31,23 @@ Partial Class FormLicense
         ' 
         ' TextBox1
         ' 
+        TextBox1.BackColor = Color.White
+        TextBox1.BorderStyle = BorderStyle.FixedSingle
         resources.ApplyResources(TextBox1, "TextBox1")
         TextBox1.Name = "TextBox1"
+        TextBox1.ReadOnly = True
         ' 
         ' Label1
         ' 
         resources.ApplyResources(Label1, "Label1")
-        Label1.ForeColor = Color.DeepSkyBlue
+        Label1.ForeColor = Color.FromArgb(CByte(37), CByte(99), CByte(235))
         Label1.Name = "Label1"
         ' 
         ' FormLicense
         ' 
         resources.ApplyResources(Me, "$this")
         AutoScaleMode = AutoScaleMode.Font
+        BackColor = Color.FromArgb(CByte(244), CByte(246), CByte(250))
         Controls.Add(Label1)
         Controls.Add(TextBox1)
         Name = "FormLicense"
