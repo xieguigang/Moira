@@ -37,6 +37,7 @@ Partial Class FormLicense
         ' Label1
         ' 
         resources.ApplyResources(Label1, "Label1")
+        Label1.ForeColor = Color.DeepSkyBlue
         Label1.Name = "Label1"
         ' 
         ' FormLicense
@@ -45,9 +46,6 @@ Partial Class FormLicense
         AutoScaleMode = AutoScaleMode.Font
         Controls.Add(Label1)
         Controls.Add(TextBox1)
-        FormBorderStyle = FormBorderStyle.FixedSingle
-        MaximizeBox = False
-        MinimizeBox = False
         Name = "FormLicense"
         ResumeLayout(False)
         PerformLayout()

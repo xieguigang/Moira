@@ -26,15 +26,15 @@ Partial Class FormProjectWizard
         Button1 = New Button()
         Button2 = New Button()
         GroupBox1 = New GroupBox()
+        TextBox3 = New TextBox()
+        Label4 = New Label()
+        TextBox2 = New TextBox()
+        Label3 = New Label()
+        Button3 = New Button()
+        TextBox1 = New TextBox()
+        Label2 = New Label()
         PictureBox1 = New PictureBox()
         Label1 = New Label()
-        Label2 = New Label()
-        TextBox1 = New TextBox()
-        Button3 = New Button()
-        Label3 = New Label()
-        TextBox2 = New TextBox()
-        Label4 = New Label()
-        TextBox3 = New TextBox()
         GroupBox1.SuspendLayout()
         CType(PictureBox1, ComponentModel.ISupportInitialize).BeginInit()
         SuspendLayout()
@@ -73,67 +73,13 @@ Partial Class FormProjectWizard
         GroupBox1.TabStop = False
         GroupBox1.Text = "Setup"
         ' 
-        ' PictureBox1
+        ' TextBox3
         ' 
-        PictureBox1.BackgroundImage = CType(resources.GetObject("PictureBox1.BackgroundImage"), Image)
-        PictureBox1.BackgroundImageLayout = ImageLayout.Zoom
-        PictureBox1.Location = New Point(500, 12)
-        PictureBox1.Name = "PictureBox1"
-        PictureBox1.Size = New Size(100, 116)
-        PictureBox1.TabIndex = 3
-        PictureBox1.TabStop = False
-        ' 
-        ' Label1
-        ' 
-        Label1.AutoSize = True
-        Label1.Font = New Font("Segoe UI", 24F, FontStyle.Regular, GraphicsUnit.Point)
-        Label1.Location = New Point(12, 12)
-        Label1.Name = "Label1"
-        Label1.Size = New Size(329, 45)
-        Label1.TabIndex = 4
-        Label1.Text = "Setup CFD Simulation"
-        ' 
-        ' Label2
-        ' 
-        Label2.AutoSize = True
-        Label2.Location = New Point(33, 36)
-        Label2.Name = "Label2"
-        Label2.Size = New Size(73, 15)
-        Label2.TabIndex = 0
-        Label2.Text = "Load Model:"
-        ' 
-        ' TextBox1
-        ' 
-        TextBox1.Location = New Point(114, 33)
-        TextBox1.Name = "TextBox1"
-        TextBox1.Size = New Size(384, 23)
-        TextBox1.TabIndex = 1
-        ' 
-        ' Button3
-        ' 
-        Button3.Location = New Point(513, 32)
-        Button3.Name = "Button3"
-        Button3.Size = New Size(75, 23)
-        Button3.TabIndex = 2
-        Button3.Text = "..."
-        Button3.UseVisualStyleBackColor = True
-        ' 
-        ' Label3
-        ' 
-        Label3.AutoSize = True
-        Label3.Location = New Point(39, 85)
-        Label3.Name = "Label3"
-        Label3.Size = New Size(67, 15)
-        Label3.TabIndex = 3
-        Label3.Text = "Dimension:"
-        ' 
-        ' TextBox2
-        ' 
-        TextBox2.Location = New Point(112, 82)
-        TextBox2.Name = "TextBox2"
-        TextBox2.ReadOnly = True
-        TextBox2.Size = New Size(66, 23)
-        TextBox2.TabIndex = 4
+        TextBox3.Location = New Point(203, 82)
+        TextBox3.Name = "TextBox3"
+        TextBox3.ReadOnly = True
+        TextBox3.Size = New Size(66, 23)
+        TextBox3.TabIndex = 6
         ' 
         ' Label4
         ' 
@@ -144,13 +90,67 @@ Partial Class FormProjectWizard
         Label4.TabIndex = 5
         Label4.Text = "x"
         ' 
-        ' TextBox3
+        ' TextBox2
         ' 
-        TextBox3.Location = New Point(203, 82)
-        TextBox3.Name = "TextBox3"
-        TextBox3.ReadOnly = True
-        TextBox3.Size = New Size(66, 23)
-        TextBox3.TabIndex = 6
+        TextBox2.Location = New Point(112, 82)
+        TextBox2.Name = "TextBox2"
+        TextBox2.ReadOnly = True
+        TextBox2.Size = New Size(66, 23)
+        TextBox2.TabIndex = 4
+        ' 
+        ' Label3
+        ' 
+        Label3.AutoSize = True
+        Label3.Location = New Point(39, 85)
+        Label3.Name = "Label3"
+        Label3.Size = New Size(67, 15)
+        Label3.TabIndex = 3
+        Label3.Text = "Dimension:"
+        ' 
+        ' Button3
+        ' 
+        Button3.Location = New Point(513, 32)
+        Button3.Name = "Button3"
+        Button3.Size = New Size(75, 23)
+        Button3.TabIndex = 2
+        Button3.Text = "..."
+        Button3.UseVisualStyleBackColor = True
+        ' 
+        ' TextBox1
+        ' 
+        TextBox1.Location = New Point(114, 33)
+        TextBox1.Name = "TextBox1"
+        TextBox1.Size = New Size(384, 23)
+        TextBox1.TabIndex = 1
+        ' 
+        ' Label2
+        ' 
+        Label2.AutoSize = True
+        Label2.Location = New Point(33, 36)
+        Label2.Name = "Label2"
+        Label2.Size = New Size(73, 15)
+        Label2.TabIndex = 0
+        Label2.Text = "Load Model:"
+        ' 
+        ' PictureBox1
+        ' 
+        PictureBox1.BackgroundImage = CType(resources.GetObject("PictureBox1.BackgroundImage"), Image)
+        PictureBox1.BackgroundImageLayout = ImageLayout.Zoom
+        PictureBox1.Location = New Point(500, 12)
+        PictureBox1.Name = "PictureBox1"
+        PictureBox1.Size = New Size(100, 101)
+        PictureBox1.TabIndex = 3
+        PictureBox1.TabStop = False
+        ' 
+        ' Label1
+        ' 
+        Label1.AutoSize = True
+        Label1.Font = New Font("Segoe UI", 24F)
+        Label1.Location = New Point(12, 12)
+        Label1.Name = "Label1"
+        Label1.Size = New Size(329, 45)
+        Label1.TabIndex = 4
+        Label1.Text = "Setup CFD Simulation"
         ' 
         ' FormProjectWizard
         ' 
