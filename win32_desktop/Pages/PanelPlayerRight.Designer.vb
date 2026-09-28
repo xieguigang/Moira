@@ -51,10 +51,11 @@ Partial Class PanelPlayerRight
         propPanel.BackColor = Color.White
         propPanel.Controls.Add(lblProp)
         propPanel.Controls.Add(pgVoxel)
-        propPanel.Dock = DockStyle.Fill
-        propPanel.Location = New Point(0, 542)
+        propPanel.Dock = DockStyle.Bottom
+        propPanel.Location = New Point(0, 539)
+        propPanel.MinimumSize = New Size(50, 550)
         propPanel.Name = "propPanel"
-        propPanel.Size = New Size(313, 547)
+        propPanel.Size = New Size(313, 550)
         propPanel.TabIndex = 4
         ' 
         ' lblProp
@@ -80,14 +81,14 @@ Partial Class PanelPlayerRight
         pgVoxel.Location = New Point(0, 0)
         pgVoxel.Name = "pgVoxel"
         pgVoxel.PropertySort = PropertySort.Alphabetical
-        pgVoxel.Size = New Size(313, 547)
+        pgVoxel.Size = New Size(313, 550)
         pgVoxel.TabIndex = 1
         pgVoxel.ViewBackColor = Color.White
         ' 
         ' lblVoxelInfo
         ' 
         lblVoxelInfo.Dock = DockStyle.Bottom
-        lblVoxelInfo.Location = New Point(0, 186)
+        lblVoxelInfo.Location = New Point(0, 208)
         lblVoxelInfo.Name = "lblVoxelInfo"
         lblVoxelInfo.Padding = New Padding(16, 2, 8, 0)
         lblVoxelInfo.Size = New Size(313, 92)
@@ -99,7 +100,7 @@ Partial Class PanelPlayerRight
         pnlSeries.Location = New Point(0, 18)
         pnlSeries.Margin = New Padding(12, 0, 12, 0)
         pnlSeries.Name = "pnlSeries"
-        pnlSeries.Size = New Size(313, 168)
+        pnlSeries.Size = New Size(313, 190)
         pnlSeries.TabIndex = 1
         ' 
         ' lblSeriesHint
@@ -114,11 +115,11 @@ Partial Class PanelPlayerRight
         ' 
         ' picSlice
         ' 
-        picSlice.Dock = DockStyle.Top
-        picSlice.Location = New Point(0, 278)
+        picSlice.Dock = DockStyle.Fill
+        picSlice.Location = New Point(0, 300)
         picSlice.Margin = New Padding(12, 0, 12, 0)
         picSlice.Name = "picSlice"
-        picSlice.Size = New Size(313, 264)
+        picSlice.Size = New Size(313, 239)
         picSlice.TabIndex = 3
         picSlice.TabStop = False
         ' 
@@ -129,8 +130,9 @@ Partial Class PanelPlayerRight
         Panel1.Controls.Add(lblSeriesHint)
         Panel1.Dock = DockStyle.Top
         Panel1.Location = New Point(0, 0)
+        Panel1.MinimumSize = New Size(50, 300)
         Panel1.Name = "Panel1"
-        Panel1.Size = New Size(313, 278)
+        Panel1.Size = New Size(313, 300)
         Panel1.TabIndex = 5
         ' 
         ' PanelPlayerRight
@@ -139,8 +141,8 @@ Partial Class PanelPlayerRight
         AutoScroll = True
         BackColor = Color.White
         ClientSize = New Size(313, 1089)
-        Controls.Add(propPanel)
         Controls.Add(picSlice)
+        Controls.Add(propPanel)
         Controls.Add(Panel1)
         DockAreas = Microsoft.VisualStudio.WinForms.Docking.DockAreas.Float Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockLeft Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockRight Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockTop Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockBottom Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.Document
         DoubleBuffered = True
