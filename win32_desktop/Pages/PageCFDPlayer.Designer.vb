@@ -33,7 +33,7 @@ Partial Class PageCFDPlayer
     'Do not modify it using the code editor.
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
-        components = New System.ComponentModel.Container()
+        components = New Container()
         m_playTimer = New Timer(components)
         m_canvas = New CFDCanvas()
         bottomPanel = New Panel()
@@ -43,17 +43,13 @@ Partial Class PageCFDPlayer
         trackFrame = New TrackBar()
         lblFrame = New Label()
         bottomPanel.SuspendLayout()
-        CType(trackFrame, System.ComponentModel.ISupportInitialize).BeginInit()
+        CType(trackFrame, ISupportInitialize).BeginInit()
         SuspendLayout()
-
         ' 
         ' m_playTimer
         ' 
-        m_playTimer.Enabled = False
-        ' m_playTimer.Name = "m_playTimer"
-
         ' 
-        ' m_canvas（中央 3D 视口，占满剩余空间）
+        ' m_canvas
         ' 
         m_canvas.ArrowDensity = 2
         m_canvas.AutoPointSize = True
@@ -61,6 +57,7 @@ Partial Class PageCFDPlayer
         m_canvas.Dock = DockStyle.Fill
         m_canvas.Field = "pressure"
         m_canvas.FrameIndex = -1
+        m_canvas.Location = New Point(0, 0)
         m_canvas.Name = "m_canvas"
         m_canvas.Palette = ScalerPalette.Jet
         m_canvas.RangeMax = 1R
@@ -72,13 +69,13 @@ Partial Class PageCFDPlayer
         m_canvas.ShowArrows = False
         m_canvas.ShowDebugInfo = False
         m_canvas.ShowHoverTooltip = False
+        m_canvas.Size = New Size(907, 780)
         m_canvas.SliceOnly = False
         m_canvas.TabIndex = 0
         m_canvas.Threshold = 0R
         m_canvas.TooltipFields = Nothing
-
         ' 
-        ' bottomPanel（底部 CFD 仿真动画播放控制条）
+        ' bottomPanel
         ' 
         bottomPanel.BackColor = Color.White
         bottomPanel.Controls.Add(btnPlay)
@@ -87,96 +84,87 @@ Partial Class PageCFDPlayer
         bottomPanel.Controls.Add(trackFrame)
         bottomPanel.Controls.Add(lblFrame)
         bottomPanel.Dock = DockStyle.Bottom
-        bottomPanel.Location = New Point(0, 757)
+        bottomPanel.Location = New Point(0, 780)
         bottomPanel.Name = "bottomPanel"
-        bottomPanel.Size = New Size(1424, 64)
+        bottomPanel.Size = New Size(907, 64)
         bottomPanel.TabIndex = 3
-
         ' 
         ' btnPlay
         ' 
-        btnPlay.BackColor = Color.FromArgb(37, 99, 235)
+        btnPlay.BackColor = Color.FromArgb(CByte(37), CByte(99), CByte(235))
         btnPlay.Enabled = False
         btnPlay.FlatAppearance.BorderSize = 0
         btnPlay.FlatStyle = FlatStyle.Flat
         btnPlay.Font = New Font("Microsoft YaHei UI", 11F)
         btnPlay.ForeColor = Color.White
-        btnPlay.Location = New Point(16, 12)
+        btnPlay.Location = New Point(12, 12)
         btnPlay.Name = "btnPlay"
         btnPlay.Size = New Size(40, 40)
         btnPlay.TabIndex = 0
         btnPlay.Text = "▶"
         btnPlay.UseVisualStyleBackColor = False
-
         ' 
         ' lblSpeed
         ' 
         lblSpeed.AutoSize = True
-        lblSpeed.ForeColor = Color.FromArgb(71, 85, 105)
-        lblSpeed.Location = New Point(72, 22)
+        lblSpeed.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
+        lblSpeed.Location = New Point(69, 12)
         lblSpeed.Name = "lblSpeed"
         lblSpeed.Size = New Size(32, 17)
         lblSpeed.TabIndex = 1
         lblSpeed.Text = "速度"
-
         ' 
         ' cboSpeed
         ' 
-        cboSpeed.BackColor = Color.FromArgb(248, 250, 252)
+        cboSpeed.BackColor = Color.FromArgb(CByte(248), CByte(250), CByte(252))
         cboSpeed.DropDownStyle = ComboBoxStyle.DropDownList
         cboSpeed.FlatStyle = FlatStyle.Flat
         cboSpeed.Font = New Font("Microsoft YaHei UI", 9F)
         cboSpeed.Items.AddRange(New Object() {"2 fps", "5 fps", "10 fps", "20 fps", "30 fps"})
-        cboSpeed.Location = New Point(112, 18)
+        cboSpeed.Location = New Point(107, 6)
         cboSpeed.Name = "cboSpeed"
         cboSpeed.Size = New Size(84, 25)
         cboSpeed.TabIndex = 2
-
         ' 
         ' trackFrame
         ' 
+        trackFrame.Anchor = AnchorStyles.Top Or AnchorStyles.Bottom Or AnchorStyles.Left Or AnchorStyles.Right
         trackFrame.Enabled = False
-        trackFrame.Location = New Point(210, 20)
+        trackFrame.Location = New Point(207, 12)
         trackFrame.Maximum = 0
         trackFrame.Name = "trackFrame"
-        trackFrame.Size = New Size(400, 45)
+        trackFrame.Size = New Size(688, 45)
         trackFrame.TabIndex = 3
         trackFrame.TickStyle = TickStyle.None
-
         ' 
         ' lblFrame
         ' 
         lblFrame.AutoSize = True
-        lblFrame.ForeColor = Color.FromArgb(71, 85, 105)
-        lblFrame.Location = New Point(0, 24)
+        lblFrame.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
+        lblFrame.Location = New Point(69, 40)
         lblFrame.Name = "lblFrame"
         lblFrame.Size = New Size(45, 17)
         lblFrame.TabIndex = 4
         lblFrame.Text = "— · —"
-
         ' 
         ' PageCFDPlayer
         ' 
-        AutoScaleDimensions = New SizeF(7.0F, 15.0F)
+        AutoScaleDimensions = New SizeF(7F, 17F)
         AutoScaleMode = AutoScaleMode.Font
-        BackColor = Color.FromArgb(244, 246, 250)
-        ClientSize = New Size(1424, 821)
+        BackColor = Color.FromArgb(CByte(244), CByte(246), CByte(250))
+        ClientSize = New Size(907, 844)
         Controls.Add(m_canvas)
         Controls.Add(bottomPanel)
-        DockAreas = Microsoft.VisualStudio.WinForms.Docking.DockAreas.Float Or
-                    Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockLeft Or
-                    Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockRight Or
-                    Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockTop Or
-                    Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockBottom Or
-                    Microsoft.VisualStudio.WinForms.Docking.DockAreas.Document
+        DockAreas = Microsoft.VisualStudio.WinForms.Docking.DockAreas.Float Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockLeft Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockRight Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockTop Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockBottom Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.Document
         DoubleBuffered = True
         Font = New Font("Microsoft YaHei UI", 9F)
         Name = "PageCFDPlayer"
         ShowHint = Microsoft.VisualStudio.WinForms.Docking.DockState.Unknown
+        TabPageContextMenuStrip = DockContextMenuStrip1
         Text = "CFD Player"
-
         bottomPanel.ResumeLayout(False)
-        CType(trackFrame, System.ComponentModel.ISupportInitialize).EndInit()
+        bottomPanel.PerformLayout()
+        CType(trackFrame, ISupportInitialize).EndInit()
         ResumeLayout(False)
     End Sub
 
