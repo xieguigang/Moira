@@ -42,8 +42,14 @@ Partial Class PageCFDPlayer
         cboSpeed = New ComboBox()
         trackFrame = New TrackBar()
         lblFrame = New Label()
+        TableLayoutPanel1 = New TableLayoutPanel()
+        Panel1 = New Panel()
+        Panel2 = New Panel()
         bottomPanel.SuspendLayout()
         CType(trackFrame, ISupportInitialize).BeginInit()
+        TableLayoutPanel1.SuspendLayout()
+        Panel1.SuspendLayout()
+        Panel2.SuspendLayout()
         SuspendLayout()
         ' 
         ' m_playTimer
@@ -69,7 +75,7 @@ Partial Class PageCFDPlayer
         m_canvas.ShowArrows = False
         m_canvas.ShowDebugInfo = False
         m_canvas.ShowHoverTooltip = False
-        m_canvas.Size = New Size(907, 780)
+        m_canvas.Size = New Size(1282, 780)
         m_canvas.SliceOnly = False
         m_canvas.TabIndex = 0
         m_canvas.Threshold = 0R
@@ -78,15 +84,11 @@ Partial Class PageCFDPlayer
         ' bottomPanel
         ' 
         bottomPanel.BackColor = Color.White
-        bottomPanel.Controls.Add(btnPlay)
-        bottomPanel.Controls.Add(lblSpeed)
-        bottomPanel.Controls.Add(cboSpeed)
-        bottomPanel.Controls.Add(trackFrame)
-        bottomPanel.Controls.Add(lblFrame)
+        bottomPanel.Controls.Add(TableLayoutPanel1)
         bottomPanel.Dock = DockStyle.Bottom
         bottomPanel.Location = New Point(0, 780)
         bottomPanel.Name = "bottomPanel"
-        bottomPanel.Size = New Size(907, 64)
+        bottomPanel.Size = New Size(1282, 64)
         bottomPanel.TabIndex = 3
         ' 
         ' btnPlay
@@ -97,9 +99,9 @@ Partial Class PageCFDPlayer
         btnPlay.FlatStyle = FlatStyle.Flat
         btnPlay.Font = New Font("Microsoft YaHei UI", 11F)
         btnPlay.ForeColor = Color.White
-        btnPlay.Location = New Point(12, 12)
+        btnPlay.Location = New Point(9, 12)
         btnPlay.Name = "btnPlay"
-        btnPlay.Size = New Size(40, 40)
+        btnPlay.Size = New Size(36, 36)
         btnPlay.TabIndex = 0
         btnPlay.Text = "▶"
         btnPlay.UseVisualStyleBackColor = False
@@ -108,7 +110,7 @@ Partial Class PageCFDPlayer
         ' 
         lblSpeed.AutoSize = True
         lblSpeed.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
-        lblSpeed.Location = New Point(69, 12)
+        lblSpeed.Location = New Point(62, 19)
         lblSpeed.Name = "lblSpeed"
         lblSpeed.Size = New Size(32, 17)
         lblSpeed.TabIndex = 1
@@ -121,7 +123,7 @@ Partial Class PageCFDPlayer
         cboSpeed.FlatStyle = FlatStyle.Flat
         cboSpeed.Font = New Font("Microsoft YaHei UI", 9F)
         cboSpeed.Items.AddRange(New Object() {"2 fps", "5 fps", "10 fps", "20 fps", "30 fps"})
-        cboSpeed.Location = New Point(107, 6)
+        cboSpeed.Location = New Point(100, 16)
         cboSpeed.Name = "cboSpeed"
         cboSpeed.Size = New Size(84, 25)
         cboSpeed.TabIndex = 2
@@ -130,10 +132,11 @@ Partial Class PageCFDPlayer
         ' 
         trackFrame.Anchor = AnchorStyles.Top Or AnchorStyles.Bottom Or AnchorStyles.Left Or AnchorStyles.Right
         trackFrame.Enabled = False
-        trackFrame.Location = New Point(207, 12)
+        trackFrame.Location = New Point(221, 15)
+        trackFrame.Margin = New Padding(20, 15, 20, 3)
         trackFrame.Maximum = 0
         trackFrame.Name = "trackFrame"
-        trackFrame.Size = New Size(688, 45)
+        trackFrame.Size = New Size(958, 46)
         trackFrame.TabIndex = 3
         trackFrame.TickStyle = TickStyle.None
         ' 
@@ -141,18 +144,53 @@ Partial Class PageCFDPlayer
         ' 
         lblFrame.AutoSize = True
         lblFrame.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
-        lblFrame.Location = New Point(69, 40)
+        lblFrame.Location = New Point(14, 19)
         lblFrame.Name = "lblFrame"
         lblFrame.Size = New Size(45, 17)
         lblFrame.TabIndex = 4
         lblFrame.Text = "— · —"
+        ' 
+        ' TableLayoutPanel1
+        ' 
+        TableLayoutPanel1.ColumnCount = 3
+        TableLayoutPanel1.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 201F))
+        TableLayoutPanel1.ColumnStyles.Add(New ColumnStyle(SizeType.Percent, 100F))
+        TableLayoutPanel1.ColumnStyles.Add(New ColumnStyle(SizeType.Absolute, 83F))
+        TableLayoutPanel1.Controls.Add(Panel2, 2, 0)
+        TableLayoutPanel1.Controls.Add(trackFrame, 1, 0)
+        TableLayoutPanel1.Controls.Add(Panel1, 0, 0)
+        TableLayoutPanel1.Dock = DockStyle.Fill
+        TableLayoutPanel1.Location = New Point(0, 0)
+        TableLayoutPanel1.Name = "TableLayoutPanel1"
+        TableLayoutPanel1.RowCount = 1
+        TableLayoutPanel1.RowStyles.Add(New RowStyle(SizeType.Percent, 100F))
+        TableLayoutPanel1.Size = New Size(1282, 64)
+        TableLayoutPanel1.TabIndex = 5
+        ' 
+        ' Panel1
+        ' 
+        Panel1.Controls.Add(lblSpeed)
+        Panel1.Controls.Add(cboSpeed)
+        Panel1.Controls.Add(btnPlay)
+        Panel1.Location = New Point(3, 3)
+        Panel1.Name = "Panel1"
+        Panel1.Size = New Size(195, 58)
+        Panel1.TabIndex = 4
+        ' 
+        ' Panel2
+        ' 
+        Panel2.Controls.Add(lblFrame)
+        Panel2.Location = New Point(1202, 3)
+        Panel2.Name = "Panel2"
+        Panel2.Size = New Size(72, 54)
+        Panel2.TabIndex = 4
         ' 
         ' PageCFDPlayer
         ' 
         AutoScaleDimensions = New SizeF(7F, 17F)
         AutoScaleMode = AutoScaleMode.Font
         BackColor = Color.FromArgb(CByte(244), CByte(246), CByte(250))
-        ClientSize = New Size(907, 844)
+        ClientSize = New Size(1282, 844)
         Controls.Add(m_canvas)
         Controls.Add(bottomPanel)
         DockAreas = Microsoft.VisualStudio.WinForms.Docking.DockAreas.Float Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockLeft Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockRight Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockTop Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockBottom Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.Document
@@ -163,8 +201,13 @@ Partial Class PageCFDPlayer
         TabPageContextMenuStrip = DockContextMenuStrip1
         Text = "CFD Player"
         bottomPanel.ResumeLayout(False)
-        bottomPanel.PerformLayout()
         CType(trackFrame, ISupportInitialize).EndInit()
+        TableLayoutPanel1.ResumeLayout(False)
+        TableLayoutPanel1.PerformLayout()
+        Panel1.ResumeLayout(False)
+        Panel1.PerformLayout()
+        Panel2.ResumeLayout(False)
+        Panel2.PerformLayout()
         ResumeLayout(False)
     End Sub
 
@@ -176,4 +219,7 @@ Partial Class PageCFDPlayer
     Friend WithEvents trackFrame As TrackBar
     Friend WithEvents lblFrame As Label
     Friend WithEvents lblSpeed As Label
+    Friend WithEvents TableLayoutPanel1 As TableLayoutPanel
+    Friend WithEvents Panel1 As Panel
+    Friend WithEvents Panel2 As Panel
 End Class
