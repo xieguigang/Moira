@@ -1,12 +1,9 @@
 ﻿Imports System.ComponentModel
-Imports System.Drawing
 Imports System.Drawing.Drawing2D
-Imports System.Windows.Forms
 Imports CDFDxCanvas
 Imports CDFDxCanvas.Data
-Imports Microsoft.VisualBasic.My.JavaScript
-Imports Galaxy.Workbench.DockDocument
 Imports Galaxy.Workbench
+Imports Microsoft.VisualBasic.My.JavaScript
 
 Public Class PanelPlayerRight
 
@@ -36,7 +33,7 @@ Public Class PanelPlayerRight
         lblVoxelInfo.Text = "点击体素查看详情"
         lblSeriesHint.Text = ""
         pnlSeries.Invalidate()
-        CommonRuntime.GetPropertyWindow.Clear()
+        CommonRuntime.GetPropertyWindow("体素属性").Clear()
     End Sub
 
     ' ---------------- 体素信息 ----------------
@@ -66,7 +63,7 @@ Public Class PanelPlayerRight
     ''' </remarks>
     Friend Sub UpdatePropertyGrid()
         If m_selectedVoxel < 0 OrElse Not player.Canvas.IsReady Then
-            Call CommonRuntime.GetPropertyWindow.Clear()
+            Call CommonRuntime.GetPropertyWindow("体素属性").Clear()
             Return
         End If
 
@@ -78,7 +75,7 @@ Public Class PanelPlayerRight
         Next
 
         If names.Count = 0 Then
-            Call CommonRuntime.GetPropertyWindow.Clear()
+            Call CommonRuntime.GetPropertyWindow("体素属性").Clear()
             Return
         End If
 
@@ -137,7 +134,7 @@ Public Class PanelPlayerRight
             Call pairs.Add(New KeyValuePair(Of String, Object)(symbol, v))
         Next
 
-        Call CommonRuntime.GetPropertyWindow.SetObject(JavaScriptObject.CreateDynamicObject(m_propDynamicType, pairs))
+        Call CommonRuntime.GetPropertyWindow("体素属性").SetObject(JavaScriptObject.CreateDynamicObject(m_propDynamicType, pairs))
     End Sub
 
     ' ---------------- 时间序列加载与绘制 ----------------
