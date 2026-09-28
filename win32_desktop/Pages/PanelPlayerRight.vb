@@ -6,6 +6,7 @@ Imports CDFDxCanvas
 Imports CDFDxCanvas.Data
 Imports Microsoft.VisualBasic.My.JavaScript
 Imports Galaxy.Workbench.DockDocument
+Imports Galaxy.Workbench
 
 Public Class PanelPlayerRight
 
@@ -35,7 +36,7 @@ Public Class PanelPlayerRight
         lblVoxelInfo.Text = "点击体素查看详情"
         lblSeriesHint.Text = ""
         pnlSeries.Invalidate()
-        pgVoxel.SelectedObject = Nothing
+        CommonRuntime.GetPropertyWindow.Clear()
     End Sub
 
     ' ---------------- 体素信息 ----------------
@@ -65,7 +66,7 @@ Public Class PanelPlayerRight
     ''' </remarks>
     Friend Sub UpdatePropertyGrid()
         If m_selectedVoxel < 0 OrElse Not player.Canvas.IsReady Then
-            pgVoxel.SelectedObject = Nothing
+            Call CommonRuntime.GetPropertyWindow.Clear()
             Return
         End If
 
@@ -77,7 +78,7 @@ Public Class PanelPlayerRight
         Next
 
         If names.Count = 0 Then
-            pgVoxel.SelectedObject = Nothing
+            Call CommonRuntime.GetPropertyWindow.Clear()
             Return
         End If
 
@@ -136,7 +137,7 @@ Public Class PanelPlayerRight
             Call pairs.Add(New KeyValuePair(Of String, Object)(symbol, v))
         Next
 
-        pgVoxel.SelectedObject = JavaScriptObject.CreateDynamicObject(m_propDynamicType, pairs)
+        Call CommonRuntime.GetPropertyWindow.SetObject(JavaScriptObject.CreateDynamicObject(m_propDynamicType, pairs))
     End Sub
 
     ' ---------------- 时间序列加载与绘制 ----------------

@@ -26,6 +26,9 @@ Public Class PageCFDPlayer
         Call CommonRuntime.RegisterToolWindow(panelLeft, DockState.DockLeft)
         Call CommonRuntime.RegisterToolWindow(panelRight, DockState.DockRight)
 
+        panelLeft.Width = 300
+        panelRight.Width = 300
+
         ' btnPlay 圆形裁剪区域（需在控件创建后设置）
         Dim path As New GraphicsPath()
         path.AddEllipse(0, 0, btnPlay.Width - 1, btnPlay.Height - 1)
