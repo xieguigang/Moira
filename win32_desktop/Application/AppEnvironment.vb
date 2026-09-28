@@ -1,4 +1,6 @@
-﻿Module AppEnvironment
+﻿Imports Fluteway
+
+Module AppEnvironment
 
     Public ReadOnly Property globalHttpPort As Integer
         Get
