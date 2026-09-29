@@ -50,6 +50,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Forms\Wizard\FormProjectWizard.resx~RFa2b3b6d.TMP" />
     <None Remove="RibbonMarkup.log" />
     <None Remove="RibbonMarkup.ribbon" />
     <None Remove="RibbonMarkup.xml.bak" />

@@ -35,6 +35,7 @@ Public Class FormMain : Implements AppHost
         VisualStudioToolStripExtender1.DefaultRenderer = _toolStripProfessionalRenderer
 
         Call AppEnvironment.StartGlobalHttp()
+        Call CommonRuntime.GetOutputWindow.AddLog("start_global_http_backend", "start global http backend with app wwwroot at: " & AppEnvironment.GetWwwRoot)
         Call EnableVSRenderer(StatusStrip1)
         Call RibbonMenu.Setup(New RibbonItems(Ribbon1))
         Call CommonRuntime.Hook(Me)

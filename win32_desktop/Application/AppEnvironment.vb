@@ -25,6 +25,15 @@ Module AppEnvironment
         If AppEnvironment.CheckDevelopmentMode Then
             Return "G:\Moira\src\app"
         Else
+            For level As Integer = 1 To 4
+                Dim reldir As String = "/" & "../".RepeatString(level - 1)
+                Dim path As String = App.HOME & reldir & "/app/index.html"
+
+                If path.FileExists Then
+                    Return (App.HOME & reldir & "/app").GetDirectoryFullPath
+                End If
+            Next
+
             Return App.HOME & "/app"
         End If
     End Function
