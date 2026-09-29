@@ -30,6 +30,8 @@ Public Class FormMain : Implements AppHost
 
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         DockPanel1.Theme = vS2015LightTheme1
+        DockPanel1.DockLeftPortion = 350
+        DockPanel1.DockRightPortion = 350
         VisualStudioToolStripExtender1.DefaultRenderer = _toolStripProfessionalRenderer
 
         Call AppEnvironment.StartGlobalHttp()
