@@ -28,9 +28,9 @@ Partial Class PageCFDPlayer
         m_canvas = New CDFDxCanvas.CFDCanvas()
         bottomPanel = New Panel()
         Panel3 = New Panel()
-        lblFrame = New Label()
         trackFrame = New TrackBar()
         Panel1 = New Panel()
+        lblFrame = New Label()
         lblSpeed = New Label()
         cboSpeed = New ComboBox()
         btnPlay = New Button()
@@ -61,7 +61,7 @@ Partial Class PageCFDPlayer
         m_canvas.ShowArrows = False
         m_canvas.ShowDebugInfo = False
         m_canvas.ShowHoverTooltip = False
-        m_canvas.Size = New Size(1183, 372)
+        m_canvas.Size = New Size(1183, 443)
         m_canvas.SliceOnly = False
         m_canvas.TabIndex = 1
         m_canvas.Threshold = 0R
@@ -73,56 +73,53 @@ Partial Class PageCFDPlayer
         bottomPanel.Controls.Add(Panel3)
         bottomPanel.Controls.Add(Panel1)
         bottomPanel.Dock = DockStyle.Bottom
-        bottomPanel.Location = New Point(0, 372)
+        bottomPanel.Location = New Point(0, 443)
         bottomPanel.Name = "bottomPanel"
-        bottomPanel.Size = New Size(1183, 134)
+        bottomPanel.Size = New Size(1183, 63)
         bottomPanel.TabIndex = 4
         ' 
         ' Panel3
         ' 
         Panel3.BackColor = Color.White
+        Panel3.Controls.Add(lblFrame)
         Panel3.Controls.Add(trackFrame)
         Panel3.Dock = DockStyle.Fill
         Panel3.Location = New Point(195, 0)
         Panel3.Name = "Panel3"
-        Panel3.Size = New Size(988, 134)
+        Panel3.Size = New Size(988, 63)
         Panel3.TabIndex = 5
-        ' 
-        ' lblFrame
-        ' 
-        lblFrame.Anchor = AnchorStyles.Top Or AnchorStyles.Bottom Or AnchorStyles.Right
-        lblFrame.AutoSize = True
-        lblFrame.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
-        lblFrame.Location = New Point(100, 57)
-        lblFrame.Name = "lblFrame"
-        lblFrame.Size = New Size(40, 15)
-        lblFrame.TabIndex = 4
-        lblFrame.Text = "— · —"
         ' 
         ' trackFrame
         ' 
-        trackFrame.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
-        trackFrame.Enabled = False
-        trackFrame.Location = New Point(3, 10)
-        trackFrame.Margin = New Padding(0, 0, 0, 0)
-        trackFrame.Maximum = 0
+        trackFrame.Anchor = AnchorStyles.Top Or AnchorStyles.Bottom Or AnchorStyles.Left Or AnchorStyles.Right
+        trackFrame.Location = New Point(15, 14)
         trackFrame.Name = "trackFrame"
-        trackFrame.Size = New Size(959, 115)
-        trackFrame.TabIndex = 3
+        trackFrame.Size = New Size(904, 45)
+        trackFrame.TabIndex = 4
         trackFrame.TickStyle = TickStyle.None
         ' 
         ' Panel1
         ' 
         Panel1.BackColor = Color.White
-        Panel1.Controls.Add(lblFrame)
         Panel1.Controls.Add(lblSpeed)
         Panel1.Controls.Add(cboSpeed)
         Panel1.Controls.Add(btnPlay)
         Panel1.Dock = DockStyle.Left
         Panel1.Location = New Point(0, 0)
         Panel1.Name = "Panel1"
-        Panel1.Size = New Size(195, 134)
+        Panel1.Size = New Size(195, 63)
         Panel1.TabIndex = 4
+        ' 
+        ' lblFrame
+        ' 
+        lblFrame.Anchor = AnchorStyles.Top Or AnchorStyles.Bottom Or AnchorStyles.Right
+        lblFrame.AutoSize = True
+        lblFrame.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
+        lblFrame.Location = New Point(929, 20)
+        lblFrame.Name = "lblFrame"
+        lblFrame.Size = New Size(40, 15)
+        lblFrame.TabIndex = 4
+        lblFrame.Text = "— · —"
         ' 
         ' lblSpeed
         ' 
@@ -190,11 +187,11 @@ Partial Class PageCFDPlayer
     Friend WithEvents bottomPanel As Panel
     Friend WithEvents Panel3 As Panel
     Friend WithEvents lblFrame As Label
-    Friend WithEvents trackFrame As TrackBar
     Friend WithEvents Panel1 As Panel
     Friend WithEvents lblSpeed As Label
     Friend WithEvents cboSpeed As ComboBox
     Friend WithEvents btnPlay As Button
     Friend WithEvents m_playTimer As Timer
+    Friend WithEvents trackFrame As TrackBar
 
 End Class
