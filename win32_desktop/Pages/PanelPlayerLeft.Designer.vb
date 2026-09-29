@@ -229,7 +229,7 @@ Partial Class PanelPlayerLeft
         ' 
         lblThresholdVal.AutoSize = True
         lblThresholdVal.ForeColor = Color.FromArgb(CByte(14), CByte(165), CByte(233))
-        lblThresholdVal.Location = New Point(278, 366)
+        lblThresholdVal.Location = New Point(84, 390)
         lblThresholdVal.Name = "lblThresholdVal"
         lblThresholdVal.Size = New Size(32, 17)
         lblThresholdVal.TabIndex = 14
@@ -249,7 +249,7 @@ Partial Class PanelPlayerLeft
         lblTitleArrows.AutoSize = True
         lblTitleArrows.Font = New Font("Microsoft YaHei UI", 10F, FontStyle.Bold)
         lblTitleArrows.ForeColor = Color.FromArgb(CByte(30), CByte(41), CByte(59))
-        lblTitleArrows.Location = New Point(16, 410)
+        lblTitleArrows.Location = New Point(12, 419)
         lblTitleArrows.Name = "lblTitleArrows"
         lblTitleArrows.Size = New Size(93, 19)
         lblTitleArrows.TabIndex = 16
@@ -258,7 +258,7 @@ Partial Class PanelPlayerLeft
         ' chkArrows
         ' 
         chkArrows.AutoSize = True
-        chkArrows.Location = New Point(16, 438)
+        chkArrows.Location = New Point(16, 441)
         chkArrows.Name = "chkArrows"
         chkArrows.Size = New Size(75, 21)
         chkArrows.TabIndex = 17
@@ -268,7 +268,7 @@ Partial Class PanelPlayerLeft
         ' 
         lblArrowDensity.AutoSize = True
         lblArrowDensity.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
-        lblArrowDensity.Location = New Point(16, 466)
+        lblArrowDensity.Location = New Point(16, 476)
         lblArrowDensity.Name = "lblArrowDensity"
         lblArrowDensity.Size = New Size(56, 17)
         lblArrowDensity.TabIndex = 18
@@ -281,7 +281,7 @@ Partial Class PanelPlayerLeft
         cboArrowDensity.FlatStyle = FlatStyle.Flat
         cboArrowDensity.Font = New Font("Microsoft YaHei UI", 9F)
         cboArrowDensity.Items.AddRange(New Object() {"高 (2×2×2)", "中 (3×3×3)", "低 (4×4×4)"})
-        cboArrowDensity.Location = New Point(16, 488)
+        cboArrowDensity.Location = New Point(15, 496)
         cboArrowDensity.Name = "cboArrowDensity"
         cboArrowDensity.Size = New Size(250, 25)
         cboArrowDensity.TabIndex = 19
@@ -291,7 +291,7 @@ Partial Class PanelPlayerLeft
         lblTitleSection.AutoSize = True
         lblTitleSection.Font = New Font("Microsoft YaHei UI", 10F, FontStyle.Bold)
         lblTitleSection.ForeColor = Color.FromArgb(CByte(30), CByte(41), CByte(59))
-        lblTitleSection.Location = New Point(16, 528)
+        lblTitleSection.Location = New Point(15, 539)
         lblTitleSection.Name = "lblTitleSection"
         lblTitleSection.Size = New Size(51, 19)
         lblTitleSection.TabIndex = 20
@@ -301,7 +301,7 @@ Partial Class PanelPlayerLeft
         ' 
         lblSectionModeLabel.AutoSize = True
         lblSectionModeLabel.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
-        lblSectionModeLabel.Location = New Point(16, 556)
+        lblSectionModeLabel.Location = New Point(16, 568)
         lblSectionModeLabel.Name = "lblSectionModeLabel"
         lblSectionModeLabel.Size = New Size(56, 17)
         lblSectionModeLabel.TabIndex = 21
@@ -314,7 +314,7 @@ Partial Class PanelPlayerLeft
         cboSectionMode.FlatStyle = FlatStyle.Flat
         cboSectionMode.Font = New Font("Microsoft YaHei UI", 9F)
         cboSectionMode.Items.AddRange(New Object() {"不启用", "启用（裁剪远侧）", "切片模式（单层）"})
-        cboSectionMode.Location = New Point(16, 578)
+        cboSectionMode.Location = New Point(16, 588)
         cboSectionMode.Name = "cboSectionMode"
         cboSectionMode.Size = New Size(250, 25)
         cboSectionMode.TabIndex = 22
@@ -323,7 +323,7 @@ Partial Class PanelPlayerLeft
         ' 
         lblSectionAxisLabel.AutoSize = True
         lblSectionAxisLabel.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
-        lblSectionAxisLabel.Location = New Point(16, 612)
+        lblSectionAxisLabel.Location = New Point(16, 616)
         lblSectionAxisLabel.Name = "lblSectionAxisLabel"
         lblSectionAxisLabel.Size = New Size(44, 17)
         lblSectionAxisLabel.TabIndex = 23
@@ -336,7 +336,7 @@ Partial Class PanelPlayerLeft
         cboSectionAxis.FlatStyle = FlatStyle.Flat
         cboSectionAxis.Font = New Font("Microsoft YaHei UI", 9F)
         cboSectionAxis.Items.AddRange(New Object() {"X 轴", "Y 轴", "Z 轴"})
-        cboSectionAxis.Location = New Point(16, 634)
+        cboSectionAxis.Location = New Point(15, 646)
         cboSectionAxis.Name = "cboSectionAxis"
         cboSectionAxis.Size = New Size(250, 25)
         cboSectionAxis.TabIndex = 24
@@ -345,7 +345,7 @@ Partial Class PanelPlayerLeft
         ' 
         lblPosition.AutoSize = True
         lblPosition.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
-        lblPosition.Location = New Point(16, 723)
+        lblPosition.Location = New Point(16, 742)
         lblPosition.Name = "lblPosition"
         lblPosition.Size = New Size(32, 17)
         lblPosition.TabIndex = 25
@@ -355,7 +355,7 @@ Partial Class PanelPlayerLeft
         ' 
         lblSectionPosVal.AutoSize = True
         lblSectionPosVal.ForeColor = Color.FromArgb(CByte(14), CByte(165), CByte(233))
-        lblSectionPosVal.Location = New Point(278, 688)
+        lblSectionPosVal.Location = New Point(57, 742)
         lblSectionPosVal.Name = "lblSectionPosVal"
         lblSectionPosVal.Size = New Size(15, 17)
         lblSectionPosVal.TabIndex = 26
@@ -363,7 +363,7 @@ Partial Class PanelPlayerLeft
         ' 
         ' trackSectionPos
         ' 
-        trackSectionPos.Location = New Point(12, 675)
+        trackSectionPos.Location = New Point(12, 694)
         trackSectionPos.Maximum = 47
         trackSectionPos.Name = "trackSectionPos"
         trackSectionPos.Size = New Size(260, 45)
@@ -375,7 +375,7 @@ Partial Class PanelPlayerLeft
         lblTitleViewport.AutoSize = True
         lblTitleViewport.Font = New Font("Microsoft YaHei UI", 10F, FontStyle.Bold)
         lblTitleViewport.ForeColor = Color.FromArgb(CByte(30), CByte(41), CByte(59))
-        lblTitleViewport.Location = New Point(16, 755)
+        lblTitleViewport.Location = New Point(16, 796)
         lblTitleViewport.Name = "lblTitleViewport"
         lblTitleViewport.Size = New Size(37, 19)
         lblTitleViewport.TabIndex = 28
@@ -384,7 +384,7 @@ Partial Class PanelPlayerLeft
         ' chkTooltip
         ' 
         chkTooltip.AutoSize = True
-        chkTooltip.Location = New Point(16, 783)
+        chkTooltip.Location = New Point(16, 824)
         chkTooltip.Name = "chkTooltip"
         chkTooltip.Size = New Size(147, 21)
         chkTooltip.TabIndex = 29
@@ -394,7 +394,7 @@ Partial Class PanelPlayerLeft
         ' 
         btnAll.FlatStyle = FlatStyle.Flat
         btnAll.Font = New Font("Microsoft YaHei UI", 8F)
-        btnAll.Location = New Point(16, 809)
+        btnAll.Location = New Point(16, 850)
         btnAll.Name = "btnAll"
         btnAll.Size = New Size(62, 24)
         btnAll.TabIndex = 30
@@ -404,7 +404,7 @@ Partial Class PanelPlayerLeft
         ' 
         btnNone.FlatStyle = FlatStyle.Flat
         btnNone.Font = New Font("Microsoft YaHei UI", 8F)
-        btnNone.Location = New Point(84, 809)
+        btnNone.Location = New Point(84, 850)
         btnNone.Name = "btnNone"
         btnNone.Size = New Size(62, 24)
         btnNone.TabIndex = 31
@@ -416,7 +416,7 @@ Partial Class PanelPlayerLeft
         clbTooltipFields.CheckOnClick = True
         clbTooltipFields.Font = New Font("Consolas", 8F)
         clbTooltipFields.HorizontalScrollbar = True
-        clbTooltipFields.Location = New Point(12, 839)
+        clbTooltipFields.Location = New Point(12, 880)
         clbTooltipFields.Name = "clbTooltipFields"
         clbTooltipFields.Size = New Size(264, 167)
         clbTooltipFields.TabIndex = 32
@@ -424,7 +424,7 @@ Partial Class PanelPlayerLeft
         ' chkDebug
         ' 
         chkDebug.AutoSize = True
-        chkDebug.Location = New Point(12, 1012)
+        chkDebug.Location = New Point(12, 1053)
         chkDebug.Name = "chkDebug"
         chkDebug.Size = New Size(149, 21)
         chkDebug.TabIndex = 33
@@ -435,7 +435,7 @@ Partial Class PanelPlayerLeft
         AutoScaleDimensions = New SizeF(96F, 96F)
         AutoScroll = True
         BackColor = Color.White
-        ClientSize = New Size(282, 1056)
+        ClientSize = New Size(411, 1100)
         Controls.Add(lblTitleData)
         Controls.Add(btnLoad)
         Controls.Add(lblTitleScalar)
