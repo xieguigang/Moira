@@ -157,6 +157,10 @@ Partial Public Class CFDCanvas
         ' 立体可见（屏幕空间方片在某些视角会退化成一条线）
         m_sceneCanvas.PointShape = ScenePointShape.Cube
 
+        ' 提高环境光：体素立方体采用乘法着色（底色 × lambert 亮度），
+        ' 环境光决定背光面的最暗亮度，40% 保证模型不会显得灰暗
+        m_sceneCanvas.Lighting.Ambient = 40
+
         ' 数据集加载前先用单位边长占位，LoadDataset/RebuildScene 会按
         ' 体素 spacing 校准（边长略小于 spacing，避免相邻立方体共面闪烁）
         m_sceneCanvas.CubeEdge = New Vector3(m_cubeFill, m_cubeFill, m_cubeFill)
