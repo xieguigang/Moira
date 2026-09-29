@@ -14,6 +14,7 @@
 ' /********************************************************************************/
 
 Imports System.ComponentModel
+Imports System.Numerics
 Imports System.Runtime.InteropServices
 Imports CDFDxCanvas.Data
 Imports CDFDxCanvas.Rendering
@@ -79,6 +80,19 @@ Partial Public Class CFDCanvas
     Dim m_tooltipFields As String()
     Dim m_showDebugInfo As Boolean = False
 
+    ' ---------------- 体素立方体与网格背景 ----------------
+
+    ''' <summary>立方体边长占体素 spacing 的比例（略小于 1 避免相邻立方体共面闪烁）。</summary>
+    Const CubeFillDefault As Single = 0.98F
+
+    Dim m_cubeFill As Single = CubeFillDefault
+
+    ''' <summary>实测的相邻体素投影间距（像素），供拾取半径计算使用。</summary>
+    Dim m_projectedSpacing As Double = -1.0
+
+    ''' <summary>网格背景之下画布的底色（浅蓝灰，让白色网格线可见）。</summary>
+    Dim GridBackColor As Color = Color.FromArgb(214, 222, 233)
+
     ' FPS 统计（滚动窗口）
     ReadOnly m_renderClock As New Stopwatch
     Dim m_frameCount As Integer = 0
@@ -138,6 +152,21 @@ Partial Public Class CFDCanvas
         m_sceneCanvas.RenderMode = SceneRenderMode.PointCloud
         m_sceneCanvas.UseEmbeddedColor = True
         m_sceneCanvas.MultisampleCount = 4
+
+        ' 体素渲染为世界空间立方体：带深度遮挡，任意旋转角度下模型都保持
+        ' 立体可见（屏幕空间方片在某些视角会退化成一条线）
+        m_sceneCanvas.PointShape = ScenePointShape.Cube
+
+        ' 数据集加载前先用单位边长占位，LoadDataset/RebuildScene 会按
+        ' 体素 spacing 校准（边长略小于 spacing，避免相邻立方体共面闪烁）
+        m_sceneCanvas.CubeEdge = New Vector3(m_cubeFill, m_cubeFill, m_cubeFill)
+
+        ' 2D 屏幕空间网格背景：直接绘制在画布底层，不属于 3D 场景，
+        ' 不随相机旋转
+        m_sceneCanvas.ShowBackgroundGrid = True
+        m_sceneCanvas.BackgroundGridColor = Color.White
+        m_sceneCanvas.BackgroundGridCellSize = 32
+        m_sceneCanvas.BackgroundColor = GridBackColor
 
         AddHandler m_refreshTimer.Tick, AddressOf OnRefreshTimerTick
         AddHandler m_sceneCanvas.Render, AddressOf OnSceneRender
@@ -409,6 +438,84 @@ Partial Public Class CFDCanvas
     End Property
 
     ''' <summary>
+    ''' 是否把体素渲染为世界空间立方体（默认开启）。
+    ''' 立方体带深度遮挡，任意旋转角度下模型都保持立体可见；
+    ''' 关闭后回退为屏幕空间方片（billboard）渲染。
+    ''' </summary>
+    <Description("体素渲染为世界空间立方体")>
+    <DefaultValue(True)>
+    Public Property VoxelCubes As Boolean
+        Get
+            Return m_sceneCanvas.PointShape = ScenePointShape.Cube
+        End Get
+        Set(value As Boolean)
+            Dim shape As ScenePointShape = If(value, ScenePointShape.Cube, ScenePointShape.Square)
+
+            If m_sceneCanvas.PointShape = shape Then Return
+
+            m_sceneCanvas.PointShape = shape
+
+            If value Then
+                Call UpdateCubeEdge()
+            End If
+
+            Call m_sceneCanvas.RequestRender()
+        End Set
+    End Property
+
+    ''' <summary>体素立方体边长相对体素 spacing 的比例（&lt;1 避免共面闪烁）。</summary>
+    <DefaultValue(0.98F)>
+    Public Property CubeFill As Single
+        Get
+            Return m_cubeFill
+        End Get
+        Set(value As Single)
+            value = Math.Min(1.0F, Math.Max(0.25F, value))
+            If Math.Abs(m_cubeFill - value) < 0.001F Then Return
+            m_cubeFill = value
+            Call UpdateCubeEdge()
+            Call m_sceneCanvas.RequestRender()
+        End Set
+    End Property
+
+    ''' <summary>是否显示 2D 屏幕空间网格背景（不随相机旋转）。</summary>
+    <Description("显示 2D 网格背景")>
+    <DefaultValue(True)>
+    Public Property ShowGridBackground As Boolean
+        Get
+            Return m_sceneCanvas.ShowBackgroundGrid
+        End Get
+        Set(value As Boolean)
+            m_sceneCanvas.ShowBackgroundGrid = value
+            Call m_sceneCanvas.RequestRender()
+        End Set
+    End Property
+
+    ''' <summary>2D 网格背景的线条颜色。</summary>
+    <DefaultValue(GetType(Color), "White")>
+    Public Property GridColor As Color
+        Get
+            Return m_sceneCanvas.BackgroundGridColor
+        End Get
+        Set(value As Color)
+            m_sceneCanvas.BackgroundGridColor = value
+            Call m_sceneCanvas.RequestRender()
+        End Set
+    End Property
+
+    ''' <summary>2D 网格背景的单元格边长（像素）。</summary>
+    <DefaultValue(32)>
+    Public Property GridCellSize As Integer
+        Get
+            Return m_sceneCanvas.BackgroundGridCellSize
+        End Get
+        Set(value As Integer)
+            m_sceneCanvas.BackgroundGridCellSize = value
+            Call m_sceneCanvas.RequestRender()
+        End Set
+    End Property
+
+    ''' <summary>
     ''' 悬停提示框中显示的字段清单（Nothing 或空 = 显示全部字段）。
     ''' </summary>
     Public Property TooltipFields As String()
@@ -614,6 +721,9 @@ Partial Public Class CFDCanvas
             Call EnsureFrameHasField(m_field)
             Return
         End If
+
+        ' 体素立方体边长跟随数据集 spacing（渲染管线每帧读取该常量）
+        Call UpdateCubeEdge()
 
         Dim range = CurrentRange()
         Dim options As New VoxelViewOptions With {
@@ -837,8 +947,11 @@ Partial Public Class CFDCanvas
     ''' 令点方格边长 ≈ 间距 × <see cref="PointFill"/>，
     ''' 从而无论放大多少倍，体素方格都恰好相互衔接不留空隙。
     ''' </summary>
+    ''' <remarks>
+    ''' 立方体模式下体素边长由世界坐标 spacing 决定（不随缩放变化），
+    ''' 此时本方法只实测投影间距供 <see cref="HitRadius"/> 使用。
+    ''' </remarks>
     Private Sub AdaptPointSize()
-        If Not m_autoPointSize Then Return
         If m_dataset Is Nothing OrElse m_currentFrame Is Nothing Then Return
 
         Dim active = m_dataset.ActiveIndices
@@ -873,10 +986,33 @@ Partial Public Class CFDCanvas
 
         If dist < 0.5 OrElse Double.IsNaN(dist) OrElse Double.IsInfinity(dist) Then Return
 
+        ' 缓存实测投影间距（立方体模式下的拾取半径依据）
+        m_projectedSpacing = dist
+
+        If Not m_autoPointSize Then Return
+        If m_sceneCanvas.PointShape <> ScenePointShape.Square Then Return
+
         Dim size As Integer = CInt(Math.Min(160.0, Math.Max(2.0, dist * m_pointFill)))
 
         If size <> m_sceneCanvas.PointSize Then
             m_sceneCanvas.PointSize = size
+        End If
+    End Sub
+
+    ''' <summary>按数据集 spacing 与 <see cref="CubeFill"/> 校准体素立方体的世界空间边长。</summary>
+    Private Sub UpdateCubeEdge()
+        If m_dataset Is Nothing Then Return
+        If m_sceneCanvas.PointShape <> ScenePointShape.Cube Then Return
+
+        Dim sp = m_dataset.Spacing
+        Dim edge As New Vector3(
+            CSng(sp(0) * m_cubeFill),
+            CSng(sp(1) * m_cubeFill),
+            CSng(sp(2) * m_cubeFill))
+
+        ' 每帧常量：更新后只需请求重绘，无需重建几何缓存
+        If m_sceneCanvas.CubeEdge <> edge Then
+            m_sceneCanvas.CubeEdge = edge
         End If
     End Sub
 
@@ -1142,8 +1278,13 @@ Partial Public Class CFDCanvas
     ''' <summary>
     ''' 体素命中判定半径：与当前点大小联动（点方格越大，判定范围越大），
     ''' 保证放大视图后悬停/拾取依然容易命中。
+    ''' 立方体模式下点大小不再参与渲染，改用实测的体素投影间距。
     ''' </summary>
     Private Function HitRadius() As Single
+        If m_sceneCanvas.PointShape = ScenePointShape.Cube AndAlso m_projectedSpacing > 0 Then
+            Return CSng(Math.Max(8.0, m_projectedSpacing * 0.55 + 2.0))
+        End If
+
         Return Math.Max(8.0F, m_sceneCanvas.PointSize * 0.5F + 2.0F)
     End Function
 
