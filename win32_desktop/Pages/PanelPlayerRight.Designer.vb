@@ -1,16 +1,9 @@
-﻿Imports System.ComponentModel
-Imports System.Drawing
-Imports System.Windows.Forms
-Imports Galaxy.Workbench.DockDocument
+﻿Imports Galaxy.Workbench.DockDocument
 Imports CDFDxCanvas
 
 <Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()>
 Partial Class PanelPlayerRight
     Inherits ToolWindow
-
-    Sub New()
-        Call InitializeComponent()
-    End Sub
 
     'Form overrides dispose to clean up the component list.
     <System.Diagnostics.DebuggerNonUserCode()>
@@ -32,31 +25,22 @@ Partial Class PanelPlayerRight
     'Do not modify it using the code editor.
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
-        components = New Container()
-        lblVoxelInfo = New Label()
+        components = New ComponentModel.Container()
         pnlSeries = New Panel()
+        lblVoxelInfo = New Label()
         lblSeriesHint = New Label()
         picSlice = New PictureBox()
         Panel1 = New Panel()
         SplitContainer1 = New SplitContainer()
         Panel2 = New Panel()
-        CType(picSlice, ISupportInitialize).BeginInit()
+        CType(picSlice, ComponentModel.ISupportInitialize).BeginInit()
         Panel1.SuspendLayout()
-        CType(SplitContainer1, ISupportInitialize).BeginInit()
+        CType(SplitContainer1, ComponentModel.ISupportInitialize).BeginInit()
         SplitContainer1.Panel1.SuspendLayout()
         SplitContainer1.Panel2.SuspendLayout()
         SplitContainer1.SuspendLayout()
         Panel2.SuspendLayout()
         SuspendLayout()
-        ' 
-        ' lblVoxelInfo
-        ' 
-        lblVoxelInfo.Dock = DockStyle.Bottom
-        lblVoxelInfo.Location = New Point(0, 318)
-        lblVoxelInfo.Name = "lblVoxelInfo"
-        lblVoxelInfo.Padding = New Padding(16, 2, 8, 0)
-        lblVoxelInfo.Size = New Size(358, 317)
-        lblVoxelInfo.TabIndex = 0
         ' 
         ' pnlSeries
         ' 
@@ -64,8 +48,17 @@ Partial Class PanelPlayerRight
         pnlSeries.Location = New Point(0, 0)
         pnlSeries.Margin = New Padding(12, 0, 12, 0)
         pnlSeries.Name = "pnlSeries"
-        pnlSeries.Size = New Size(358, 300)
+        pnlSeries.Size = New Size(800, 300)
         pnlSeries.TabIndex = 1
+        ' 
+        ' lblVoxelInfo
+        ' 
+        lblVoxelInfo.Dock = DockStyle.Bottom
+        lblVoxelInfo.Location = New Point(0, 310)
+        lblVoxelInfo.Name = "lblVoxelInfo"
+        lblVoxelInfo.Padding = New Padding(16, 2, 8, 0)
+        lblVoxelInfo.Size = New Size(800, 317)
+        lblVoxelInfo.TabIndex = 0
         ' 
         ' lblSeriesHint
         ' 
@@ -73,7 +66,7 @@ Partial Class PanelPlayerRight
         lblSeriesHint.Location = New Point(0, 0)
         lblSeriesHint.Name = "lblSeriesHint"
         lblSeriesHint.Padding = New Padding(16, 0, 0, 0)
-        lblSeriesHint.Size = New Size(358, 18)
+        lblSeriesHint.Size = New Size(800, 18)
         lblSeriesHint.TabIndex = 2
         lblSeriesHint.TextAlign = ContentAlignment.MiddleLeft
         ' 
@@ -83,7 +76,7 @@ Partial Class PanelPlayerRight
         picSlice.Location = New Point(0, 0)
         picSlice.Margin = New Padding(12, 0, 12, 0)
         picSlice.Name = "picSlice"
-        picSlice.Size = New Size(358, 450)
+        picSlice.Size = New Size(800, 445)
         picSlice.TabIndex = 3
         picSlice.TabStop = False
         ' 
@@ -94,7 +87,7 @@ Partial Class PanelPlayerRight
         Panel1.Location = New Point(0, 18)
         Panel1.MinimumSize = New Size(50, 300)
         Panel1.Name = "Panel1"
-        Panel1.Size = New Size(358, 300)
+        Panel1.Size = New Size(800, 300)
         Panel1.TabIndex = 5
         ' 
         ' SplitContainer1
@@ -112,9 +105,9 @@ Partial Class PanelPlayerRight
         ' SplitContainer1.Panel2
         ' 
         SplitContainer1.Panel2.Controls.Add(picSlice)
-        SplitContainer1.Size = New Size(358, 1089)
-        SplitContainer1.SplitterDistance = 635
-        SplitContainer1.TabIndex = 6
+        SplitContainer1.Size = New Size(800, 1076)
+        SplitContainer1.SplitterDistance = 627
+        SplitContainer1.TabIndex = 7
         ' 
         ' Panel2
         ' 
@@ -123,33 +116,32 @@ Partial Class PanelPlayerRight
         Panel2.Dock = DockStyle.Fill
         Panel2.Location = New Point(0, 0)
         Panel2.Name = "Panel2"
-        Panel2.Size = New Size(358, 318)
+        Panel2.Size = New Size(800, 310)
         Panel2.TabIndex = 0
         ' 
         ' PanelPlayerRight
         ' 
-        AutoScaleDimensions = New SizeF(96F, 96F)
-        AutoScroll = True
-        BackColor = Color.White
-        ClientSize = New Size(358, 1089)
+        AutoScaleDimensions = New SizeF(7.0F, 15.0F)
+        AutoScaleMode = AutoScaleMode.Font
+        ClientSize = New Size(800, 1076)
         Controls.Add(SplitContainer1)
         DockAreas = Microsoft.VisualStudio.WinForms.Docking.DockAreas.Float Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockLeft Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockRight Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockTop Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockBottom Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.Document
         DoubleBuffered = True
-        Font = New Font("Microsoft YaHei UI", 9F)
         Name = "PanelPlayerRight"
         ShowHint = Microsoft.VisualStudio.WinForms.Docking.DockState.Unknown
         Text = "CFD 信息面板"
-        CType(picSlice, ISupportInitialize).EndInit()
+        CType(picSlice, ComponentModel.ISupportInitialize).EndInit()
         Panel1.ResumeLayout(False)
         SplitContainer1.Panel1.ResumeLayout(False)
         SplitContainer1.Panel2.ResumeLayout(False)
-        CType(SplitContainer1, ISupportInitialize).EndInit()
+        CType(SplitContainer1, ComponentModel.ISupportInitialize).EndInit()
         SplitContainer1.ResumeLayout(False)
         Panel2.ResumeLayout(False)
         ResumeLayout(False)
     End Sub
-    Friend WithEvents lblVoxelInfo As Label
+
     Friend WithEvents pnlSeries As Panel
+    Friend WithEvents lblVoxelInfo As Label
     Friend WithEvents lblSeriesHint As Label
     Friend WithEvents picSlice As PictureBox
     Friend WithEvents Panel1 As Panel

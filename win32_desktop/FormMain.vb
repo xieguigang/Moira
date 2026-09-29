@@ -46,8 +46,9 @@ Public Class FormMain : Implements AppHost
     End Sub
 
     Private Sub FormMain_FormClosing(sender As Object, e As FormClosingEventArgs) Handles MyBase.FormClosing
-        CommonRuntime.SaveUISettings()
-        Globals.settings.Save()
+        Call CommonRuntime.SaveUISettings()
+        Call Globals.settings.Save()
+        Call Tools.KillAllChildrenOfCurrentProcess()
     End Sub
 
     Public Sub SetWorkbenchVisible(visible As Boolean) Implements AppHost.SetWorkbenchVisible
