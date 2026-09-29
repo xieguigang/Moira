@@ -6371,8 +6371,8 @@ Global
 		{2F37059C-5C25-1081-AB79-B04C2F2EDFA8}.Rsharp_app_release|Any CPU.Build.0 = CellaLAB-Desktop|Any CPU
 		{2F37059C-5C25-1081-AB79-B04C2F2EDFA8}.Rsharp_app_release|ARM32.ActiveCfg = CellaLAB-Desktop|Any CPU
 		{2F37059C-5C25-1081-AB79-B04C2F2EDFA8}.Rsharp_app_release|ARM32.Build.0 = CellaLAB-Desktop|Any CPU
-		{2F37059C-5C25-1081-AB79-B04C2F2EDFA8}.Rsharp_app_release|x64.ActiveCfg = CellaLAB-Desktop|x64
-		{2F37059C-5C25-1081-AB79-B04C2F2EDFA8}.Rsharp_app_release|x64.Build.0 = CellaLAB-Desktop|x64
+		{2F37059C-5C25-1081-AB79-B04C2F2EDFA8}.Rsharp_app_release|x64.ActiveCfg = Release|x64
+		{2F37059C-5C25-1081-AB79-B04C2F2EDFA8}.Rsharp_app_release|x64.Build.0 = Release|x64
 		{2F37059C-5C25-1081-AB79-B04C2F2EDFA8}.Rsharp_app_release|x86.ActiveCfg = CellaLAB-Desktop|Any CPU
 		{2F37059C-5C25-1081-AB79-B04C2F2EDFA8}.Rsharp_app_release|x86.Build.0 = CellaLAB-Desktop|Any CPU
 		{962983C1-08DB-EC47-41F5-8840F6D24283}.CFD_win32|Any CPU.ActiveCfg = Rsharp_app_release|Any CPU
@@ -6851,8 +6851,8 @@ Global
 		{642CFA02-4176-9C79-9032-A7DD7D314CD4}.Rsharp_app_release|Any CPU.Build.0 = nuget_release|Any CPU
 		{642CFA02-4176-9C79-9032-A7DD7D314CD4}.Rsharp_app_release|ARM32.ActiveCfg = nuget_release|Any CPU
 		{642CFA02-4176-9C79-9032-A7DD7D314CD4}.Rsharp_app_release|ARM32.Build.0 = nuget_release|Any CPU
-		{642CFA02-4176-9C79-9032-A7DD7D314CD4}.Rsharp_app_release|x64.ActiveCfg = nuget_release|x64
-		{642CFA02-4176-9C79-9032-A7DD7D314CD4}.Rsharp_app_release|x64.Build.0 = nuget_release|x64
+		{642CFA02-4176-9C79-9032-A7DD7D314CD4}.Rsharp_app_release|x64.ActiveCfg = Release|x64
+		{642CFA02-4176-9C79-9032-A7DD7D314CD4}.Rsharp_app_release|x64.Build.0 = Release|x64
 		{642CFA02-4176-9C79-9032-A7DD7D314CD4}.Rsharp_app_release|x86.ActiveCfg = nuget_release|Any CPU
 		{642CFA02-4176-9C79-9032-A7DD7D314CD4}.Rsharp_app_release|x86.Build.0 = nuget_release|Any CPU
 		{902E755A-98DC-1E90-2B1E-C7D8040A84F4}.CFD_win32|Any CPU.ActiveCfg = nuget_release|Any CPU
@@ -6947,8 +6947,8 @@ Global
 		{902E755A-98DC-1E90-2B1E-C7D8040A84F4}.Rsharp_app_release|Any CPU.Build.0 = nuget_release|Any CPU
 		{902E755A-98DC-1E90-2B1E-C7D8040A84F4}.Rsharp_app_release|ARM32.ActiveCfg = nuget_release|Any CPU
 		{902E755A-98DC-1E90-2B1E-C7D8040A84F4}.Rsharp_app_release|ARM32.Build.0 = nuget_release|Any CPU
-		{902E755A-98DC-1E90-2B1E-C7D8040A84F4}.Rsharp_app_release|x64.ActiveCfg = nuget_release|x64
-		{902E755A-98DC-1E90-2B1E-C7D8040A84F4}.Rsharp_app_release|x64.Build.0 = nuget_release|x64
+		{902E755A-98DC-1E90-2B1E-C7D8040A84F4}.Rsharp_app_release|x64.ActiveCfg = Release|x64
+		{902E755A-98DC-1E90-2B1E-C7D8040A84F4}.Rsharp_app_release|x64.Build.0 = Release|x64
 		{902E755A-98DC-1E90-2B1E-C7D8040A84F4}.Rsharp_app_release|x86.ActiveCfg = nuget_release|Any CPU
 		{902E755A-98DC-1E90-2B1E-C7D8040A84F4}.Rsharp_app_release|x86.Build.0 = nuget_release|Any CPU
 		{C57226F9-4C38-030A-E81F-0F4D4AB362F8}.CFD_win32|Any CPU.ActiveCfg = Release|Any CPU
