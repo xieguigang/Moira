@@ -174,7 +174,7 @@ Partial Class PageCFDPlayer
         Name = "Form1"
         ShowHint = Microsoft.VisualStudio.WinForms.Docking.DockState.Unknown
         TabPageContextMenuStrip = DockContextMenuStrip1
-        Text = "Form1"
+        Text = "CFD Player"
         bottomPanel.ResumeLayout(False)
         Panel3.ResumeLayout(False)
         Panel3.PerformLayout()

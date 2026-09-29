@@ -166,4 +166,13 @@ Public Class PageCFDPlayer
 
         m_canvas.TooltipFields = Nothing
     End Sub
+
+    Private Sub PageCFDPlayer_FormClosing(sender As Object, e As FormClosingEventArgs) Handles Me.FormClosing
+        If MessageBox.Show("Close current CFD re-play session window?", "Close Session", MessageBoxButtons.OKCancel, MessageBoxIcon.Information) <> DialogResult.OK Then
+            e.Cancel = True
+        Else
+            panelLeft.Close()
+            panelRight.Close()
+        End If
+    End Sub
 End Class
