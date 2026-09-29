@@ -48,16 +48,16 @@ Partial Class PanelPlayerRight
         pnlSeries.Location = New Point(0, 0)
         pnlSeries.Margin = New Padding(12, 0, 12, 0)
         pnlSeries.Name = "pnlSeries"
-        pnlSeries.Size = New Size(800, 300)
+        pnlSeries.Size = New Size(296, 187)
         pnlSeries.TabIndex = 1
         ' 
         ' lblVoxelInfo
         ' 
         lblVoxelInfo.Dock = DockStyle.Bottom
-        lblVoxelInfo.Location = New Point(0, 310)
+        lblVoxelInfo.Location = New Point(0, 205)
         lblVoxelInfo.Name = "lblVoxelInfo"
         lblVoxelInfo.Padding = New Padding(16, 2, 8, 0)
-        lblVoxelInfo.Size = New Size(800, 317)
+        lblVoxelInfo.Size = New Size(296, 632)
         lblVoxelInfo.TabIndex = 0
         ' 
         ' lblSeriesHint
@@ -66,7 +66,7 @@ Partial Class PanelPlayerRight
         lblSeriesHint.Location = New Point(0, 0)
         lblSeriesHint.Name = "lblSeriesHint"
         lblSeriesHint.Padding = New Padding(16, 0, 0, 0)
-        lblSeriesHint.Size = New Size(800, 18)
+        lblSeriesHint.Size = New Size(296, 18)
         lblSeriesHint.TabIndex = 2
         lblSeriesHint.TextAlign = ContentAlignment.MiddleLeft
         ' 
@@ -76,7 +76,7 @@ Partial Class PanelPlayerRight
         picSlice.Location = New Point(0, 0)
         picSlice.Margin = New Padding(12, 0, 12, 0)
         picSlice.Name = "picSlice"
-        picSlice.Size = New Size(800, 445)
+        picSlice.Size = New Size(296, 235)
         picSlice.TabIndex = 3
         picSlice.TabStop = False
         ' 
@@ -85,9 +85,8 @@ Partial Class PanelPlayerRight
         Panel1.Controls.Add(pnlSeries)
         Panel1.Dock = DockStyle.Fill
         Panel1.Location = New Point(0, 18)
-        Panel1.MinimumSize = New Size(50, 300)
         Panel1.Name = "Panel1"
-        Panel1.Size = New Size(800, 300)
+        Panel1.Size = New Size(296, 187)
         Panel1.TabIndex = 5
         ' 
         ' SplitContainer1
@@ -105,8 +104,8 @@ Partial Class PanelPlayerRight
         ' SplitContainer1.Panel2
         ' 
         SplitContainer1.Panel2.Controls.Add(picSlice)
-        SplitContainer1.Size = New Size(800, 1076)
-        SplitContainer1.SplitterDistance = 627
+        SplitContainer1.Size = New Size(296, 1076)
+        SplitContainer1.SplitterDistance = 837
         SplitContainer1.TabIndex = 7
         ' 
         ' Panel2
@@ -116,14 +115,14 @@ Partial Class PanelPlayerRight
         Panel2.Dock = DockStyle.Fill
         Panel2.Location = New Point(0, 0)
         Panel2.Name = "Panel2"
-        Panel2.Size = New Size(800, 310)
+        Panel2.Size = New Size(296, 205)
         Panel2.TabIndex = 0
         ' 
         ' PanelPlayerRight
         ' 
-        AutoScaleDimensions = New SizeF(7.0F, 15.0F)
+        AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
-        ClientSize = New Size(800, 1076)
+        ClientSize = New Size(296, 1076)
         Controls.Add(SplitContainer1)
         DockAreas = Microsoft.VisualStudio.WinForms.Docking.DockAreas.Float Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockLeft Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockRight Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockTop Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.DockBottom Or Microsoft.VisualStudio.WinForms.Docking.DockAreas.Document
         DoubleBuffered = True
