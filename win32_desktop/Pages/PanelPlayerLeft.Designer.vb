@@ -60,8 +60,12 @@ Partial Class PanelPlayerLeft
         btnNone = New Button()
         clbTooltipFields = New CheckedListBox()
         chkDebug = New CheckBox()
+        lblOpacityTitle = New Label()
+        lblOpacityVal = New Label()
+        trackOpacity = New TrackBar()
         CType(trackThreshold, ComponentModel.ISupportInitialize).BeginInit()
         CType(trackSectionPos, ComponentModel.ISupportInitialize).BeginInit()
+        CType(trackOpacity, ComponentModel.ISupportInitialize).BeginInit()
         SuspendLayout()
         ' 
         ' lblTitleData
@@ -373,10 +377,41 @@ Partial Class PanelPlayerLeft
         lblTitleViewport.TabIndex = 62
         lblTitleViewport.Text = "视口"
         ' 
+        ' lblOpacityTitle
+        ' 
+        lblOpacityTitle.AutoSize = True
+        lblOpacityTitle.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
+        lblOpacityTitle.Location = New Point(18, 802)
+        lblOpacityTitle.Name = "lblOpacityTitle"
+        lblOpacityTitle.Size = New Size(73, 15)
+        lblOpacityTitle.TabIndex = 68
+        lblOpacityTitle.Text = "体素透明度"
+        ' 
+        ' lblOpacityVal
+        ' 
+        lblOpacityVal.AutoSize = True
+        lblOpacityVal.ForeColor = Color.FromArgb(CByte(14), CByte(165), CByte(233))
+        lblOpacityVal.Location = New Point(104, 802)
+        lblOpacityVal.Name = "lblOpacityVal"
+        lblOpacityVal.Size = New Size(28, 15)
+        lblOpacityVal.TabIndex = 69
+        lblOpacityVal.Text = "1.00"
+        ' 
+        ' trackOpacity
+        ' 
+        trackOpacity.Location = New Point(14, 820)
+        trackOpacity.Maximum = 100
+        trackOpacity.Minimum = 50
+        trackOpacity.Name = "trackOpacity"
+        trackOpacity.Size = New Size(280, 45)
+        trackOpacity.TabIndex = 70
+        trackOpacity.TickStyle = TickStyle.None
+        trackOpacity.Value = 100
+        ' 
         ' chkTooltip
         ' 
         chkTooltip.AutoSize = True
-        chkTooltip.Location = New Point(18, 802)
+        chkTooltip.Location = New Point(18, 872)
         chkTooltip.Name = "chkTooltip"
         chkTooltip.Size = New Size(156, 19)
         chkTooltip.TabIndex = 63
@@ -386,7 +421,7 @@ Partial Class PanelPlayerLeft
         ' 
         btnAll.FlatStyle = FlatStyle.Flat
         btnAll.Font = New Font("Microsoft YaHei UI", 8F)
-        btnAll.Location = New Point(18, 828)
+        btnAll.Location = New Point(18, 898)
         btnAll.Name = "btnAll"
         btnAll.Size = New Size(62, 24)
         btnAll.TabIndex = 64
@@ -396,7 +431,7 @@ Partial Class PanelPlayerLeft
         ' 
         btnNone.FlatStyle = FlatStyle.Flat
         btnNone.Font = New Font("Microsoft YaHei UI", 8F)
-        btnNone.Location = New Point(86, 828)
+        btnNone.Location = New Point(86, 898)
         btnNone.Name = "btnNone"
         btnNone.Size = New Size(62, 24)
         btnNone.TabIndex = 65
@@ -408,7 +443,7 @@ Partial Class PanelPlayerLeft
         clbTooltipFields.CheckOnClick = True
         clbTooltipFields.Font = New Font("Consolas", 8F)
         clbTooltipFields.HorizontalScrollbar = True
-        clbTooltipFields.Location = New Point(14, 857)
+        clbTooltipFields.Location = New Point(14, 927)
         clbTooltipFields.Name = "clbTooltipFields"
         clbTooltipFields.Size = New Size(280, 227)
         clbTooltipFields.TabIndex = 66
@@ -416,7 +451,7 @@ Partial Class PanelPlayerLeft
         ' chkDebug
         ' 
         chkDebug.AutoSize = True
-        chkDebug.Location = New Point(14, 1088)
+        chkDebug.Location = New Point(14, 1158)
         chkDebug.Name = "chkDebug"
         chkDebug.Size = New Size(148, 19)
         chkDebug.TabIndex = 67
@@ -428,7 +463,7 @@ Partial Class PanelPlayerLeft
         AutoScaleMode = AutoScaleMode.Font
         AutoScroll = True
         BackColor = Color.White
-        ClientSize = New Size(309, 1119)
+        ClientSize = New Size(309, 1189)
         Controls.Add(lblTitleData)
         Controls.Add(btnLoad)
         Controls.Add(lblTitleScalar)
@@ -458,6 +493,9 @@ Partial Class PanelPlayerLeft
         Controls.Add(lblSectionPosVal)
         Controls.Add(trackSectionPos)
         Controls.Add(lblTitleViewport)
+        Controls.Add(lblOpacityTitle)
+        Controls.Add(lblOpacityVal)
+        Controls.Add(trackOpacity)
         Controls.Add(chkTooltip)
         Controls.Add(btnAll)
         Controls.Add(btnNone)
@@ -470,6 +508,7 @@ Partial Class PanelPlayerLeft
         Text = "CFD 控制面板"
         CType(trackThreshold, ComponentModel.ISupportInitialize).EndInit()
         CType(trackSectionPos, ComponentModel.ISupportInitialize).EndInit()
+        CType(trackOpacity, ComponentModel.ISupportInitialize).EndInit()
         ResumeLayout(False)
         PerformLayout()
     End Sub
@@ -508,4 +547,7 @@ Partial Class PanelPlayerLeft
     Friend WithEvents btnNone As Button
     Friend WithEvents clbTooltipFields As CheckedListBox
     Friend WithEvents chkDebug As CheckBox
+    Friend WithEvents lblOpacityTitle As Label
+    Friend WithEvents lblOpacityVal As Label
+    Friend WithEvents trackOpacity As TrackBar
 End Class

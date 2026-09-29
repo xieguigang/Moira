@@ -125,6 +125,14 @@ Public Class PanelPlayerLeft
 
     ' ---------------- 视口 / 调试 ----------------
 
+    ''' <summary>体素透明度滑动条：0.5（半透明）~ 1.0（不透明）。</summary>
+    Private Sub trackOpacity_ValueChanged(sender As Object, e As EventArgs) Handles trackOpacity.ValueChanged
+        Dim opacity As Single = CSng(trackOpacity.Value / 100.0)
+
+        lblOpacityVal.Text = opacity.ToString("F2")
+        player.Canvas.VoxelOpacity = opacity
+    End Sub
+
     Private Sub chkTooltip_CheckedChanged(sender As Object, e As EventArgs) Handles chkTooltip.CheckedChanged
         player.Canvas.ShowHoverTooltip = chkTooltip.Checked
     End Sub

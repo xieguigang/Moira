@@ -482,6 +482,21 @@ Partial Public Class CFDCanvas
         End Set
     End Property
 
+    ''' <summary>
+    ''' 体素透明度：1.0 = 不透明，0.5 = 半透明（可透视模型内部）。
+    ''' </summary>
+    <Description("体素透明度（0.5=半透明, 1=不透明）")>
+    <DefaultValue(1.0F)>
+    Public Property VoxelOpacity As Single
+        Get
+            Return m_sceneCanvas.PointOpacity
+        End Get
+        Set(value As Single)
+            m_sceneCanvas.PointOpacity = Math.Min(1.0F, Math.Max(0.5F, value))
+            Call m_sceneCanvas.RequestRender()
+        End Set
+    End Property
+
     ''' <summary>是否显示 2D 屏幕空间网格背景（不随相机旋转）。</summary>
     <Description("显示 2D 网格背景")>
     <DefaultValue(True)>
