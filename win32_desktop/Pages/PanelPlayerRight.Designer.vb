@@ -50,7 +50,7 @@ Partial Class PanelPlayerRight
         pnlSeries.Margin = New Padding(12, 0, 12, 0)
         pnlSeries.MinimumSize = New Size(300, 200)
         pnlSeries.Name = "pnlSeries"
-        pnlSeries.Size = New Size(346, 219)
+        pnlSeries.Size = New Size(346, 204)
         pnlSeries.TabIndex = 1
         ' 
         ' lblVoxelInfo
@@ -59,7 +59,7 @@ Partial Class PanelPlayerRight
         lblVoxelInfo.Dock = DockStyle.Fill
         lblVoxelInfo.Location = New Point(0, 237)
         lblVoxelInfo.Name = "lblVoxelInfo"
-        lblVoxelInfo.Padding = New Padding(16, 2, 8, 0)
+        lblVoxelInfo.Padding = New Padding(16, 15, 15, 0)
         lblVoxelInfo.Size = New Size(346, 495)
         lblVoxelInfo.TabIndex = 0
         ' 
@@ -67,10 +67,12 @@ Partial Class PanelPlayerRight
         ' 
         lblSeriesHint.Dock = DockStyle.Top
         lblSeriesHint.Location = New Point(0, 0)
+        lblSeriesHint.Margin = New Padding(3, 10, 3, 10)
         lblSeriesHint.Name = "lblSeriesHint"
         lblSeriesHint.Padding = New Padding(16, 0, 0, 0)
-        lblSeriesHint.Size = New Size(346, 18)
+        lblSeriesHint.Size = New Size(346, 33)
         lblSeriesHint.TabIndex = 2
+        lblSeriesHint.Text = "时间序列图"
         lblSeriesHint.TextAlign = ContentAlignment.MiddleLeft
         ' 
         ' picSlice
@@ -88,16 +90,15 @@ Partial Class PanelPlayerRight
         ' 
         Panel1.Controls.Add(pnlSeries)
         Panel1.Dock = DockStyle.Fill
-        Panel1.Location = New Point(0, 18)
+        Panel1.Location = New Point(0, 33)
         Panel1.Name = "Panel1"
-        Panel1.Size = New Size(346, 219)
+        Panel1.Size = New Size(346, 204)
         Panel1.TabIndex = 5
         ' 
         ' SplitContainer1
         ' 
         SplitContainer1.Dock = DockStyle.Fill
         SplitContainer1.FixedPanel = FixedPanel.Panel2
-        SplitContainer1.IsSplitterFixed = True
         SplitContainer1.Location = New Point(0, 0)
         SplitContainer1.Name = "SplitContainer1"
         SplitContainer1.Orientation = Orientation.Horizontal
