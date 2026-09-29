@@ -33,6 +33,7 @@ Public Class PageCFDPlayer
         Dim path As New GraphicsPath()
         path.AddEllipse(0, 0, btnPlay.Width - 1, btnPlay.Height - 1)
         btnPlay.Region = New Region(path)
+        btnPlay.ForeColor = Color.White
         path.Dispose()
     End Sub
 
@@ -43,6 +44,7 @@ Public Class PageCFDPlayer
 
         m_playing = Not m_playing
         btnPlay.Text = If(m_playing, "❚❚", "▶")
+        btnPlay.ForeColor = Color.White
 
         If m_playing Then
             Call m_playTimer.Start()
@@ -161,6 +163,8 @@ Public Class PageCFDPlayer
         Call panelLeft.PopulateFields(dataset.FieldNames)
         btnPlay.Enabled = True
         trackFrame.Enabled = True
+        btnPlay.ForeColor = Color.White
+
         Call panelLeft.UpdateSectionBounds()
         Call panelLeft.PopulateTooltipFields(dataset.FieldNames)
 
