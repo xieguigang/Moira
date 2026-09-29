@@ -466,7 +466,7 @@ Partial Class PanelPlayerLeft
         DoubleBuffered = True
         Name = "PanelPlayerLeft2"
         ShowHint = Microsoft.VisualStudio.WinForms.Docking.DockState.Unknown
-        Text = "Form1"
+        Text = "CFD 控制面板"
         CType(trackThreshold, ComponentModel.ISupportInitialize).EndInit()
         CType(trackSectionPos, ComponentModel.ISupportInitialize).EndInit()
         ResumeLayout(False)
