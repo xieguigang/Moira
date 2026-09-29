@@ -171,7 +171,7 @@ Partial Class PanelPlayerLeft
         ' 
         lblMin.AutoSize = True
         lblMin.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
-        lblMin.Location = New Point(18, 301)
+        lblMin.Location = New Point(18, 307)
         lblMin.Name = "lblMin"
         lblMin.Size = New Size(46, 15)
         lblMin.TabIndex = 43
@@ -181,7 +181,7 @@ Partial Class PanelPlayerLeft
         ' 
         lblMax.AutoSize = True
         lblMax.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
-        lblMax.Location = New Point(152, 301)
+        lblMax.Location = New Point(157, 307)
         lblMax.Name = "lblMax"
         lblMax.Size = New Size(46, 15)
         lblMax.TabIndex = 44
@@ -191,9 +191,9 @@ Partial Class PanelPlayerLeft
         ' 
         txtRangeMin.BorderStyle = BorderStyle.FixedSingle
         txtRangeMin.Font = New Font("Microsoft YaHei UI", 9F)
-        txtRangeMin.Location = New Point(18, 321)
+        txtRangeMin.Location = New Point(67, 304)
         txtRangeMin.Name = "txtRangeMin"
-        txtRangeMin.Size = New Size(115, 23)
+        txtRangeMin.Size = New Size(84, 23)
         txtRangeMin.TabIndex = 45
         txtRangeMin.Visible = False
         ' 
@@ -201,9 +201,9 @@ Partial Class PanelPlayerLeft
         ' 
         txtRangeMax.BorderStyle = BorderStyle.FixedSingle
         txtRangeMax.Font = New Font("Microsoft YaHei UI", 9F)
-        txtRangeMax.Location = New Point(152, 321)
+        txtRangeMax.Location = New Point(209, 304)
         txtRangeMax.Name = "txtRangeMax"
-        txtRangeMax.Size = New Size(115, 23)
+        txtRangeMax.Size = New Size(85, 23)
         txtRangeMax.TabIndex = 46
         txtRangeMax.Visible = False
         ' 
@@ -211,7 +211,7 @@ Partial Class PanelPlayerLeft
         ' 
         lblThresholdTitle.AutoSize = True
         lblThresholdTitle.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
-        lblThresholdTitle.Location = New Point(18, 397)
+        lblThresholdTitle.Location = New Point(18, 385)
         lblThresholdTitle.Name = "lblThresholdTitle"
         lblThresholdTitle.Size = New Size(59, 15)
         lblThresholdTitle.TabIndex = 47
@@ -221,7 +221,7 @@ Partial Class PanelPlayerLeft
         ' 
         lblThresholdVal.AutoSize = True
         lblThresholdVal.ForeColor = Color.FromArgb(CByte(14), CByte(165), CByte(233))
-        lblThresholdVal.Location = New Point(86, 397)
+        lblThresholdVal.Location = New Point(86, 385)
         lblThresholdVal.Name = "lblThresholdVal"
         lblThresholdVal.Size = New Size(28, 15)
         lblThresholdVal.TabIndex = 48
@@ -229,7 +229,7 @@ Partial Class PanelPlayerLeft
         ' 
         ' trackThreshold
         ' 
-        trackThreshold.Location = New Point(14, 366)
+        trackThreshold.Location = New Point(14, 349)
         trackThreshold.Maximum = 100
         trackThreshold.Name = "trackThreshold"
         trackThreshold.Size = New Size(280, 45)
