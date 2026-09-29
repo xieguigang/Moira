@@ -129,8 +129,10 @@ Public Class PanelPlayerLeft
     Private Sub trackOpacity_ValueChanged(sender As Object, e As EventArgs) Handles trackOpacity.ValueChanged
         Dim opacity As Single = CSng(trackOpacity.Value / 100.0)
 
-        lblOpacityVal.Text = opacity.ToString("F2")
-        player.Canvas.VoxelOpacity = opacity
+        If player IsNot Nothing Then
+            lblOpacityVal.Text = opacity.ToString("F2")
+            player.Canvas.VoxelOpacity = opacity
+        End If
     End Sub
 
     Private Sub chkTooltip_CheckedChanged(sender As Object, e As EventArgs) Handles chkTooltip.CheckedChanged
