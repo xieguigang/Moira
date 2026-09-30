@@ -60,7 +60,7 @@ Namespace Snapshot.JSON
         ''' <summary>
         ''' 从流体场与仿真配置自动构造快照元数据（网格模型 + 仿真配置）。
         ''' 适用于任意 "计算空间 + 求解器配置" 的快照场景（如风洞外流动），
-        ''' 与消费端 <see cref="Data.CfdDataset"/> 的 metadata.json 契约保持一致。
+        ''' 与消费端 "Data.CfdDataset" 的 metadata.json 契约保持一致。
         ''' </summary>
         ''' <param name="field">流体场（提供网格维度与活动体素掩膜）</param>
         ''' <param name="viscosity">运动粘度 ν（网格单位）</param>

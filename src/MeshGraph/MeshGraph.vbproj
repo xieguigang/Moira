@@ -8,6 +8,14 @@
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>GNN based CFD simulation</Title>
     <AssemblyName>Moira.MeshGraph</AssemblyName>
+    <Version>1.0.9769.26194</Version>
+    <AssemblyVersion>1.0.9769.26194</AssemblyVersion>
+    <Configurations>Debug;Release;nuget_release</Configurations>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='nuget_release|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>../../.nuget/</OutputPath>
   </PropertyGroup>
 
   <ItemGroup>

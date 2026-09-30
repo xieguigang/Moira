@@ -91,7 +91,7 @@ Namespace Snapshot
 
         ''' <summary>
         ''' 可选的数据集元数据（非 Nothing 时在 <see cref="Finish"/> 写出 metadata.json，
-        ''' 供 <see cref="Data.CfdDataset"/> 等消费端加载可视化）。
+        ''' 供 "Data.CfdDataset" 等消费端加载可视化）。
         ''' </summary>
         Private ReadOnly _metadata As SnapshotMetadata
 
@@ -223,7 +223,7 @@ Namespace Snapshot
         ''' <summary>
         ''' 写出 metadata.json —— 把构造时传入的 <see cref="SnapshotMetadata"/>
         ''' 填充逐帧引用后序列化落盘，使输出目录可被
-        ''' <see cref="Data.CfdDataset"/>（CDFDxCanvas 可视化）直接加载。
+        ''' "Data.CfdDataset"（CDFDxCanvas 可视化）直接加载。
         ''' </summary>
         Private Sub WriteMetadataJson()
             If _metadata Is Nothing Then Return
