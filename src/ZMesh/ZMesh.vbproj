@@ -1,12 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>ZMesh</RootNamespace>
+    <RootNamespace>Moira.ZMesh</RootNamespace>
     <TargetFramework>net10.0</TargetFramework>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>Make 3d model convert to CFD voxel shape model</Title>
     <Platforms>AnyCPU;x64</Platforms>
+    <AssemblyName>Moira.ZMesh</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

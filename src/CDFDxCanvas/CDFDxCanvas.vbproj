@@ -10,6 +10,9 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <!-- CFDCanvas 的公开属性均为运行时驱动，不参与设计器序列化 -->
     <NoWarn>$(NoWarn);WFO1000</NoWarn>
+    <AssemblyName>Moira.CDFDxCanvas</AssemblyName>
+    <RootNamespace>Moira.CDFDxCanvas</RootNamespace>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <!--
