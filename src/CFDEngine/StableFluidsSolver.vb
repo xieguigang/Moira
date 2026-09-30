@@ -83,6 +83,20 @@ Public Class StableFluidsSolver
     ''' </summary>
     Public Property NoSlipWalls As Boolean = False
 
+    ''' <summary>
+    ''' 是否把扩散 / 压力泊松 / 半拉格朗日平流等热算子路由到 CUDA GPU 后端
+    ''' （<see cref="CudaTensorF"/>，需先调用 CudaTensorF.TryRegister 注册成功）。
+    ''' 后端不可用时自动回退 CPU 路径，数值行为保持一致。默认关闭。
+    ''' </summary>
+    Public Property UseCudaBackend As Boolean = False
+
+    ''' <summary>UseCudaBackend 开启且 CUDA 后端已注册时返回后端实例，否则 Nothing</summary>
+    Private ReadOnly Property Gpu As CudaTensorF
+        Get
+            Return If(UseCudaBackend, CudaTensorF.Current, Nothing)
+        End Get
+    End Property
+
 #End Region
 
 #Region "固体掩膜 (Solid Mask) 与预计算缓存"
@@ -289,6 +303,14 @@ Public Class StableFluidsSolver
         Dim nx = shp(0), ny = shp(1), nz = shp(2)
         EnsurePrepared(nx, ny, nz)
 
+        ' ---- GPU 路径：半拉格朗日平流下放 CUDA（与 CPU 逐点语义一致）----
+        Dim gpu = Me.Gpu
+        If gpu IsNot Nothing Then
+            Dim gr = gpu.AdvectTrilinear(field, velU, velV, velW, CSng(dt), _mask)
+            Call Array.Copy(gr.Data, result.Data, result.Length)
+            Return
+        End If
+
         Dim plane = ny * nz
         Dim f = field.Data
         Dim u = velU.Data, v = velV.Data, w = velW.Data
@@ -362,6 +384,18 @@ Public Class StableFluidsSolver
         Dim shp = srcU.Shape
         Dim nx = shp(0), ny = shp(1), nz = shp(2)
         EnsurePrepared(nx, ny, nz)
+
+        ' ---- GPU 路径：速度三分量各自走一次 CUDA 平流（回溯坐标在内核内重复计算）----
+        Dim gpu = Me.Gpu
+        If gpu IsNot Nothing Then
+            Dim gu = gpu.AdvectTrilinear(srcU, srcU, srcV, srcW, CSng(dt), _mask)
+            Dim gv = gpu.AdvectTrilinear(srcV, srcU, srcV, srcW, CSng(dt), _mask)
+            Dim gw = gpu.AdvectTrilinear(srcW, srcU, srcV, srcW, CSng(dt), _mask)
+            Call Array.Copy(gu.Data, outU.Data, outU.Length)
+            Call Array.Copy(gv.Data, outV.Data, outV.Length)
+            Call Array.Copy(gw.Data, outW.Data, outW.Length)
+            Return
+        End If
 
         Dim plane = ny * nz
         Dim su = srcU.Data, sv = srcV.Data, sw = srcW.Data
@@ -459,6 +493,17 @@ Public Class StableFluidsSolver
         Dim aD As Double = dt * diff
         Dim invDenom As Double = 1.0 / (1.0 + 6.0 * aD)
 
+        ' ---- GPU 路径：整个隐式扩散 Jacobi 迭代在显存内完成（含边界与固体置零）----
+        Dim gpu = Me.Gpu
+        If gpu IsNot Nothing Then
+            _LastDiffuseIterations = JacobiIterations
+            Dim gr = gpu.JacobiStencil7(field, _mask, _nFluid,
+                                        CSng(aD), CSng(1.0 + 6.0 * aD),
+                                        JacobiIterations, initial:=field)
+            Call Array.Copy(gr.Data, result.Data, n)
+            Return
+        End If
+
         ' 初始猜测 = 旧值；固体单元置零
         Array.Copy(f, cur, n)
         ZeroSolidRaw(cur)
@@ -552,6 +597,19 @@ Public Class StableFluidsSolver
         Dim shp = velU.Shape
         Dim nx = shp(0), ny = shp(1), nz = shp(2)
         EnsurePrepared(nx, ny, nz)
+
+        ' ---- GPU 路径：散度 → 泊松 Jacobi → 速度减压力梯度全程驻留显存 ----
+        ' 边界条件与固体置零仍在主机侧完成（与 CPU 路径语义一致）
+        Dim gpu = Me.Gpu
+        If gpu IsNot Nothing Then
+            _LastPressureIterations = JacobiIterations
+            Call gpu.GpuProject(velU, velV, velW, pressure, dt, _mask, _nFluid, JacobiIterations)
+            Call SetVelocityBoundary(velU, 0)
+            Call SetVelocityBoundary(velV, 1)
+            Call SetVelocityBoundary(velW, 2)
+            Call ZeroSolidVelocity(velU, velV, velW, pressure)
+            Return
+        End If
 
         Dim n = nx * ny * nz
         Dim plane = ny * nz

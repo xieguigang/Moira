@@ -326,9 +326,10 @@ Module Program
     ''' （3D 模型文件 → Landscape 加载体素化 → 风洞场景 → CFDEngine 仿真 → VTI 导出）。
     ''' 用法：dotnet run -- --zmesh-windtunnel [模型路径] [--resolution N] [--scale N]
     '''                      [--clearance N] [--steps N] [--freestream F] [--dt F]
-    '''                      [--interval N] [--voxelizer standard|sdf]
+    '''                      [--interval N] [--voxelizer standard|sdf] [--no-gpu]
     ''' 模型路径支持 STL / GLTF / GLB / OBJ / DAE / 3DS / 3MF，
     ''' 未指定时默认使用输出目录中的 airplane1.3mf。
+    ''' 默认启用 CUDA GPU 加速（注册失败自动回退 SIMD CPU），--no-gpu 可强制 CPU。
     ''' </summary>
     Sub RunZMeshWindTunnelBranch(args As String())
         Dim modelPath As String = Nothing
@@ -339,6 +340,7 @@ Module Program
         Dim steps As Integer = 1000
         Dim vtiInterval As Integer = 10
         Dim voxelizer As VoxelizerKind = VoxelizerKind.Standard
+        Dim enableGpu As Boolean = True
 
         Dim i As Integer = 0
         While i < args.Length
@@ -372,6 +374,10 @@ Module Program
                 voxelizer = If(args(i + 1).ToLower().StartsWith("sdf"),
                                VoxelizerKind.Sdf, VoxelizerKind.Standard)
                 i += 1
+            ElseIf lower = "--no-gpu" OrElse lower = "no-gpu" Then
+                enableGpu = False
+            ElseIf lower = "--gpu" OrElse lower = "gpu" Then
+                enableGpu = True
             ElseIf lower.EndsWith(".3mf") OrElse lower.EndsWith(".stl") OrElse lower.EndsWith(".obj") OrElse
                    lower.EndsWith(".gltf") OrElse lower.EndsWith(".glb") OrElse lower.EndsWith(".dae") OrElse
                    lower.EndsWith(".3ds") Then
@@ -388,7 +394,8 @@ Module Program
             groundClearance:=groundClearance,
             freestream:=freestream,
             steps:=steps,
-            vtiInterval:=vtiInterval)
+            vtiInterval:=vtiInterval,
+            enableGpu:=enableGpu)
         System.Environment.ExitCode = If(pass, 0, 1)
     End Sub
 

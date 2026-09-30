@@ -45,6 +45,10 @@ Module ZMeshWindTunnelTest
     ''' <param name="freestream">来流速度 U∞（默认 3.0）</param>
     ''' <param name="steps">时间步数（默认 40）</param>
     ''' <param name="vtiInterval">VTI 快照采样间隔（默认 10，每隔多少步存一帧）</param>
+    ''' <param name="enableGpu">
+    ''' 是否启用 CUDA GPU 加速（默认 True）。注册失败（无 NVIDIA 设备 / 驱动不匹配）
+    ''' 时自动回退 SIMD CPU，测试继续执行。
+    ''' </param>
     Public Function RunZMeshWindTunnelTest(Optional modelPath As String = Nothing,
                                            Optional resolution As Integer = 32,
                                            Optional voxelizer As VoxelizerKind = VoxelizerKind.Standard,
@@ -52,7 +56,8 @@ Module ZMeshWindTunnelTest
                                            Optional groundClearance As Integer = 0,
                                            Optional freestream As Double = 3.0,
                                            Optional steps As Integer = 40,
-                                           Optional vtiInterval As Integer = 10) As Boolean
+                                           Optional vtiInterval As Integer = 10,
+                                           Optional enableGpu As Boolean = True) As Boolean
 
         Console.WriteLine(New String("="c, 70))
         Console.WriteLine("  ZMesh 风洞试验初始化工具 —— 模型加载 / 体素化 / 场景构建 / 仿真 / VTI 导出")
@@ -69,11 +74,25 @@ Module ZMeshWindTunnelTest
         Console.WriteLine($"[模型] {modelPath}")
         Console.WriteLine($"[配置] resolution={resolution}, voxelizer={voxelizer}, " &
                           $"domainScale={domainScale}, groundClearance={groundClearance}, " &
-                          $"freestream={freestream}, steps={steps}")
+                          $"freestream={freestream}, steps={steps}, enableGpu={enableGpu}")
 
         If Not System.IO.File.Exists(modelPath) Then
             Console.WriteLine($"[FAIL] 找不到模型文件：{modelPath}")
             Return False
+        End If
+
+        ' ---- 0. CUDA GPU 后端 ----
+        Dim gpuReady As Boolean = False
+        If enableGpu Then
+            Console.WriteLine()
+            Console.WriteLine("[0] 注册 CUDA GPU 计算后端 ...")
+            gpuReady = CudaTensorF.TryRegister()
+            If gpuReady Then
+                Console.WriteLine($"    [OK] CUDA 后端注册成功（{CudaTensorF.Current.Name}），")
+                Console.WriteLine($"         风洞求解器的隐式扩散 / 压力泊松 / 半拉格朗日平流将走 GPU 加速")
+            Else
+                Console.WriteLine($"    [..] CUDA 后端不可用（{CudaTensorF.LastError}），回退 SIMD CPU")
+            End If
         End If
 
         ' ---- 1. ZMesh：加载模型并体素化 ----
@@ -136,6 +155,9 @@ Module ZMeshWindTunnelTest
         Console.WriteLine("[3] 创建风洞模拟并运行 ...")
         Dim dt As Double = 0.1
         Dim tunnel = scene.CreateTunnel(freestream:=freestream, viscosity:=0.0005)
+
+        ' 启用求解器的 CUDA 热算子路由（未注册成功时保持 CPU 路径）
+        tunnel.Solver.UseCudaBackend = gpuReady
 
         Dim framesDir = System.IO.Path.Combine(System.AppContext.BaseDirectory, "frames_zmesh")
         Dim recorder As New VtiSnapshotRecorder(framesDir, baseName:="zmesh_windtunnel",
