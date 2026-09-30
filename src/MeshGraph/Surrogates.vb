@@ -101,6 +101,9 @@ End Class
 
 ''' <summary>
 ''' 模式B代理：以均匀来流为初始场，用单步演化模型迭代 rollout 得到稳态估计。
+''' 模型采用残差式预测（输出速度增量 Δv/U∞），rollout 时逐场积分：
+'''     x_{k+1} = x_k + α·Δ(x_k)   （α 为欠松弛系数）
+''' 残差 + 欠松弛 + 增量限幅共同保证自回归 rollout 的数值稳定。
 ''' </summary>
 Public Class AutoregressiveSurrogate : Implements ICfdSurrogate
 
@@ -111,6 +114,12 @@ Public Class AutoregressiveSurrogate : Implements ICfdSurrogate
 
     ''' <summary>rollout 时间步长（须与训练数据采集时的 dt 一致）。</summary>
     Public Property TimeStep As Double = 0.1
+
+    ''' <summary>
+    ''' 欠松弛系数 α ∈ (0, 1]：x_{k+1} = (1-α)·x_k + α·F(x_k)。
+    ''' 抑制自回归误差累积（同固定点迭代欠松弛），越小越稳定。
+    ''' </summary>
+    Public Property Relaxation As Double = 0.3
 
     Public Sub New(model As MeshGNN)
         If model.InputDim <> CfdGraphData.ModeBFeatDim Then
@@ -132,10 +141,16 @@ Public Class AutoregressiveSurrogate : Implements ICfdSurrogate
             Dim feats = CfdGraphData.BuildModeBFeatures(field, freestream)
             Dim features = CfdGraphData.WrapFeatures(feats, CfdGraphData.ModeBFeatDim)
             Dim output = Model.Forward(features, adj)
-            Dim nextField = CfdGraphData.ToFluidField(output, shape, freestream)
+            ' 残差式积分：field_next = field + Δv（模型输出为归一化速度增量）
+            Dim nextField = CfdGraphData.AddDeltaToField(output, field, shape, freestream)
 
             output.Dispose()
             features.Dispose()
+
+            ' ---- 欠松弛混合：x_{k+1} = (1-α)·x_k + α·F(x_k) ----
+            If Relaxation < 1.0 Then
+                BlendFields(field, nextField, CSng(Relaxation))
+            End If
             field = nextField
 
             If progressCallback IsNot Nothing Then
@@ -152,6 +167,22 @@ Public Class AutoregressiveSurrogate : Implements ICfdSurrogate
 
     Public Sub Save(filePath As String) Implements ICfdSurrogate.Save
         Model.Save(filePath)
+    End Sub
+
+    ''' <summary>
+    ''' 场量线性混合：dst = (1-α)·src + α·dst（仅流体体素，原地写回 dst）。
+    ''' </summary>
+    Private Shared Sub BlendFields(src As FluidField, dst As FluidField, alpha As Single)
+        Dim n As Integer = dst.TotalVoxels
+        Dim shape = dst.Shape
+        For t As Integer = 0 To n - 1
+            If shape.IsActive(t) Then
+                Dim u0 = src.U.Data(t), v0 = src.V.Data(t), w0 = src.W.Data(t)
+                dst.U.Data(t) = CSng((1 - alpha) * u0 + alpha * dst.U.Data(t))
+                dst.V.Data(t) = CSng((1 - alpha) * v0 + alpha * dst.V.Data(t))
+                dst.W.Data(t) = CSng((1 - alpha) * w0 + alpha * dst.W.Data(t))
+            End If
+        Next
     End Sub
 
     ''' <summary>

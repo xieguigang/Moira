@@ -100,9 +100,10 @@ Module GNNWindTunnel
         trainerB.Train(modeBSamples, adj, CfdGraphData.ModeBFeatDim, epochs:=epochs, printEvery:=5)
 
         Dim surrogateB As New AutoregressiveSurrogate(modelB) With {
-            .RolloutSteps = cfdSteps,
             .TimeStep = dt
         }
+        ' 欠松弛会减慢等效演化速度，按 1/α 放大 rollout 步数保持与 CFD 等效的演化时间
+        surrogateB.RolloutSteps = CInt(std.Ceiling(cfdSteps / surrogateB.Relaxation))
 
         ' ---- 4. 测试场景：地面上的球体风洞（留出参数，不参与训练）----
         Console.WriteLine()

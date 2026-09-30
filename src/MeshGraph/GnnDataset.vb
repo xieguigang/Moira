@@ -76,7 +76,20 @@ Public Class GnnDataset
         Dim feats = CfdGraphData.BuildModeAFeatures(shape, config.Freestream)
         Dim labels = CfdGraphData.ExtractLabels(tunnel.Field, config.Freestream)
 
-        Return New GnnSample(feats, labels, $"A|{config}")
+        Dim sample As New GnnSample(feats, labels, $"A|{config}") With {
+            .FluidMask = BuildFluidMask(shape)
+        }
+        Return sample
+    End Function
+
+    ''' <summary>构建流体体素掩膜（True = 流体）。</summary>
+    Public Shared Function BuildFluidMask(shape As VoxelShape) As Boolean()
+        Dim n As Integer = shape.TotalActive
+        Dim mask(shape.Width * shape.Height * shape.Depth - 1) As Boolean
+        For t As Integer = 0 To mask.Length - 1
+            mask(t) = shape.IsActive(t)
+        Next
+        Return mask
     End Function
 
     ''' <summary>
@@ -96,18 +109,25 @@ Public Class GnnDataset
         tunnel.InitializeFlow()
 
         Dim samples As New List(Of GnnSample)
+        Dim fluidMask = BuildFluidMask(shape)
 
         For s As Integer = 1 To steps
-            ' t 时刻特征（步进前捕捉）
+            ' t 时刻特征（步进前捕捉）+ 场量快照（计算增量标签用）
             Dim feats = CfdGraphData.BuildModeBFeatures(tunnel.Field, config.Freestream)
+            Dim bu = CType(tunnel.Field.U.Data.Clone(), Single())
+            Dim bv = CType(tunnel.Field.V.Data.Clone(), Single())
+            Dim bw = CType(tunnel.Field.W.Data.Clone(), Single())
 
             ' 单步演化
             tunnel.StepForward(dt)
 
-            ' t+dt 时刻标签
+            ' t+dt 时刻标签（残差式：Δv = v_after - v_before）
             If s Mod collectEvery = 0 Then
-                Dim labels = CfdGraphData.ExtractLabels(tunnel.Field, config.Freestream)
-                samples.Add(New GnnSample(feats, labels, $"B|{config}|step{s}"))
+                Dim labels = CfdGraphData.ExtractDeltaLabels(bu, bv, bw, tunnel.Field, config.Freestream)
+                Dim sample As New GnnSample(feats, labels, $"B|{config}|step{s}") With {
+                    .FluidMask = fluidMask
+                }
+                samples.Add(sample)
             End If
         Next
 

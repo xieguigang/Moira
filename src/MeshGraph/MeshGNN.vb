@@ -81,6 +81,9 @@ Public Class SparseGcnLayer
             Throw New ArgumentException($"输入特征维度 {input.Shape(1)} 与层定义 {dIn} 不匹配")
         End If
 
+        ' 缓存输入供 Backward 计算 dW 使用
+        _lastInput = input
+
         ' ---- 1. 线性变换 Z = X · W ----
         Dim z = input.MatMul(_weights)          ' [N, out]
         Dim zArr = z.Data

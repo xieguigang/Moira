@@ -275,8 +275,36 @@ Public Class CfdGraphData
     End Function
 
     ''' <summary>
-    ''' 提取节点级回归标签（长度 N*3）：u/U∞、v/U∞、w/U∞（固体体素为 0）。
+    ''' 提取模式B残差标签（长度 N*3）：Δu/U∞ = (u_after - u_before)/U∞（固体体素为 0）。
+    ''' 残差式（增量）预测让恒等映射可被平凡表示，自回归 rollout 固定点稳定。
     ''' </summary>
+    ''' <param name="beforeU">步进前的 U 场数据快照</param>
+    ''' <param name="beforeV">步进前的 V 场数据快照</param>
+    ''' <param name="beforeW">步进前的 W 场数据快照</param>
+    ''' <param name="after">步进后的流场</param>
+    Public Shared Function ExtractDeltaLabels(beforeU As Single(), beforeV As Single(), beforeW As Single(),
+                                              after As FluidField, freestream As Double) As Single()
+        Dim nx = after.Nx, ny = after.Ny, nz = after.Nz
+        Dim n As Integer = after.TotalVoxels
+        Dim labels(n * 3 - 1) As Single
+        Dim invU As Single = CSng(1.0 / freestream)
+        Dim au = after.U.Data, av = after.V.Data, aw = after.W.Data
+
+        For t As Integer = 0 To n - 1
+            Dim p As Integer = t * 3
+            ' 展平索引 → 三维坐标
+            Dim i = t \ (ny * nz)
+            Dim rem_ = t Mod (ny * nz)
+            Dim j = rem_ \ nz
+            Dim k = rem_ Mod nz
+            If after.IsActive(i, j, k) Then
+                labels(p + 0) = (au(t) - beforeU(t)) * invU
+                labels(p + 1) = (av(t) - beforeV(t)) * invU
+                labels(p + 2) = (aw(t) - beforeW(t)) * invU
+            End If
+        Next
+        Return labels
+    End Function
     Public Shared Function ExtractLabels(field As FluidField, freestream As Double) As Single()
         Dim nx = field.Nx, ny = field.Ny, nz = field.Nz
         Dim n As Integer = field.TotalVoxels
@@ -319,8 +347,11 @@ Public Class CfdGraphData
     ''' <summary>
     ''' 将 GNN 输出 [N, 3]（归一化速度）还原为 FluidField：
     ''' U/V/W 反归一化（乘以来流速度），固体体素强制清零，压力/密度置 0。
+    ''' 归一化分量限制在 [-2, 2]（即速度不超过 2·U∞），
+    ''' 抑制自回归 rollout 的误差累积发散。
     ''' </summary>
     Public Shared Function ToFluidField(output As Tensor, shape As VoxelShape, freestream As Double) As FluidField
+        Const MaxNorm As Double = 2.0
         Dim nx = shape.Width, ny = shape.Height, nz = shape.Depth
         Dim f As New FluidField(shape)
         Dim data = output.Data
@@ -331,9 +362,43 @@ Public Class CfdGraphData
                     Dim node As Integer = (i * ny + j) * nz + k
                     If shape.IsActive(node) Then
                         Dim p As Integer = node * 3
-                        f.U.Data(node) = CSng(data(p + 0) * freestream)
-                        f.V.Data(node) = CSng(data(p + 1) * freestream)
-                        f.W.Data(node) = CSng(data(p + 2) * freestream)
+                        f.U.Data(node) = CSng(std.Min(std.Max(data(p + 0), -MaxNorm), MaxNorm) * freestream)
+                        f.V.Data(node) = CSng(std.Min(std.Max(data(p + 1), -MaxNorm), MaxNorm) * freestream)
+                        f.W.Data(node) = CSng(std.Min(std.Max(data(p + 2), -MaxNorm), MaxNorm) * freestream)
+                    End If
+                Next
+            Next
+        Next
+        Return f
+    End Function
+
+    ''' <summary>
+    ''' 将 GNN 输出 [N, 3]（归一化速度增量 Δv/U∞）施加到当前流场：
+    ''' field_next = field + Δ（仅流体体素；分量限幅 ±2·U∞/步）。
+    ''' 供模式B残差式 rollout 使用。
+    ''' </summary>
+    Public Shared Function AddDeltaToField(output As Tensor, field As FluidField,
+                                           shape As VoxelShape, freestream As Double) As FluidField
+        Const MaxNorm As Double = 2.0
+        Dim nx = shape.Width, ny = shape.Height, nz = shape.Depth
+        Dim f As New FluidField(shape)
+        Dim data = output.Data
+
+        For i As Integer = 0 To nx - 1
+            For j As Integer = 0 To ny - 1
+                For k As Integer = 0 To nz - 1
+                    Dim node As Integer = (i * ny + j) * nz + k
+                    If shape.IsActive(node) Then
+                        Dim p As Integer = node * 3
+                        f.U.Data(node) = CSng(std.Min(
+                            std.Max(field.U.Data(node) + data(p + 0) * freestream, -MaxNorm * freestream),
+                            MaxNorm * freestream))
+                        f.V.Data(node) = CSng(std.Min(
+                            std.Max(field.V.Data(node) + data(p + 1) * freestream, -MaxNorm * freestream),
+                            MaxNorm * freestream))
+                        f.W.Data(node) = CSng(std.Min(
+                            std.Max(field.W.Data(node) + data(p + 2) * freestream, -MaxNorm * freestream),
+                            MaxNorm * freestream))
                     End If
                 Next
             Next
