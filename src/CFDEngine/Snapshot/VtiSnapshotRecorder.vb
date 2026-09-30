@@ -31,6 +31,7 @@
 
 Imports System.IO
 Imports System.Text
+Imports Moira.CFDEngine.Snapshot.JSON
 Imports std = System.Math
 
 Namespace Snapshot
@@ -88,6 +89,12 @@ Namespace Snapshot
         ''' <summary>最近一帧的网格尺寸（用于 frames.json）。</summary>
         Private _nx As Integer, _ny As Integer, _nz As Integer
 
+        ''' <summary>
+        ''' 可选的数据集元数据（非 Nothing 时在 <see cref="Finish"/> 写出 metadata.json，
+        ''' 供 <see cref="Data.CfdDataset"/> 等消费端加载可视化）。
+        ''' </summary>
+        Private ReadOnly _metadata As SnapshotMetadata
+
 #Region "构造函数"
 
         ''' <summary>
@@ -98,16 +105,22 @@ Namespace Snapshot
         ''' <param name="interval">采样间隔（每隔多少步捕获一帧，默认 1）</param>
         ''' <param name="pvdName">.pvd 集合文件名（默认 "animation.pvd"）</param>
         ''' <param name="estimatedFrames">预计总帧数，用于估算文件名零填充宽度（默认 0，则用宽度 4）</param>
+        ''' <param name="metadata">
+        ''' 可选数据集元数据；提供时 Finish 会额外写出 metadata.json
+        ''' （含 Grid.Mask / dt / 逐帧引用），使输出目录可被 CfdDataset 直接加载。
+        ''' </param>
         Public Sub New(outputDir As String,
                        Optional baseName As String = "frame",
                        Optional interval As Integer = 1,
                        Optional pvdName As String = "animation.pvd",
-                       Optional estimatedFrames As Integer = 0)
+                       Optional estimatedFrames As Integer = 0,
+                       Optional metadata As SnapshotMetadata = Nothing)
 
             Me.OutputDir = outputDir
             Me.BaseName = baseName
             Me.Interval = std.Max(1, interval)
             Me.PvdName = pvdName
+            Me._metadata = metadata
 
             If estimatedFrames > 0 Then
                 _padWidth = std.Max(4, CInt(std.Floor(std.Log10(estimatedFrames))) + 1)
@@ -151,11 +164,13 @@ Namespace Snapshot
         End Sub
 
         ''' <summary>
-        ''' 模拟结束收尾：生成 animation.pvd（ParaView）与 frames.json（浏览器）。
+        ''' 模拟结束收尾：生成 animation.pvd（ParaView）、frames.json（浏览器），
+        ''' 以及（提供了元数据时的）metadata.json（CfdDataset 数据集）。
         ''' </summary>
         Public Sub Finish() Implements ISnapshotRecorder.Finish
             WritePvd()
             WriteFramesJson()
+            WriteMetadataJson()
         End Sub
 
 #End Region
@@ -203,6 +218,27 @@ Namespace Snapshot
                 writer.WriteLine("  ]")
                 writer.WriteLine("}")
             End Using
+        End Sub
+
+        ''' <summary>
+        ''' 写出 metadata.json —— 把构造时传入的 <see cref="SnapshotMetadata"/>
+        ''' 填充逐帧引用后序列化落盘，使输出目录可被
+        ''' <see cref="Data.CfdDataset"/>（CDFDxCanvas 可视化）直接加载。
+        ''' </summary>
+        Private Sub WriteMetadataJson()
+            If _metadata Is Nothing Then Return
+
+            ' 逐帧引用：与 .pvd / frames.json 的帧清单保持一致
+            _metadata.Frames = New List(Of FrameRef)(_frames.Count)
+            For Each f In _frames
+                _metadata.Frames.Add(New FrameRef With {
+                    .StepIndex = f.StepIndex,
+                    .Time = f.Time,
+                    .File = f.FileName
+                })
+            Next
+
+            File.WriteAllText(Path.Combine(OutputDir, "metadata.json"), _metadata.ToJson())
         End Sub
 
 #End Region

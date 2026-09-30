@@ -26,6 +26,7 @@
 
 Imports Moira.CFDEngine
 Imports Moira.CFDEngine.Snapshot
+Imports Moira.CFDEngine.Snapshot.JSON
 Imports Moira.ZMesh
 Imports std = System.Math
 
@@ -160,9 +161,20 @@ Module ZMeshWindTunnelTest
         tunnel.Solver.UseCudaBackend = gpuReady
 
         Dim framesDir = System.IO.Path.Combine(System.AppContext.BaseDirectory, "frames_zmesh")
+
+        ' 构造数据集元数据（供 CDFDxCanvas 的 CfdDataset 加载可视化）：
+        ' 含 Grid.Mask / dt / 逐帧引用，与 .vti 帧文件同目录输出为 metadata.json
+        Dim metadata = SnapshotMetadata.FromField(
+            tunnel.Field,
+            viscosity:=0.0005,
+            diffusion:=0.0,
+            dt:=dt,
+            solver:=$"StableFluids (Jos Stam, 1999) [{If(gpuReady, "CUDA-F32", "SIMD-F32")}]")
+
         Dim recorder As New VtiSnapshotRecorder(framesDir, baseName:="zmesh_windtunnel",
                                                 interval:=vtiInterval,
-                                                estimatedFrames:=steps \ vtiInterval + 1)
+                                                estimatedFrames:=steps \ vtiInterval + 1,
+                                                metadata:=metadata)
         Console.WriteLine($"    计算域维度  : {tunnel.Field.Nx}×{tunnel.Field.Ny}×{tunnel.Field.Nz}")
         Console.WriteLine($"    来流速度 U∞ : {tunnel.FreestreamVelocity}")
         Console.WriteLine($"    VTI 快照    : 每 {vtiInterval} 步一帧 → {framesDir}")
@@ -182,6 +194,7 @@ Module ZMeshWindTunnelTest
         Dim elapsed = (DateTime.Now - startTime).TotalSeconds
         Console.WriteLine($"    完成，耗时 {elapsed:F2} 秒")
         Console.WriteLine($"    动画集合: {System.IO.Path.Combine(framesDir, "animation.pvd")}")
+        Console.WriteLine($"    数据集  : {System.IO.Path.Combine(framesDir, "metadata.json")}（CfdDataset 可加载）")
 
         ' 断言 vti 帧文件已生成
         Dim vtiFrames = System.IO.Directory.GetFiles(framesDir, "*.vti")

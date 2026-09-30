@@ -53,10 +53,28 @@ Namespace Snapshot.JSON
         ''' <param name="tank">发酵罐（提供网格、粘度、扩散、搅拌器）</param>
         ''' <param name="dt">时间步长</param>
         Public Shared Function FromTank(tank As FermentationTank, dt As Double) As SnapshotMetadata
-            Dim f = tank.Field
-            Dim shape = f.Shape
+            Return FromField(tank.Field, tank.Viscosity, tank.Diffusion, dt,
+                             solver:="StableFluids (Jos Stam, 1999)")
+        End Function
+
+        ''' <summary>
+        ''' 从流体场与仿真配置自动构造快照元数据（网格模型 + 仿真配置）。
+        ''' 适用于任意 "计算空间 + 求解器配置" 的快照场景（如风洞外流动），
+        ''' 与消费端 <see cref="Data.CfdDataset"/> 的 metadata.json 契约保持一致。
+        ''' </summary>
+        ''' <param name="field">流体场（提供网格维度与活动体素掩膜）</param>
+        ''' <param name="viscosity">运动粘度 ν（网格单位）</param>
+        ''' <param name="diffusion">示踪剂扩散系数（网格单位）</param>
+        ''' <param name="dt">时间步长</param>
+        ''' <param name="solver">求解器名称 / 算法描述</param>
+        Public Shared Function FromField(field As FluidField,
+                                         viscosity As Double,
+                                         diffusion As Double,
+                                         dt As Double,
+                                         Optional solver As String = "StableFluids (Jos Stam, 1999)") As SnapshotMetadata
+            Dim shape = field.Shape
             Dim mask As Integer() = Nothing
-            Dim active As Integer = f.TotalVoxels
+            Dim active As Integer = field.TotalVoxels
             If shape IsNot Nothing Then
                 active = shape.TotalActive
                 mask = New Integer(shape.Shape.Length - 1) {}
@@ -64,26 +82,27 @@ Namespace Snapshot.JSON
                     mask(i) = If(shape.Shape(i), 1, 0)
                 Next
             End If
+
             Dim grid = New GridInfo With {
-                .Nx = f.Nx,
-                .Ny = f.Ny,
-                .Nz = f.Nz,
-                .Width = f.Nx,
-                .Height = f.Ny,
-                .Depth = f.Nz,
+                .Nx = field.Nx,
+                .Ny = field.Ny,
+                .Nz = field.Nz,
+                .Width = field.Nx,
+                .Height = field.Ny,
+                .Depth = field.Nz,
                 .Origin = New Double() {0.0, 0.0, 0.0},
                 .Spacing = New Double() {1.0, 1.0, 1.0},
-                .TotalVoxels = f.TotalVoxels,
+                .TotalVoxels = field.TotalVoxels,
                 .ActiveVoxels = active,
                 .Mask = mask,
                 .IndexOrder = "i*ny*nz + j*nz + k"
             }
             Dim sim = New SimulationInfo With {
-                .Viscosity = tank.Viscosity,
-                .Diffusion = tank.Diffusion,
+                .Viscosity = viscosity,
+                .Diffusion = diffusion,
                 .TimeStep = dt,
-                .Solver = "StableFluids (Jos Stam, 1999)",
-                .Stirrer = If(tank.Stirrer Is Nothing, Nothing, StirrerInfo.FromStirrer(tank.Stirrer))
+                .Solver = solver,
+                .Stirrer = Nothing
             }
             Return New SnapshotMetadata With {
                 .Grid = grid,
