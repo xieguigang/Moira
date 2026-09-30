@@ -5,40 +5,51 @@
   </Configurations>
   <Folder Name="/framework/">
     <Project Path="../../GCModeller/src/runtime/sciBASIC#/Data_science/MachineLearning/TensorFlow/TensorFlow.vbproj">
+      <BuildType Solution="Release|x64" Project="nuget_release" />
       <Platform Solution="*|x64" Project="x64" />
     </Project>
     <Project Path="../../GCModeller/src/runtime/sciBASIC#/Data_science/Mathematica/Math/Math/Math.NET5.vbproj">
+      <BuildType Solution="Release|x64" Project="nuget_release" />
       <Platform Solution="*|x64" Project="x64" />
     </Project>
     <Project Path="../../GCModeller/src/runtime/sciBASIC#/gr/Landscape/Landscape.vbproj">
+      <BuildType Solution="Release|x64" Project="nuget_release" />
       <Platform Solution="*|x64" Project="x64" />
     </Project>
     <Project Path="../../GCModeller/src/runtime/sciBASIC#/Microsoft.VisualBasic.Core/src/Core.vbproj">
+      <BuildType Solution="Release|x64" Project="nuget_release" />
       <Platform Solution="*|x64" Project="x64" />
     </Project>
   </Folder>
   <Folder Name="/framework/CUDA/">
     <Project Path="../../GCModeller/src/runtime/sciBASIC#/cuda/ILCuda/ILCuda.vbproj">
+      <BuildType Solution="Release|x64" Project="nuget_release" />
       <Platform Solution="*|x64" Project="x64" />
     </Project>
     <Project Path="../../GCModeller/src/runtime/sciBASIC#/cuda/ILCudaTensor/ILCudaTensor.vbproj">
+      <BuildType Solution="Release|x64" Project="nuget_release" />
       <Platform Solution="*|x64" Project="x64" />
     </Project>
     <Project Path="../../GCModeller/src/runtime/sciBASIC#/vs_solutions/dev/VisualStudio/VisualStudio.NET5.vbproj">
+      <BuildType Solution="Release|x64" Project="nuget_release" />
       <Platform Solution="*|x64" Project="x64" />
     </Project>
   </Folder>
   <Folder Name="/framework/DirectX/">
     <Project Path="../../GCModeller/src/runtime/sciBASIC#/gr/Microsoft.VisualBasic.Imaging/imaging.NET5.vbproj">
+      <BuildType Solution="Release|x64" Project="nuget_release" />
       <Platform Solution="*|x64" Project="x64" />
     </Project>
     <Project Path="../../GCModeller/src/runtime/sciBASIC#/mime/text%html/html_netcore5.vbproj">
+      <BuildType Solution="Release|x64" Project="nuget_release" />
       <Platform Solution="*|x64" Project="x64" />
     </Project>
     <Project Path="../../Microsoft.VisualBasic.Drawing/src/DXApi/DXApi.vbproj">
+      <BuildType Solution="Release|x64" Project="nuget_release" />
       <Platform Solution="*|x64" Project="x64" />
     </Project>
     <Project Path="../../Microsoft.VisualBasic.Drawing/src/DxCanvas/DxCanvas.vbproj">
+      <BuildType Solution="Release|x64" Project="nuget_release" />
       <Platform Solution="*|x64" Project="x64" />
     </Project>
   </Folder>
@@ -52,15 +63,18 @@
     <Platform Solution="*|x64" Project="x64" />
   </Project>
   <Project Path="CFDEngine/CFDEngine.vbproj">
+    <BuildType Solution="Release|x64" Project="nuget_release" />
     <Platform Solution="*|x64" Project="x64" />
   </Project>
   <Project Path="CFDEngine/test/test.vbproj" Id="f44f484f-ca15-4bfe-b49d-cdf30ef9a673">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
   <Project Path="MeshGraph/MeshGraph.vbproj" Id="103de77f-19e2-467f-8c44-6fc4bdc24325">
-    <Platform Solution="Debug|x64" Project="x64" />
+    <BuildType Solution="Release|x64" Project="Debug" />
+    <Platform Solution="*|x64" Project="x64" />
   </Project>
   <Project Path="ZMesh/ZMesh.vbproj" Id="9e164694-844e-48a5-a596-35587f9b3578">
-    <Platform Solution="Debug|x64" Project="x64" />
+    <BuildType Solution="Release|x64" Project="Debug" />
+    <Platform Solution="*|x64" Project="x64" />
   </Project>
 </Solution>

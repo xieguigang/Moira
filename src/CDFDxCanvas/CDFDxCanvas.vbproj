@@ -26,15 +26,13 @@
       - Voxel picking: click/hover a voxel to get all field values with tooltips, field time-series extraction, and pick events for external UI integration.
       - Velocity vector arrow overlay, adjustable point/cube size, opacity and debug info (FPS / device) rendering.
     </Description>
-    <Summary>
-      WinForms control for interactive DirectX visualization of CFD voxel time series (.vti): heatmap point clouds, cross-section slicing, voxel picking with field tooltips and velocity arrows.
-    </Summary>
     <PackageTags>CFD;Voxel;PointCloud;DirectX;WinForms;Visualization;Heatmap;VTI;VTK-XML;Volume-Rendering;Time-Series;Data-Visualization;Scientific-Computing</PackageTags>
-    <ReleaseNotes>
+    <!-- 注意：NuGet pack 读取的是 PackageReleaseNotes（不是 ReleaseNotes） -->
+    <PackageReleaseNotes>
       - CfdDataset: metadata.json + per-frame .vti loading with lazy field fetch, LRU caching and per-field global range statistics.
       - VtiSnapshotRecorder outputs now include metadata.json and can be loaded directly by this control.
       - Cross-section slicing, voxel picking with hover tooltips, velocity arrow overlay and colorbar overlay rendering.
-    </ReleaseNotes>
+    </PackageReleaseNotes>
     <Version>1.0.9769.26194</Version>
     <AssemblyVersion>1.0.9769.26194</AssemblyVersion>
     <Configurations>Debug;Release;nuget_release</Configurations>

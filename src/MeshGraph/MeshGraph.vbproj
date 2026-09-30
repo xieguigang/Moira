@@ -18,14 +18,12 @@
       - MeshGNNTrainer: training pipeline with CUDA GPU backend registration (GPUTensor.CudaTensor, double stack) and automatic SIMD CPU fallback.
       - VoxelSphere / CfdGraphData: parameterized sphere obstacles and voxel-to-graph conversion helpers.
     </Description>
-    <Summary>
-      Train and run GNN surrogate models on voxel-grid graphs to predict CFDEngine wind-tunnel flow fields, replacing repeated CFD runs with fast neural inference.
-    </Summary>
     <PackageTags>GNN;Graph-Neural-Network;CFD;Surrogate-Model;Machine-Learning;Deep-Learning;Wind-Tunnel;Voxel;Scientific-Computing</PackageTags>
-    <ReleaseNotes>
+    <!-- 注意：NuGet pack 读取的是 PackageReleaseNotes（不是 ReleaseNotes） -->
+    <PackageReleaseNotes>
       - GNN surrogate training pipeline over voxel-grid graphs with steady-state (mode A) and autoregressive time-evolution (mode B) models.
       - CUDA GPU backend support via GPUTensor.CudaTensor registration (double-precision tensor stack), automatic fallback to SIMD CPU.
-    </ReleaseNotes>
+    </PackageReleaseNotes>
     <AssemblyName>Moira.MeshGraph</AssemblyName>
     <Version>1.0.9769.26194</Version>
     <AssemblyVersion>1.0.9769.26194</AssemblyVersion>

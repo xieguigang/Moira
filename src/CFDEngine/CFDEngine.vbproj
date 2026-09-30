@@ -23,15 +23,13 @@
       - Snapshot exporters: binary VTK XML ImageData (.vti) with animation.pvd and metadata.json, legacy VTK (.vtk) and JSON frame dumps, ready for ParaView or CDFDxCanvas visualization.
       - Optional CUDA GPU acceleration (CudaTensorF, float32 NVRTC kernels for Jacobi / advection / pressure projection) with automatic CPU fallback.
     </Description>
-    <Summary>
-      Teaching-oriented 3D CFD engine (stable fluids) with stirred-tank and wind-tunnel simulation containers, solid voxel obstacles, optional CUDA GPU acceleration and VTI/VTK/JSON snapshot exporters.
-    </Summary>
     <PackageTags>CFD;Fluid-Dynamics;StableFluids;Navier-Stokes;Wind-Tunnel;Voxel;Simulation;CUDA;GPU;VTK;VTI;Teaching;Scientific-Computing</PackageTags>
-    <ReleaseNotes>
+    <!-- 注意：NuGet pack 读取的是 PackageReleaseNotes（不是 ReleaseNotes） -->
+    <PackageReleaseNotes>
       - Add CUDA GPU acceleration: CudaTensorF (ITensorComputeF, float32) backend with NVRTC-compiled CFD kernels (embedded resource moira_cfd_f32.cu) for Jacobi diffusion, pressure Poisson and semi-Lagrangian advection; StableFluidsSolver.UseCudaBackend switch with automatic CPU fallback.
       - VtiSnapshotRecorder now writes metadata.json (SnapshotMetadata with grid mask, dt and frame refs) so output folders can be loaded directly by CDFDxCanvas CfdDataset.
       - SnapshotMetadata.FromField factory for non-tank simulation containers.
-    </ReleaseNotes>
+    </PackageReleaseNotes>
     <Platforms>AnyCPU;x64</Platforms>
     <RootNamespace>Moira.CFDEngine</RootNamespace>
     <UseApplicationFramework>True</UseApplicationFramework>
