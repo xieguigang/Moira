@@ -19,6 +19,20 @@ Module DemoTestEntry
 
     <STAThread>
     Sub Main()
+        ' ---- 命令行测试分支转发：WinForms 演示表单仍为默认入口 ----
+        ' 传入 --zmesh-windtunnel / --windtunnel / --gnn-windtunnel 时，
+        ' 转交 Program.Main 的控制台测试分支派发执行。
+        Dim args = System.Environment.GetCommandLineArgs()
+        For Each a In args
+            Dim lower = a.ToLower()
+            If lower = "--zmesh-windtunnel" OrElse lower = "zmesh-windtunnel" OrElse
+               lower = "--windtunnel" OrElse lower = "windtunnel" OrElse
+               lower = "--gnn-windtunnel" OrElse lower = "gnn-windtunnel" Then
+                Program.Main()
+                Return
+            End If
+        Next
+
         Application.EnableVisualStyles()
         Application.SetCompatibleTextRenderingDefault(False)
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2)

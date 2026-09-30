@@ -26,9 +26,17 @@
 ' /********************************************************************************/
 
 Imports System.IO
+Imports Moira.CFDEngine
+Imports Microsoft.VisualBasic.ApplicationServices
+Imports Microsoft.VisualBasic.ApplicationServices.Zip
 Imports Microsoft.VisualBasic.Imaging.Landscape.Data
-Imports Microsoft.VisualBasic.Imaging.Landscape.Voxelization
+Imports Microsoft.VisualBasic.Imaging.Landscape.ThreeMF
+' 注意：不导入 Landscape.Voxelization 命名空间本身 —— 其中的 VoxelModel
+' 与 Moira.CFDEngine 根命名空间的 VoxelModel 同名且语义相反，
+' 会导致 BC30561 二义性错误。此处改用类型别名消歧：
 Imports LxVoxel = Microsoft.VisualBasic.Imaging.Landscape.Voxelization.VoxelModel
+Imports LxVoxelizer = Microsoft.VisualBasic.Imaging.Landscape.Voxelization.Voxelizer
+Imports LxSDFVoxelizer = Microsoft.VisualBasic.Imaging.Landscape.Voxelization.SDFVoxelizer
 
 ''' <summary>
 ''' 体素化器实现选择。
@@ -83,7 +91,16 @@ Public Module WindTunnelSceneBuilder
         End If
 
         ' ---- 1. 统一加载为 SceneModel（按扩展名自动检测格式）----
-        Dim scene As SceneModel = filePath.LoadModel
+        ' 3MF 走专门的加载路径（见 Load3mfScene）：
+        ' Landscape 的 ModelIO.Open / Project.FromZipDirectory 会无条件加载
+        ' Metadata/thumbnail.png，而核心库自带的 BitmapReader 不支持 PNG 解码
+        ' （"invalid magic number!"），导致含缩略图的 3mf 文件加载必然失败。
+        Dim scene As SceneModel
+        If ModelLoader.DetectFormat(filePath) = ModelFormat._3MF Then
+            scene = Load3mfScene(filePath)
+        Else
+            scene = filePath.LoadModel
+        End If
         If scene Is Nothing OrElse scene.Surfaces Is Nothing OrElse scene.Surfaces.Length = 0 Then
             Throw New InvalidDataException($"模型加载失败或不含几何表面：{filePath}")
         End If
@@ -92,9 +109,9 @@ Public Module WindTunnelSceneBuilder
         Dim lx As LxVoxel
         Select Case voxelizer
             Case VoxelizerKind.Sdf
-                lx = SDFVoxelizer.Voxelize(scene, resolution, subSamples)
+                lx = LxSDFVoxelizer.Voxelize(scene, resolution, subSamples)
             Case Else
-                lx = Voxelizer.Voxelize(scene, resolution)
+                lx = LxVoxelizer.Voxelize(scene, resolution)
         End Select
 
         If lx Is Nothing OrElse lx.Shape Is Nothing Then
@@ -104,6 +121,22 @@ Public Module WindTunnelSceneBuilder
         ' ---- 3. 语义反转：Landscape True(固体) → CFDEngine False(障碍) ----
         Return ToCfdVoxelModel(lx, filePath)
 
+    End Function
+
+    ''' <summary>
+    ''' 3MF 文件的专用加载路径：解包 ZIP 后直接解析 ``3D/3dmodel.model``，
+    ''' 跳过 ``Metadata/thumbnail.png``（Landscape 的 BitmapReader 不支持 PNG，
+    ''' 无条件加载缩略图会导致含缩略图的 3mf 文件加载失败）。
+    ''' </summary>
+    ''' <param name="filePath">*.3mf 文件路径</param>
+    Public Function Load3mfScene(filePath As String) As SceneModel
+        Dim tmp As String = TempFileSystem.GetAppSysTempFile("--" & filePath.FileName, sessionID:=App.PID)
+        Call UnZip.ImprovedExtractToDirectory(filePath, tmp, Overwrite.Always)
+
+        Dim proj As New Project With {
+            .model = ModelIO.Load3DModel(tmp & "/3D/3dmodel.model")
+        }
+        Return proj.ToSceneModel
     End Function
 
     ''' <summary>

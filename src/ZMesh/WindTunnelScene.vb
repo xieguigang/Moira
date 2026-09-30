@@ -19,6 +19,8 @@
 '
 ' /********************************************************************************/
 
+Imports Moira.CFDEngine
+
 ''' <summary>
 ''' 风洞试验三维场景 —— 模型体素化 + 计算域放大定位结果的封装。
 ''' </summary>
@@ -119,7 +121,7 @@ Public Class WindTunnelScene
         Dim d = Domain
         Return $"WindTunnelScene[{SourceFile}] " &
                $"model={m.Width}x{m.Height}x{m.Depth} solid={m.SolidVoxelCount} " &
-               $"domain={d.Nx}x{d.Ny}x{d.Nz} " &
+               $"domain={d.Width}x{d.Height}x{d.Depth} " &
                $"scale={DomainScale} clearance={GroundClearance} voxelizer={Voxelizer}"
     End Function
 

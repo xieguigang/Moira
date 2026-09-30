@@ -21,14 +21,23 @@
 
 Imports Moira.CFDEngine
 Imports Moira.CFDEngine.Snapshot
+Imports Moira.ZMesh
 Imports std = System.Math
 
 Module Program
 
     Sub Main()
 
-        ' ---- GNN 代理模型风洞测试分支：--gnn-windtunnel ----
+        ' ---- ZMesh 风洞测试分支：--zmesh-windtunnel ----
         Dim args = System.Environment.GetCommandLineArgs()
+        For Each a In args
+            If a.ToLower() = "--zmesh-windtunnel" OrElse a.ToLower() = "zmesh-windtunnel" Then
+                RunZMeshWindTunnelBranch(args)
+                Return
+            End If
+        Next
+
+        ' ---- GNN 代理模型风洞测试分支：--gnn-windtunnel ----
         For Each a In args
             If a.ToLower() = "--gnn-windtunnel" OrElse a.ToLower() = "gnn-windtunnel" Then
                 RunGNNWindTunnelBranch(args)
@@ -305,6 +314,81 @@ Module Program
             testRadius:=radius, testClearance:=clearance, testFreestream:=freestream,
             enableGpu:=enableGpu)
 
+        System.Environment.ExitCode = If(pass, 0, 1)
+    End Sub
+
+#End Region
+
+#Region "ZMesh 风洞测试分支"
+
+    ''' <summary>
+    ''' 解析命令行参数并运行基于 ZMesh 的风洞测试流程
+    ''' （3D 模型文件 → Landscape 加载体素化 → 风洞场景 → CFDEngine 仿真 → VTI 导出）。
+    ''' 用法：dotnet run -- --zmesh-windtunnel [模型路径] [--resolution N] [--scale N]
+    '''                      [--clearance N] [--steps N] [--freestream F] [--dt F]
+    '''                      [--interval N] [--voxelizer standard|sdf]
+    ''' 模型路径支持 STL / GLTF / GLB / OBJ / DAE / 3DS / 3MF，
+    ''' 未指定时默认使用输出目录中的 airplane1.3mf。
+    ''' </summary>
+    Sub RunZMeshWindTunnelBranch(args As String())
+        Dim modelPath As String = Nothing
+        Dim resolution As Integer = 32
+        Dim domainScale As Double = 2.0
+        Dim groundClearance As Integer = 0
+        Dim freestream As Double = 3.0
+        Dim steps As Integer = 40
+        Dim vtiInterval As Integer = 10
+        Dim voxelizer As VoxelizerKind = VoxelizerKind.Standard
+
+        Dim i As Integer = 0
+        While i < args.Length
+            Dim a = args(i)
+            Dim lower = a.ToLower()
+            If (lower = "--resolution" OrElse lower = "resolution") AndAlso i + 1 < args.Length Then
+                Integer.TryParse(args(i + 1), resolution)
+                If resolution < 4 Then resolution = 4
+                i += 1
+            ElseIf lower = "--scale" AndAlso i + 1 < args.Length Then
+                Double.TryParse(args(i + 1), domainScale)
+                If domainScale < 1.0 Then domainScale = 1.0
+                i += 1
+            ElseIf lower = "--clearance" AndAlso i + 1 < args.Length Then
+                Integer.TryParse(args(i + 1), groundClearance)
+                If groundClearance < 0 Then groundClearance = 0
+                i += 1
+            ElseIf lower = "--steps" AndAlso i + 1 < args.Length Then
+                Integer.TryParse(args(i + 1), steps)
+                If steps < 1 Then steps = 1
+                i += 1
+            ElseIf lower = "--freestream" AndAlso i + 1 < args.Length Then
+                Double.TryParse(args(i + 1), freestream)
+                If freestream <= 0 Then freestream = 3.0
+                i += 1
+            ElseIf lower = "--interval" AndAlso i + 1 < args.Length Then
+                Integer.TryParse(args(i + 1), vtiInterval)
+                If vtiInterval < 1 Then vtiInterval = 1
+                i += 1
+            ElseIf (lower = "--voxelizer" OrElse lower = "voxelizer") AndAlso i + 1 < args.Length Then
+                voxelizer = If(args(i + 1).ToLower().StartsWith("sdf"),
+                               VoxelizerKind.Sdf, VoxelizerKind.Standard)
+                i += 1
+            ElseIf lower.EndsWith(".3mf") OrElse lower.EndsWith(".stl") OrElse lower.EndsWith(".obj") OrElse
+                   lower.EndsWith(".gltf") OrElse lower.EndsWith(".glb") OrElse lower.EndsWith(".dae") OrElse
+                   lower.EndsWith(".3ds") Then
+                modelPath = a
+            End If
+            i += 1
+        End While
+
+        Dim pass = ZMeshWindTunnelTest.RunZMeshWindTunnelTest(
+            modelPath:=modelPath,
+            resolution:=resolution,
+            voxelizer:=voxelizer,
+            domainScale:=domainScale,
+            groundClearance:=groundClearance,
+            freestream:=freestream,
+            steps:=steps,
+            vtiInterval:=vtiInterval)
         System.Environment.ExitCode = If(pass, 0, 1)
     End Sub
 
