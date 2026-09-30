@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <RootNamespace>test</RootNamespace>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Platforms>AnyCPU;x64</Platforms>
@@ -9,7 +9,7 @@
     <UseWindowsForms>True</UseWindowsForms>
     <UseWPF>True</UseWPF>
     <MyType>WindowsForms</MyType>
-    <StartupObject>test.DemoTestEntry</StartupObject>
+    <StartupObject>test.Program</StartupObject>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
   </PropertyGroup>
 

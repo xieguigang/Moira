@@ -2,7 +2,7 @@
   "profiles": {
     "test": {
       "commandName": "Project",
-      "commandLineArgs": "--zmesh-windtunnel"
+      "commandLineArgs": "--zmesh-windtunnel --gpu"
     }
   }
 }
