@@ -45,6 +45,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- CFD float32 CUDA 内核源码：嵌入程序集，运行时由 CudaTensorF.CFDKernelSource 读取 -->
+    <EmbeddedResource Include="Kernels\moira_cfd_f32.cu" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="viz-default.png" />
     <None Remove="viz2.png" />
     <None Remove="viz3.png" />
