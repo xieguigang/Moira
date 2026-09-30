@@ -260,7 +260,7 @@ Public Class CfdGraphData
                 For k As Integer = 0 To nz - 1
                     Dim node As Integer = (i * ny + j) * nz + k
                     Dim p As Integer = node * ModeBFeatDim
-                    Dim fluid = field.IsActive(node)
+                    Dim fluid = field.IsActive(i, j, k)
                     feats(p + 0) = If(fluid, 0.0F, 1.0F)
                     feats(p + 1) = CSng(i / std.Max(nx - 1, 1))
                     feats(p + 2) = CSng(j / std.Max(ny - 1, 1))
@@ -278,6 +278,7 @@ Public Class CfdGraphData
     ''' 提取节点级回归标签（长度 N*3）：u/U∞、v/U∞、w/U∞（固体体素为 0）。
     ''' </summary>
     Public Shared Function ExtractLabels(field As FluidField, freestream As Double) As Single()
+        Dim nx = field.Nx, ny = field.Ny, nz = field.Nz
         Dim n As Integer = field.TotalVoxels
         Dim labels(n * 3 - 1) As Single
         Dim invU As Single = CSng(1.0 / freestream)
@@ -285,7 +286,12 @@ Public Class CfdGraphData
 
         For t As Integer = 0 To n - 1
             Dim p As Integer = t * 3
-            If field.IsActive(t) Then
+            ' 展平索引 → 三维坐标
+            Dim i = t \ (ny * nz)
+            Dim rem_ = t Mod (ny * nz)
+            Dim j = rem_ \ nz
+            Dim k = rem_ Mod nz
+            If field.IsActive(i, j, k) Then
                 labels(p + 0) = u0(t) * invU
                 labels(p + 1) = v0(t) * invU
                 labels(p + 2) = w0(t) * invU
