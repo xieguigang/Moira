@@ -4,6 +4,9 @@
     <RootNamespace>MeshGraph</RootNamespace>
     <TargetFramework>net10.0</TargetFramework>
     <Platforms>AnyCPU;x64</Platforms>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Title>GNN based CFD simulation</Title>
   </PropertyGroup>
 
   <ItemGroup>
