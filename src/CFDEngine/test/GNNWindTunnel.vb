@@ -28,6 +28,7 @@
 ' /********************************************************************************/
 
 Imports MeshGraph
+Imports Microsoft.VisualBasic.MachineLearning.TensorFlow
 Imports Moira.CFDEngine
 Imports Moira.CFDEngine.Snapshot
 Imports std = System.Math
@@ -212,13 +213,19 @@ Module GNNWindTunnel
     ''' </summary>
     Private Function VelocityRmse(pred As FluidField, ref As FluidField, freestream As Double) As Double
         Dim n = ref.TotalVoxels
+        Dim ny = ref.Ny, nz = ref.Nz
         Dim sum As Double = 0.0
         Dim count As Integer = 0
         Dim pu = pred.U.Data, pv = pred.V.Data, pw = pred.W.Data
         Dim ru = ref.U.Data, rv = ref.V.Data, rw = ref.W.Data
 
         For t As Integer = 0 To n - 1
-            If ref.IsActive(t) Then
+            ' 展平索引 → 三维坐标
+            Dim i = t \ (ny * nz)
+            Dim rem_ = t Mod (ny * nz)
+            Dim j = rem_ \ nz
+            Dim k = rem_ Mod nz
+            If ref.IsActive(i, j, k) Then
                 Dim du = pu(t) - ru(t)
                 Dim dv = pv(t) - rv(t)
                 Dim dw = pw(t) - rw(t)
@@ -235,8 +242,14 @@ Module GNNWindTunnel
     Private Function MaxSpeed(f As FluidField) As Double
         Dim maxS = 0.0
         Dim n = f.TotalVoxels
+        Dim ny = f.Ny, nz = f.Nz
         For t As Integer = 0 To n - 1
-            If f.IsActive(t) Then
+            ' 展平索引 → 三维坐标
+            Dim i = t \ (ny * nz)
+            Dim rem_ = t Mod (ny * nz)
+            Dim j = rem_ \ nz
+            Dim k = rem_ Mod nz
+            If f.IsActive(i, j, k) Then
                 Dim u = f.U.Data(t), v = f.V.Data(t), w = f.W.Data(t)
                 Dim s = std.Sqrt(u * u + v * v + w * w)
                 If s > maxS Then maxS = s
@@ -319,3 +332,5 @@ Module GNNWindTunnel
     End Function
 
 #End Region
+
+End Module

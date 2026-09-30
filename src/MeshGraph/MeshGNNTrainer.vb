@@ -142,7 +142,6 @@ Public Class MeshGNNTrainer
         Dim valCount As Integer = std.Max(1, CInt(samples.Count * valFrac))
         Dim valIdx = indices.Take(valCount).ToArray()
         Dim trainIdx = indices.Skip(valCount).ToArray()
-
         Console.WriteLine($"[训练] 样本 train={trainIdx.Length}, val={valIdx.Length}, epochs={epochs}, lr={LearningRate}")
 
         Dim bestVal As Single = Single.PositiveInfinity
@@ -250,7 +249,7 @@ Public Class MeshGNNTrainer
         Next
     End Sub
 
-    Private Shared Sub Shuffle(list As List(Of Integer), rng As Random)
+    Private Shared Sub Shuffle(list As IList(Of Integer), rng As Random)
         For i As Integer = list.Count - 1 To 1 Step -1
             Dim j = rng.Next(i + 1)
             Dim tmp = list(i)
