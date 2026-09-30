@@ -39,6 +39,12 @@
       <Platform Solution="*|x64" Project="x64" />
     </Project>
   </Folder>
+  <Folder Name="/framework/GNN/">
+    <Project Path="../../GCModeller/src/runtime/sciBASIC#/Data_science/MachineLearning/GNN/GNN.vbproj">
+      <BuildType Solution="Release|*" Project="nuget_release" />
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+  </Folder>
   <Project Path="CDFDxCanvas/CDFDxCanvas.vbproj" Id="dceb9a7f-7f8a-4f0a-93b0-914f72014854">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
@@ -47,5 +53,8 @@
   </Project>
   <Project Path="CFDEngine/test/test.vbproj" Id="f44f484f-ca15-4bfe-b49d-cdf30ef9a673">
     <Platform Solution="*|x64" Project="x64" />
+  </Project>
+  <Project Path="MeshGraph/MeshGraph.vbproj" Id="103de77f-19e2-467f-8c44-6fc4bdc24325">
+    <Platform Solution="Debug|x64" Project="x64" />
   </Project>
 </Solution>
