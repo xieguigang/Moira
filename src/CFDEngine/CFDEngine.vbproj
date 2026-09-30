@@ -11,7 +11,27 @@
     <LangVersion>16.9</LangVersion>
     <Nullable>Disable</Nullable>
     <AssemblyTitle>Basic CFD Engine for Teaching</AssemblyTitle>
-    <Description>A basic Computational Fluid Dynamics engine implemented in VB.NET using basic math functions, designed for principle learning and teaching. Simulates 3D liquid stirring in a fermentation tank.</Description>
+    <PackageId>Moira.CFDEngine</PackageId>
+    <Title>Moira.CFDEngine - Basic CFD Engine for Teaching</Title>
+    <Description>
+      A basic Computational Fluid Dynamics engine implemented in VB.NET using basic math functions, designed for principle learning and teaching.
+
+      Features:
+      - Stable Fluids (Jos Stam, 1999) 3D incompressible solver on a voxel grid (semi-Lagrangian advection, implicit diffusion, pressure projection) with solid-voxel obstacle masks.
+      - FermentationTank: internal closed flow driven by a rotating stirrer (stirred-tank simulation with dye tracing).
+      - WindTunnel: external open flow around solid voxel models (uniform freestream inlet, zero-gradient outlet, ground wall), with turbulence metrics (max/average speed, enstrophy, wake deficit).
+      - Snapshot exporters: binary VTK XML ImageData (.vti) with animation.pvd and metadata.json, legacy VTK (.vtk) and JSON frame dumps, ready for ParaView or CDFDxCanvas visualization.
+      - Optional CUDA GPU acceleration (CudaTensorF, float32 NVRTC kernels for Jacobi / advection / pressure projection) with automatic CPU fallback.
+    </Description>
+    <Summary>
+      Teaching-oriented 3D CFD engine (stable fluids) with stirred-tank and wind-tunnel simulation containers, solid voxel obstacles, optional CUDA GPU acceleration and VTI/VTK/JSON snapshot exporters.
+    </Summary>
+    <PackageTags>CFD;Fluid-Dynamics;StableFluids;Navier-Stokes;Wind-Tunnel;Voxel;Simulation;CUDA;GPU;VTK;VTI;Teaching;Scientific-Computing</PackageTags>
+    <ReleaseNotes>
+      - Add CUDA GPU acceleration: CudaTensorF (ITensorComputeF, float32) backend with NVRTC-compiled CFD kernels (embedded resource moira_cfd_f32.cu) for Jacobi diffusion, pressure Poisson and semi-Lagrangian advection; StableFluidsSolver.UseCudaBackend switch with automatic CPU fallback.
+      - VtiSnapshotRecorder now writes metadata.json (SnapshotMetadata with grid mask, dt and frame refs) so output folders can be loaded directly by CDFDxCanvas CfdDataset.
+      - SnapshotMetadata.FromField factory for non-tank simulation containers.
+    </ReleaseNotes>
     <Platforms>AnyCPU;x64</Platforms>
     <RootNamespace>Moira.CFDEngine</RootNamespace>
     <UseApplicationFramework>True</UseApplicationFramework>

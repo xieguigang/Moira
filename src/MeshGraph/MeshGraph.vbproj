@@ -6,7 +6,26 @@
     <Platforms>AnyCPU;x64</Platforms>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Title>GNN based CFD simulation</Title>
+    <PackageId>Moira.MeshGraph</PackageId>
+    <Title>Moira.MeshGraph - GNN Surrogate Models for CFD Wind-Tunnel Simulation</Title>
+    <Description>
+      Graph neural network (GNN) surrogate models for the Moira CFD engine (Moira.CFDEngine), designed to replace expensive repeated CFD wind-tunnel runs with fast learned predictions.
+
+      Features:
+      - MeshGNN: message-passing graph neural network over voxel-grid graphs (nodes = fluid voxels, edges = 6-neighborhood adjacency) built from CFDEngine wind-tunnel compute spaces.
+      - GnnDataset: training dataset generation from parameterized wind-tunnel simulations (geometry radius x ground clearance x freestream velocity), collecting steady-state field samples (mode A) and single-step time-evolution trajectories (mode B).
+      - Surrogates: SteadyStateSurrogate (geometry + freestream to steady flow field in one forward pass) and AutoregressiveSurrogate (single-step evolution model iterated rollout).
+      - MeshGNNTrainer: training pipeline with CUDA GPU backend registration (GPUTensor.CudaTensor, double stack) and automatic SIMD CPU fallback.
+      - VoxelSphere / CfdGraphData: parameterized sphere obstacles and voxel-to-graph conversion helpers.
+    </Description>
+    <Summary>
+      Train and run GNN surrogate models on voxel-grid graphs to predict CFDEngine wind-tunnel flow fields, replacing repeated CFD runs with fast neural inference.
+    </Summary>
+    <PackageTags>GNN;Graph-Neural-Network;CFD;Surrogate-Model;Machine-Learning;Deep-Learning;Wind-Tunnel;Voxel;Scientific-Computing</PackageTags>
+    <ReleaseNotes>
+      - GNN surrogate training pipeline over voxel-grid graphs with steady-state (mode A) and autoregressive time-evolution (mode B) models.
+      - CUDA GPU backend support via GPUTensor.CudaTensor registration (double-precision tensor stack), automatic fallback to SIMD CPU.
+    </ReleaseNotes>
     <AssemblyName>Moira.MeshGraph</AssemblyName>
     <Version>1.0.9769.26194</Version>
     <AssemblyVersion>1.0.9769.26194</AssemblyVersion>

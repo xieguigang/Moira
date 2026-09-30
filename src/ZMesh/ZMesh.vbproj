@@ -5,7 +5,28 @@
     <TargetFramework>net10.0</TargetFramework>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Title>Make 3d model convert to CFD voxel shape model</Title>
+    <PackageId>Moira.ZMesh</PackageId>
+    <Title>Moira.ZMesh - Wind Tunnel Scene Builder from 3D Model Files</Title>
+    <Description>
+      Wind tunnel initialization toolkit for the Moira CFD engine (Moira.CFDEngine).
+
+      Features:
+      - Unified 3D model file loading via the Landscape library: STL (ASCII/binary), glTF, GLB, Wavefront OBJ, COLLADA (.dae), 3D-Studio (.3ds) and 3MF.
+      - Model voxelization with selectable backend: standard column-based ray-casting voxelizer (fast) or SDF signed-distance-field voxelizer with sub-sampling anti-aliasing (better boundary quality).
+      - Semantics-preserving conversion into the CFD engine compute space (Landscape "True = solid" maps to engine "False = solid obstacle"), with solid voxel count and bounding-box metadata.
+      - One-step wind tunnel scene building: compute-domain scaling (domainScale) with X/Z centering and Y ground-clearance placement; WindTunnelScene.CreateTunnel directly returns a ready-to-run WindTunnel simulation.
+      - Dedicated 3MF loader that bypasses the fragile embedded-thumbnail decoding so thumbnail-bearing .3mf files load reliably.
+    </Description>
+    <Summary>
+      Load any common 3D model file, voxelize it (standard or SDF), convert it to the Moira.CFDEngine compute space and build ready-to-run wind tunnel scenes.
+    </Summary>
+    <PackageTags>CFD;Voxel;Voxelization;3D-Model;Mesh;Wind-Tunnel;3MF;STL;OBJ;glTF;Scene-Builder;Scientific-Computing</PackageTags>
+    <ReleaseNotes>
+      - WindTunnelSceneBuilder: one-step pipeline (LoadModel - Voxelize - semantic inversion - domain scaling / ground placement).
+      - WindTunnelScene wrapper with CreateTunnel for direct WindTunnel simulation creation.
+      - VoxelizerKind enum exposes Standard and SDF voxelizers (default Standard).
+      - Dedicated 3MF loader bypasses the PNG thumbnail decoding failure of the generic 3MF reader.
+    </ReleaseNotes>
     <Platforms>AnyCPU;x64</Platforms>
     <AssemblyName>Moira.ZMesh</AssemblyName>
     <Version>1.0.9769.26194</Version>

@@ -13,6 +13,28 @@
     <AssemblyName>Moira.CDFDxCanvas</AssemblyName>
     <RootNamespace>Moira.CDFDxCanvas</RootNamespace>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageId>Moira.CDFDxCanvas</PackageId>
+    <Title>Moira.CDFDxCanvas - DirectX CFD Voxel Visualization WinForms Control</Title>
+    <Description>
+      Interactive 3D visualization WinForms control for CFD voxel simulation results produced by Moira.CFDEngine.
+
+      Features:
+      - CFDCanvas control: DirectX-accelerated (DxScene3DCanvas) point-cloud / cube rendering of voxel flow fields, with frame animation playback over the simulation time series.
+      - Dataset loading: metadata.json + per-frame .vti time series (CfdDataset) with lazy loading, LRU frame cache and per-field global range statistics; VtiReader parses VTK XML ImageData (raw and zlib-compressed appended data) with multi-component field expansion (velocity, species, gene expression, ...).
+      - Scalar field visualization: heatmap palettes (Jet and more), auto/manual value ranges, transparency threshold, colorbar overlay.
+      - Cross-section slicing along X/Y/Z axes (3D clipping as well as 2D slice heatmap bitmaps).
+      - Voxel picking: click/hover a voxel to get all field values with tooltips, field time-series extraction, and pick events for external UI integration.
+      - Velocity vector arrow overlay, adjustable point/cube size, opacity and debug info (FPS / device) rendering.
+    </Description>
+    <Summary>
+      WinForms control for interactive DirectX visualization of CFD voxel time series (.vti): heatmap point clouds, cross-section slicing, voxel picking with field tooltips and velocity arrows.
+    </Summary>
+    <PackageTags>CFD;Voxel;PointCloud;DirectX;WinForms;Visualization;Heatmap;VTI;VTK-XML;Volume-Rendering;Time-Series;Data-Visualization;Scientific-Computing</PackageTags>
+    <ReleaseNotes>
+      - CfdDataset: metadata.json + per-frame .vti loading with lazy field fetch, LRU caching and per-field global range statistics.
+      - VtiSnapshotRecorder outputs now include metadata.json and can be loaded directly by this control.
+      - Cross-section slicing, voxel picking with hover tooltips, velocity arrow overlay and colorbar overlay rendering.
+    </ReleaseNotes>
     <Version>1.0.9769.26194</Version>
     <AssemblyVersion>1.0.9769.26194</AssemblyVersion>
     <Configurations>Debug;Release;nuget_release</Configurations>
