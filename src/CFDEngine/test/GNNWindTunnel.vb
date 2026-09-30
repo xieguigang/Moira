@@ -69,6 +69,7 @@ Module GNNWindTunnel
         Console.WriteLine($"    计算域 {domainNx}x{domainNy}x{domainNz}，CFD 步数 {cfdSteps}，dt={dt}")
 
         Dim configs = GnnDataset.DefaultSweepConfigs(domainNx, domainNy, domainNz)
+        domainNy = configs(0).DomainNy   ' 回读自动适配后的域高度
         Console.WriteLine($"    参数扫描 {configs.Count} 组：半径 x 离地间隙 x 来流速度")
 
         Dim modeASamples = GnnDataset.CollectModeADataset(configs, settleSteps:=cfdSteps + 20, dt:=dt)
@@ -107,7 +108,9 @@ Module GNNWindTunnel
         Console.WriteLine()
         Console.WriteLine($"[4] 测试场景：地面上球体 r={testRadius}, 离地={testClearance}, U∞={testFreestream:F2}（留出参数）...")
 
-        Dim testConfig As New SphereConfig(testRadius, testClearance, testFreestream, domainNx, domainNy, domainNz)
+        ' 保证测试球体能放进计算域
+        Dim testNy = std.Max(domainNy, testClearance + 2 * testRadius + 1)
+        Dim testConfig As New SphereConfig(testRadius, testClearance, testFreestream, domainNx, testNy, domainNz)
         Dim testShape = VoxelSphere.BuildGroundDomain(testConfig)
 
         ' CFD 基准解
