@@ -162,6 +162,12 @@ Module ZMeshWindTunnelTest
 
         Dim framesDir = System.IO.Path.Combine(System.AppContext.BaseDirectory, "frames_zmesh")
 
+        ' 清理上一次运行的输出：不同分辨率 / 步数的陈旧帧与本次 metadata.json
+        ' 不一致，会干扰可视化端的数据集加载
+        If System.IO.Directory.Exists(framesDir) Then
+            System.IO.Directory.Delete(framesDir, True)
+        End If
+
         ' 构造数据集元数据（供 CDFDxCanvas 的 CfdDataset 加载可视化）：
         ' 含 Grid.Mask / dt / 逐帧引用，与 .vti 帧文件同目录输出为 metadata.json
         Dim metadata = SnapshotMetadata.FromField(
