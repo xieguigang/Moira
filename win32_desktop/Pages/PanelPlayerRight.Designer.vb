@@ -1,5 +1,4 @@
 ﻿Imports Galaxy.Workbench.DockDocument
-Imports CDFDxCanvas
 
 <Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()>
 Partial Class PanelPlayerRight

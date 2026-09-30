@@ -1,9 +1,9 @@
 ﻿Imports System.ComponentModel
 Imports System.Drawing.Drawing2D
-Imports CDFDxCanvas
-Imports CDFDxCanvas.Data
 Imports Galaxy.Workbench
 Imports Microsoft.VisualBasic.My.JavaScript
+Imports Moira.CDFDxCanvas
+Imports Moira.CDFDxCanvas.Data
 
 Public Class PanelPlayerRight
 

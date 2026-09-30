@@ -1,8 +1,8 @@
 ﻿Imports System.Drawing.Drawing2D
-Imports CDFDxCanvas
-Imports CDFDxCanvas.Data
 Imports Galaxy.Workbench
 Imports Microsoft.VisualStudio.WinForms.Docking
+Imports Moira.CDFDxCanvas
+Imports Moira.CDFDxCanvas.Data
 
 Public Class PageCFDPlayer
 

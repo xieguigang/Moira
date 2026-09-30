@@ -1,4 +1,6 @@
 ﻿Imports Galaxy.Workbench.DockDocument
+Imports Moira.CDFDxCanvas
+Imports Moira.CDFDxCanvas.Data
 
 <Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()>
 Partial Class PageCFDPlayer
@@ -25,7 +27,7 @@ Partial Class PageCFDPlayer
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
         components = New ComponentModel.Container()
-        m_canvas = New CDFDxCanvas.CFDCanvas()
+        m_canvas = New CFDCanvas()
         bottomPanel = New Panel()
         TableLayoutPanel1 = New TableLayoutPanel()
         trackFrame = New TrackBar()
@@ -56,7 +58,7 @@ Partial Class PageCFDPlayer
         m_canvas.Palette = Imaging.Drawing2D.Colors.ScalerPalette.Jet
         m_canvas.RangeMax = 1R
         m_canvas.RangeMin = 0R
-        m_canvas.SectionAxis = CDFDxCanvas.Data.CfdAxis.X
+        m_canvas.SectionAxis = CfdAxis.X
         m_canvas.SectionEnabled = False
         m_canvas.SectionPosition = 0
         m_canvas.SelectedVoxel = -1
@@ -208,7 +210,7 @@ Partial Class PageCFDPlayer
         ResumeLayout(False)
     End Sub
 
-    Friend WithEvents m_canvas As CDFDxCanvas.CFDCanvas
+    Friend WithEvents m_canvas As CFDCanvas
     Friend WithEvents bottomPanel As Panel
     Friend WithEvents lblFrame As Label
     Friend WithEvents Panel1 As Panel
