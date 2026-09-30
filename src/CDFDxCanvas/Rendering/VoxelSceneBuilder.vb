@@ -19,7 +19,7 @@
 
 Imports Microsoft.VisualBasic.Drawing.DirectX.Scene3D
 Imports Microsoft.VisualBasic.Imaging.Drawing3D
-Imports CDFDxCanvas.Data
+Imports Moira.CDFDxCanvas.Data
 
 Namespace Rendering
 
@@ -85,7 +85,7 @@ Namespace Rendering
 
             Dim values As Single() = FieldArray(frame, options.Field)
             Dim mn As Double = options.RangeMin
-            Dim mx As Double = Math.Max(options.RangeMax, mn + 1e-12)
+            Dim mx As Double = Math.Max(options.RangeMax, mn + 0.000000000001)
             Dim denom As Double = mx - mn
             Dim threshold As Double = options.Threshold
 
@@ -267,7 +267,7 @@ Namespace Rendering
                         Dim ww As Double = frame.W(idx)
                         Dim spd As Double = Math.Sqrt(uu * uu + vv * vv + ww * ww)
 
-                        If spd < 1e-9 Then
+                        If spd < 0.000000001 Then
                             Continue For
                         End If
 

@@ -25,10 +25,10 @@ Imports System.ComponentModel
 Imports System.Drawing
 Imports System.Drawing.Drawing2D
 Imports System.Windows.Forms
-Imports CDFDxCanvas
-Imports CDFDxCanvas.Data
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
 Imports Microsoft.VisualBasic.My.JavaScript
+Imports Moira.CDFDxCanvas
+Imports Moira.CDFDxCanvas.Data
 
 Public Class DemoTestForm
 

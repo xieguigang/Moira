@@ -292,7 +292,7 @@ Public Class MeshGNN : Inherits GNNModel
     ''' <summary>
     ''' 前向传播（稀疏邻接快速路径）。
     ''' </summary>
-    Public Function Forward(features As Tensor, adj As SparseAdjacency) As Tensor
+    Public Overloads Function Forward(features As Tensor, adj As SparseAdjacency) As Tensor
         Dim h As Tensor = features
         For Each layer In _gcnLayers
             h = layer.Forward(h, adj)
@@ -303,7 +303,7 @@ Public Class MeshGNN : Inherits GNNModel
     ''' <summary>
     ''' 反向传播（稀疏邻接快速路径）：gradient 为 [N, outputDim] 损失梯度。
     ''' </summary>
-    Public Function Backward(gradient As Tensor, adj As SparseAdjacency) As Tensor
+    Public Overloads Function Backward(gradient As Tensor, adj As SparseAdjacency) As Tensor
         Dim g As Tensor = gradient
         For l As Integer = _gcnLayers.Count - 1 To 0 Step -1
             g = _gcnLayers(l).Backward(g, adj)

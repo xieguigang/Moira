@@ -27,8 +27,16 @@ Module Program
 
     Sub Main()
 
-        ' ---- 风洞外流动测试分支：dotnet run -- --windtunnel [模型路径] [--scale N] [--clearance N] ----
+        ' ---- GNN 代理模型风洞测试分支：--gnn-windtunnel ----
         Dim args = System.Environment.GetCommandLineArgs()
+        For Each a In args
+            If a.ToLower() = "--gnn-windtunnel" OrElse a.ToLower() = "gnn-windtunnel" Then
+                RunGNNWindTunnelBranch(args)
+                Return
+            End If
+        Next
+
+        ' ---- 风洞外流动测试分支：dotnet run -- --windtunnel [模型路径] [--scale N] [--clearance N] ----
         For Each a In args
             If a.ToLower() = "--windtunnel" OrElse a.ToLower() = "windtunnel" Then
                 RunWindTunnelBranch(args)
@@ -214,6 +222,93 @@ Module Program
         Console.WriteLine("="c, 70)
 
     End Sub
+
+#Region "GNN 代理模型风洞测试分支"
+
+    ''' <summary>
+    ''' 解析命令行参数并运行 GNN 代理模型风洞测试。
+    ''' 用法：dotnet run -- --gnn-windtunnel [--size N] [--ny N] [--epochs N] [--steps N]
+    '''                      [--radius N] [--clearance N] [--freestream F]
+    '''                      [--hidden N] [--no-gpu]
+    ''' </summary>
+    Sub RunGNNWindTunnelBranch(args As String())
+        Dim nx As Integer = 20
+        Dim ny As Integer = 14
+        Dim nz As Integer = 20
+        Dim epochs As Integer = 30
+        Dim cfdSteps As Integer = 60
+        Dim dt As Double = 0.1
+        Dim hiddenDim As Integer = 24
+        Dim radius As Integer = 4
+        Dim clearance As Integer = 1
+        Dim freestream As Double = 2.2
+        Dim enableGpu As Boolean = True
+
+        Dim i As Integer = 0
+        While i < args.Length
+            Dim a = args(i)
+            Dim lower = a.ToLower()
+            If (lower = "--size" OrElse lower = "size") AndAlso i + 1 < args.Length Then
+                ' 基准边长：nx = nz = N，ny 按比例缩放（保持扁平方洞）
+                Integer.TryParse(args(i + 1), nx)
+                If nx < 10 Then nx = 10
+                nz = nx
+                ny = Math.Max(10, CInt(Math.Floor(nx * 0.7)))
+                i += 1
+            ElseIf (lower = "--ny" OrElse lower = "ny") AndAlso i + 1 < args.Length Then
+                Integer.TryParse(args(i + 1), ny)
+                If ny < 10 Then ny = 10
+                i += 1
+            ElseIf (lower = "--epochs" OrElse lower = "epochs") AndAlso i + 1 < args.Length Then
+                Integer.TryParse(args(i + 1), epochs)
+                If epochs < 1 Then epochs = 1
+                i += 1
+            ElseIf (lower = "--steps" OrElse lower = "steps") AndAlso i + 1 < args.Length Then
+                Integer.TryParse(args(i + 1), cfdSteps)
+                If cfdSteps < 10 Then cfdSteps = 10
+                i += 1
+            ElseIf (lower = "--dt" OrElse lower = "dt") AndAlso i + 1 < args.Length Then
+                Double.TryParse(args(i + 1), dt)
+                If dt <= 0 Then dt = 0.1
+                i += 1
+            ElseIf (lower = "--hidden" OrElse lower = "hidden") AndAlso i + 1 < args.Length Then
+                Integer.TryParse(args(i + 1), hiddenDim)
+                If hiddenDim < 4 Then hiddenDim = 4
+                i += 1
+            ElseIf (lower = "--radius" OrElse lower = "radius") AndAlso i + 1 < args.Length Then
+                Integer.TryParse(args(i + 1), radius)
+                If radius < 1 Then radius = 1
+                i += 1
+            ElseIf (lower = "--clearance" OrElse lower = "clearance") AndAlso i + 1 < args.Length Then
+                Integer.TryParse(args(i + 1), clearance)
+                If clearance < 0 Then clearance = 0
+                i += 1
+            ElseIf (lower = "--freestream" OrElse lower = "freestream") AndAlso i + 1 < args.Length Then
+                Double.TryParse(args(i + 1), freestream)
+                If freestream <= 0 Then freestream = 2.2
+                i += 1
+            ElseIf lower = "--no-gpu" OrElse lower = "no-gpu" Then
+                enableGpu = False
+            End If
+            i += 1
+        End While
+
+        ' 保证球体能放进计算域
+        If clearance + 2 * radius + 1 >= ny Then
+            ny = clearance + 2 * radius + 2
+        End If
+
+        Dim pass = GNNWindTunnel.RunGNNWindTunnelTest(
+            domainNx:=nx, domainNy:=ny, domainNz:=nz,
+            epochs:=epochs, cfdSteps:=cfdSteps, dt:=dt,
+            hiddenDim:=hiddenDim,
+            testRadius:=radius, testClearance:=clearance, testFreestream:=freestream,
+            enableGpu:=enableGpu)
+
+        System.Environment.ExitCode = If(pass, 0, 1)
+    End Sub
+
+#End Region
 
 #Region "风洞测试分支"
 

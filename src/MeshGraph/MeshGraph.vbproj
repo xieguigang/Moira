@@ -1,12 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>MeshGraph</RootNamespace>
+    <RootNamespace>Moira.CFDEngine</RootNamespace>
     <TargetFramework>net10.0</TargetFramework>
     <Platforms>AnyCPU;x64</Platforms>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>GNN based CFD simulation</Title>
+    <AssemblyName>Moira.MeshGraph</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

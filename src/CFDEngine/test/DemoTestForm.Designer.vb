@@ -1,9 +1,8 @@
 Imports System.ComponentModel
 Imports System.Drawing
-Imports System.Drawing.Drawing2D
 Imports System.Windows.Forms
-Imports CDFDxCanvas
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
+Imports Moira.CDFDxCanvas
 
 <Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()>
 Partial Public Class DemoTestForm

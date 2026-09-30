@@ -16,12 +16,12 @@
 Imports System.ComponentModel
 Imports System.Numerics
 Imports System.Runtime.InteropServices
-Imports CDFDxCanvas.Data
-Imports CDFDxCanvas.Rendering
 Imports Microsoft.VisualBasic.Drawing.DirectX
 Imports Microsoft.VisualBasic.Drawing.DirectX.Scene3D
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
 Imports Microsoft.VisualBasic.Imaging.Drawing3D
+Imports Moira.CDFDxCanvas.Data
+Imports Moira.CDFDxCanvas.Rendering
 
 ''' <summary>
 ''' CFD 结果三维可视化视口控件。
