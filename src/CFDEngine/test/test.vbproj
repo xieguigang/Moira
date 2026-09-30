@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <None Include="..\airplane1_28x9x32_voxels.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\app\airplane1.3mf" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
