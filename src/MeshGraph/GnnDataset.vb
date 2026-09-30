@@ -33,6 +33,10 @@ Public Class GnnDataset
     Public Shared Function DefaultSweepConfigs(Optional nx As Integer = 20,
                                                Optional ny As Integer = 14,
                                                Optional nz As Integer = 20) As List(Of SphereConfig)
+        ' 自动适配域高度：确保最大半径(5) + 最大离地间隙(2) 的球体能放下
+        Dim requiredNy As Integer = 2 + 2 * 5 + 1
+        If ny < requiredNy Then ny = requiredNy
+
         Dim configs As New List(Of SphereConfig)
 
         For Each r In New Integer() {3, 4, 5}
@@ -118,6 +122,10 @@ Public Class GnnDataset
                                                Optional dt As Double = 0.1) As List(Of GnnSample)
         Dim samples As New List(Of GnnSample)
         For Each cfg In configs
+            If Not ConfigFits(cfg) Then
+                Console.WriteLine($"    [数据] 跳过 {cfg}（计算域高度不足）")
+                Continue For
+            End If
             Console.WriteLine($"    [数据] 模式A采集 {cfg} ...")
             samples.Add(CollectModeASample(cfg, settleSteps, dt))
         Next
@@ -133,10 +141,19 @@ Public Class GnnDataset
                                                Optional collectEvery As Integer = 3) As List(Of GnnSample)
         Dim samples As New List(Of GnnSample)
         For Each cfg In configs
+            If Not ConfigFits(cfg) Then
+                Console.WriteLine($"    [数据] 跳过 {cfg}（计算域高度不足）")
+                Continue For
+            End If
             Console.WriteLine($"    [数据] 模式B采集 {cfg} ...")
             samples.AddRange(CollectModeBSamples(cfg, steps, dt, collectEvery))
         Next
         Return samples
+    End Function
+
+    ''' <summary>检查球体配置能否放进其声明的计算域。</summary>
+    Public Shared Function ConfigFits(config As SphereConfig) As Boolean
+        Return config.DomainNy >= config.GroundClearance + 2 * config.Radius + 1
     End Function
 
 End Class
