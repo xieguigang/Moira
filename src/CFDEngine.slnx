@@ -60,5 +60,7 @@
   <Project Path="MeshGraph/MeshGraph.vbproj" Id="103de77f-19e2-467f-8c44-6fc4bdc24325">
     <Platform Solution="Debug|x64" Project="x64" />
   </Project>
-  <Project Path="ZMesh/ZMesh.vbproj" Id="9e164694-844e-48a5-a596-35587f9b3578" />
+  <Project Path="ZMesh/ZMesh.vbproj" Id="9e164694-844e-48a5-a596-35587f9b3578">
+    <Platform Solution="Debug|x64" Project="x64" />
+  </Project>
 </Solution>
