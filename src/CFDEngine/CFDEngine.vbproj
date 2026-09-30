@@ -35,8 +35,8 @@
     <UseApplicationFramework>True</UseApplicationFramework>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Version>1.0.9769.26194</Version>
-    <AssemblyVersion>1.0.9769.26194</AssemblyVersion>
+    <Version>1.0.9769.26878</Version>
+    <AssemblyVersion>1.0.9769.26878</AssemblyVersion>
     <Configurations>Debug;Release;nuget_release</Configurations>
   </PropertyGroup>
 

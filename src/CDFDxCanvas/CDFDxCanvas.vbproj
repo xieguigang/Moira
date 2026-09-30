@@ -33,8 +33,8 @@
       - VtiSnapshotRecorder outputs now include metadata.json and can be loaded directly by this control.
       - Cross-section slicing, voxel picking with hover tooltips, velocity arrow overlay and colorbar overlay rendering.
     </PackageReleaseNotes>
-    <Version>1.0.9769.26194</Version>
-    <AssemblyVersion>1.0.9769.26194</AssemblyVersion>
+    <Version>1.0.9769.26878</Version>
+    <AssemblyVersion>1.0.9769.26878</AssemblyVersion>
     <Configurations>Debug;Release;nuget_release</Configurations>
   </PropertyGroup>
 
