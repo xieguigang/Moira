@@ -332,11 +332,11 @@ Module Program
     ''' </summary>
     Sub RunZMeshWindTunnelBranch(args As String())
         Dim modelPath As String = Nothing
-        Dim resolution As Integer = 32
+        Dim resolution As Integer = 128
         Dim domainScale As Double = 2.0
         Dim groundClearance As Integer = 0
         Dim freestream As Double = 3.0
-        Dim steps As Integer = 40
+        Dim steps As Integer = 1000
         Dim vtiInterval As Integer = 10
         Dim voxelizer As VoxelizerKind = VoxelizerKind.Standard
 

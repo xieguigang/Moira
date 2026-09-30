@@ -1,7 +1,8 @@
 {
   "profiles": {
     "test": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "commandLineArgs": "--zmesh-windtunnel"
     }
   }
 }
