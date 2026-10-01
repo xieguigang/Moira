@@ -2,7 +2,7 @@ Option Strict On
 Option Explicit On
 
 Imports System.Reflection
-Imports CityBlender
+Imports Microsoft.VisualBasic.CommandLine.Reflection
 
 ''' <summary>
 ''' CityBlender command-line interface.
@@ -11,7 +11,7 @@ Imports CityBlender
 ''' </para>
 ''' Units are meters; output is a watertight binary STL.
 ''' </summary>
-Public Module Program
+Public Module CityBlenderCLI
 
     Public Function Main(args As String()) As Integer
         If args.Length = 0 Then
@@ -27,7 +27,7 @@ Public Module Program
 
         Dim parsed = ParseSwitches(args)
 
-        For Each m In GetType(Program).GetMethods(BindingFlags.Public Or BindingFlags.Static)
+        For Each m In GetType(CityBlenderCLI).GetMethods(BindingFlags.Public Or BindingFlags.Static)
             Dim attr = m.GetCustomAttribute(Of ExportAPIAttribute)()
             If attr IsNot Nothing AndAlso attr.Name.ToLowerInvariant() = cmd Then
                 m.Invoke(Nothing, {parsed})
@@ -150,13 +150,13 @@ Public Module Program
         Console.WriteLine("CityBlender v1.0 — random 3-D city model generator (binary STL, meters, CFD-ready)")
         Console.WriteLine()
         Console.WriteLine("Commands:")
-        For Each m In GetType(Program).GetMethods(BindingFlags.Public Or BindingFlags.Static)
+        For Each m In GetType(CityBlenderCLI).GetMethods(BindingFlags.Public Or BindingFlags.Static)
             Dim api = m.GetCustomAttribute(Of ExportAPIAttribute)()
             Dim usage = m.GetCustomAttribute(Of UsageAttribute)()
             If api IsNot Nothing Then
                 Console.WriteLine($"  {api.Name}")
                 If usage IsNot Nothing Then
-                    Console.WriteLine($"      {usage.Text}")
+                    Console.WriteLine($"      {usage.UsageInfo}")
                 End If
             End If
         Next
