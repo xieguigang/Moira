@@ -2,6 +2,7 @@ Option Strict On
 Option Explicit On
 
 Imports Microsoft.VisualBasic.Imaging.Landscape.Stl
+Imports std = System.Math
 
 Namespace CityBlender
 
@@ -296,7 +297,7 @@ Namespace CityBlender
             Dim h = block.Y1 - block.Y0 - 2.0 * margin
             If w < 10.0 OrElse h < 10.0 Then Return
 
-            Dim attempts = CInt(MathUtil.Clamp(w * h / (Math.PI * 10.0 * 10.0) * 25.0, 200.0, 3500.0))
+            Dim attempts = CInt(std.Clamp(w * h / (Math.PI * 10.0 * 10.0) * 25.0, 200.0, 3500.0))
             Dim accepted As New List(Of Double())   ' {x, y, radius}
 
             For attempt = 1 To attempts

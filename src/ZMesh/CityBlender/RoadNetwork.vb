@@ -1,6 +1,8 @@
 Option Strict On
 Option Explicit On
 
+Imports std = System.Math
+
 Namespace CityBlender
 
 
@@ -82,7 +84,7 @@ Namespace CityBlender
 
             ' mid split with jitter (the "random" of the street pattern)
             Dim t = 0.5 + (rng.NextDouble() - 0.5) * 0.34
-            t = MathUtil.Clamp(t, 0.32, 0.68)
+            t = std.Clamp(t, 0.32, 0.68)
 
             If vertical Then
                 Dim mid = x0 + w * t

@@ -1,6 +1,9 @@
 Option Strict On
 Option Explicit On
 
+Imports Microsoft.VisualBasic.Math.LinearAlgebra
+Imports std = System.Math
+
 Namespace CityBlender
 
     ''' <summary>
@@ -48,7 +51,7 @@ Namespace CityBlender
         ''' <summary>Builds the terrain from the given (deterministic) RNG and noise source.</summary>
         ''' <param name="waterPercentile">Fraction of the map that should be below the water level.</param>
         Public Sub Generate(rng As Random, noise As Noise, waterPercentile As Double)
-            waterPercentile = MathUtil.Clamp(waterPercentile, 0.02, 0.6)
+            waterPercentile = std.Clamp(waterPercentile, 0.02, 0.6)
 
             ' ---- base relief: shaped fBm, ~5 features across the map ----
             For i = 0 To Cells
@@ -124,21 +127,18 @@ Namespace CityBlender
                 Next
             Next
             Array.Sort(all, 0, n)
-            Return all(CInt(Math.Floor(MathUtil.Clamp(fraction, 0.02, 0.6) * (n - 1))))
+            Return all(CInt(Math.Floor(std.Clamp(fraction, 0.02, 0.6) * (n - 1))))
         End Function
 
         ''' <summary>Bilinear height sample at map coordinates (clamped to the map).</summary>
         Public Function SampleHeight(x As Double, y As Double) As Double
-            Dim gx = MathUtil.Clamp(x / CellSize, 0.0, Cells - 0.000001)
-            Dim gy = MathUtil.Clamp(y / CellSize, 0.0, Cells - 0.000001)
+            Dim gx = std.Clamp(x / CellSize, 0.0, Cells - 0.000001)
+            Dim gy = std.Clamp(y / CellSize, 0.0, Cells - 0.000001)
             Dim i = CInt(Math.Floor(gx))
             Dim j = CInt(Math.Floor(gy))
             Dim fx = gx - i
             Dim fy = gy - j
-            Return MathUtil.Lerp(
-            MathUtil.Lerp(Heights(i, j), Heights(i + 1, j), fx),
-            MathUtil.Lerp(Heights(i, j + 1), Heights(i + 1, j + 1), fx),
-            fy)
+            Return Lerp(Lerp(Heights(i, j), Heights(i + 1, j), fx), Lerp(Heights(i, j + 1), Heights(i + 1, j + 1), fx), fy)
         End Function
 
         ''' <summary>True when the terrain at (x, y) is below the water level.</summary>
@@ -153,8 +153,8 @@ Namespace CityBlender
             Dim total = 0
             For a = 0 To steps
                 For b = 0 To steps
-                    Dim x = MathUtil.Lerp(x0, x1, a / steps)
-                    Dim y = MathUtil.Lerp(y0, y1, b / steps)
+                    Dim x = Lerp(x0, x1, a / steps)
+                    Dim y = Lerp(y0, y1, b / steps)
                     If SampleHeight(x, y) < WaterLevel Then under += 1
                     total += 1
                 Next
@@ -262,8 +262,8 @@ Namespace CityBlender
                         Dim d = Math.Sqrt(dx * dx + dy * dy)
                         Dim t = d / w
                         If t < 1.5 Then
-                            Dim f = MathUtil.Clamp((1.5 - t) / 1.5, 0.0, 1.0)
-                            Dim target = WaterLevel - 3.4 * MathUtil.SmoothStep(f)
+                            Dim f = std.Clamp((1.5 - t) / 1.5, 0.0, 1.0)
+                            Dim target = WaterLevel - 3.4 * SmoothStep(f)
                             If target < 0.25 Then target = 0.25
                             If target < Heights(i, j) Then Heights(i, j) = target
                         End If
