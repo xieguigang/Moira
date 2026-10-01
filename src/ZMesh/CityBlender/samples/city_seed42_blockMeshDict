@@ -1,0 +1,90 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | CityBlender: auto-generated wind-tunnel domain |
+|  \\    /   O peration     | units: meters (1 unit = 1 m)                   |
+|   \\  /    A nd           |                                                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      blockMeshDict;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+convertToMeters 1;
+
+// H (max building top) = 178.4 m; domain 4568 x 2784 x 1073 m, blockage = 4.20%
+vertices
+(
+    (-892.015 -892.015 -3)
+    (3676.044 -892.015 -3)
+    (3676.044 1892.015 -3)
+    (-892.015 1892.015 -3)
+    (-892.015 -892.015 1070.418)
+    (3676.044 -892.015 1070.418)
+    (3676.044 1892.015 1070.418)
+    (-892.015 1892.015 1070.418)
+);
+
+// background mesh ~ 45 m cells (102x62x24); adjust before running blockMesh
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) (102 62 24) simpleGrading (1 1 1)
+);
+
+boundary
+(
+    inlet
+    {
+        type patch;
+        faces
+        (
+    (0 4 7 3)
+        );
+    }
+    outlet
+    {
+        type patch;
+        faces
+        (
+    (1 2 6 5)
+        );
+    }
+    side_south
+    {
+        type patch;
+        faces
+        (
+    (0 1 5 4)
+        );
+    }
+    side_north
+    {
+        type patch;
+        faces
+        (
+    (3 7 6 2)
+        );
+    }
+    top
+    {
+        type patch;
+        faces
+        (
+    (4 5 6 7)
+        );
+    }
+    bottom
+    {
+        type wall;
+        faces
+        (
+    (0 3 2 1)    // terrain/ground - snap the city onto this
+        );
+    }
+);
+
+// ************************************************************************* //
