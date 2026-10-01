@@ -2,7 +2,7 @@ Option Strict On
 Option Explicit On
 
 Imports System.IO
-Imports CityBlender
+Imports Moira.ZMesh.CityBlender
 Imports Xunit
 
 ''' <summary>Binary-STL and generation-pipeline tests.</summary>
@@ -270,7 +270,7 @@ Public Class CityBlenderTests
         Dim out = Path.Combine(WorkDir, "cli_smoke.stl")
         If File.Exists(out) Then File.Delete(out)
 
-        Dim rc = CityBlender.Cli.Program.Main({"/generate", "/seed", "5", "/size", "500",
+        Dim rc = CityBlenderCLI.Main({"/generate", "/seed", "5", "/size", "500",
                                                 "/cells", "96", "/out", out})
         Assert.Equal(0, rc)
         Assert.True(File.Exists(out) AndAlso New FileInfo(out).Length > 84)

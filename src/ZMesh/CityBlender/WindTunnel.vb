@@ -3,6 +3,7 @@ Option Explicit On
 
 Imports System.IO
 Imports System.Text
+Imports Microsoft.VisualBasic.Imaging.Landscape.Stl
 
 Namespace CityBlender
 
@@ -133,7 +134,7 @@ Namespace CityBlender
 
         ''' <summary>
         ''' Writes the five boundary patches as individual binary STL files
-        ''' (normals point out of the fluid domain) into <paramref name="directory"/>
+        ''' (normals point out of the fluid domain) into <paramref name="outDirectory"/>
         ''' as <c>{base}_inlet.stl</c> etc.
         ''' </summary>
         Public Shared Sub WriteSurfaces(d As Domain, outDirectory As String, baseName As String)

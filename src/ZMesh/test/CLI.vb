@@ -3,6 +3,7 @@ Option Explicit On
 
 Imports System.Reflection
 Imports Microsoft.VisualBasic.CommandLine.Reflection
+Imports Moira.ZMesh.CityBlender
 
 ''' <summary>
 ''' CityBlender command-line interface.
