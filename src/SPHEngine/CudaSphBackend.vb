@@ -56,6 +56,13 @@ Public Class CudaSphBackend : Implements ISphCompute3D
     Private _capacity As Integer = -1
     Private _cellCapacity As Integer = -1
 
+    ''' <summary>
+    ''' true once a sub step has actually produced device side density / pressure;
+    ''' guards the very first <see cref="SyncFields"/> (before any kernel run the
+    ''' device buffers are still uninitialized).
+    ''' </summary>
+    Private _fieldsValid As Boolean
+
     Public ReadOnly Property Name As String Implements ISphCompute3D.Name
         Get
             Return "CUDA-F32"
@@ -205,6 +212,7 @@ Public Class CudaSphBackend : Implements ISphCompute3D
             d_az = New ILCudaRuntime.DeviceBuffer(Of Single)(cap)
 
             _capacity = cap
+            _fieldsValid = False
         End If
 
         If cellCap <> _cellCapacity OrElse grid.Entries.Length <> _cellCapacity Then
@@ -286,6 +294,8 @@ Public Class CudaSphBackend : Implements ISphCompute3D
                            d_press, d_pressNear,
                            d_ax, d_ay, d_az, n)
 
+            _fieldsValid = True
+
             ' ---- 回读：加速度每步都要（主机侧积分），标量场按需同步 ----
             state.ax = d_ax.Read()
             state.ay = d_ay.Read()
@@ -306,7 +316,7 @@ Public Class CudaSphBackend : Implements ISphCompute3D
     ''' call this before sampling when <see cref="FullSync"/> is off.
     ''' </summary>
     Public Sub SyncFields(state As SphState3D)
-        If _failed OrElse d_dens Is Nothing Then Return
+        If _failed OrElse d_dens Is Nothing OrElse Not _fieldsValid Then Return
 
         Try
             state.dens = d_dens.Read()
