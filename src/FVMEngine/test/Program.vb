@@ -19,6 +19,7 @@ Imports System.IO
 Imports Moira.CFDEngine
 Imports Moira.CFDEngine.Snapshot
 Imports Moira.CFDEngine.Snapshot.JSON
+Imports Moira.FVMEngine
 
 Public Module Program
 
@@ -87,19 +88,23 @@ Public Module Program
 
         ' ---- 几何 ----
         Dim nz = CInt(System.Math.Round(nx * 1.25R))
-        Dim tank As New FermentationTank(nx, nx, nz,
-                                        viscosity:=0.000001R,
-                                        diffusion:=2.0R * 1e-9R,
-                                        rpm:=rpm)
+        Dim tank As New FvmTank(nx, nx, nz,
+                                viscosity:=0.000001R,
+                                diffusion:=2.0R * 1e-9R,
+                                rpm:=rpm)
 
         ' ---- 求解器 ----
         Dim solver As New FvmSolver(tank)
         solver.GasFlowRate = gas
 
         ' ---- 快照 ----
+        ' 领域模型已统一：tank.Field 就是 Moira.CFDEngine 的混合精度 FluidField，
+        ' 因此 SnapshotMetadata.FromField 可直接消费，无需任何桥接。
         Dim meta = SnapshotMetadata.FromField(
             tank.Field, tank.Viscosity, tank.Diffusion, solver.Dt,
             solver:="FVM collocated SIMPLE + MRF impeller-disk + k-epsilon + Euler two-phase + Higbie kLa")
+        ' FromField 不填搅拌器（面向非罐场景），这里补上 Rushton 桨的几何与运动参数
+        meta.Simulation.Stirrer = StirrerInfo.FromStirrer(tank.Stirrer)
         Dim recorder As New TankVtiRecorder(outDir, interval, meta)
 
         Console.WriteLine($"  active voxels: {tank.VoxelShape.TotalActive}  (of {nx * nx * nz})")
@@ -112,7 +117,7 @@ Public Module Program
         For s = 1 To steps
             solver.Advance()
             If s Mod reportEvery = 0 OrElse s = steps Then
-                Console.WriteLine($"  [step {s,4}]  t={solver.Time,7:F3}s  maxU={MaxAbs(tank.Field.U):F2}m/s" &
+                Console.WriteLine($"  [step {s,4}]  t={solver.Time,7:F3}s  maxU={MaxAbs(tank.Field.U64):F2}m/s" &
                                   $"  massRes={solver.MassResidual:F4}  P={solver.ImpellerPower,6:F1}W  Np={solver.Np:F2}" &
                                   $"  holdup={solver.GasHoldup * 100.0R:F2}%  kLa={solver.MeanKLa:F4}/s" &
                                   $"  d32={solver.MeanD32 * 1000.0R:F2}mm")

@@ -139,10 +139,28 @@ Public Class FluidField
     Private _p64 As Tensor
     Private _d64 As Tensor
 
+    ''' <summary>
+    ''' 镜像是否已整体物化。物化是<b>全有或全无</b>的：五个镜像必须同时存在，
+    ''' 否则 SyncToSingle / SyncToDouble 会踩到 Nothing（半物化状态的 NRE）。
+    ''' </summary>
+    Private _mirrored As Boolean = False
+
+    ''' <summary>一次性物化五个双精度镜像（幂等）。StableFluids 路径永不调用。</summary>
+    Private Sub EnsureDoubleMirror()
+        If _mirrored Then Return
+
+        _u64 = U.ToTensor()
+        _v64 = V.ToTensor()
+        _w64 = W.ToTensor()
+        _p64 = Pressure.ToTensor()
+        _d64 = Density.ToTensor()
+        _mirrored = True
+    End Sub
+
     ''' <summary>X 方向速度场的双精度镜像（惰性构造；精度敏感模块用）。</summary>
     Public ReadOnly Property U64 As Tensor
         Get
-            If _u64 Is Nothing Then _u64 = U.ToTensor()
+            EnsureDoubleMirror()
             Return _u64
         End Get
     End Property
@@ -150,7 +168,7 @@ Public Class FluidField
     ''' <summary>Y 方向速度场的双精度镜像（惰性构造；精度敏感模块用）。</summary>
     Public ReadOnly Property V64 As Tensor
         Get
-            If _v64 Is Nothing Then _v64 = V.ToTensor()
+            EnsureDoubleMirror()
             Return _v64
         End Get
     End Property
@@ -158,7 +176,7 @@ Public Class FluidField
     ''' <summary>Z 方向速度场的双精度镜像（惰性构造；精度敏感模块用）。</summary>
     Public ReadOnly Property W64 As Tensor
         Get
-            If _w64 Is Nothing Then _w64 = W.ToTensor()
+            EnsureDoubleMirror()
             Return _w64
         End Get
     End Property
@@ -166,7 +184,7 @@ Public Class FluidField
     ''' <summary>压力场的双精度镜像（惰性构造；精度敏感模块用）。</summary>
     Public ReadOnly Property P64 As Tensor
         Get
-            If _p64 Is Nothing Then _p64 = Pressure.ToTensor()
+            EnsureDoubleMirror()
             Return _p64
         End Get
     End Property
@@ -174,7 +192,7 @@ Public Class FluidField
     ''' <summary>密度/示踪剂场的双精度镜像（惰性构造；精度敏感模块用）。</summary>
     Public ReadOnly Property Density64 As Tensor
         Get
-            If _d64 Is Nothing Then _d64 = Density.ToTensor()
+            EnsureDoubleMirror()
             Return _d64
         End Get
     End Property
@@ -182,7 +200,7 @@ Public Class FluidField
     ''' <summary>双精度镜像是否已被物化（用于诊断与避免无意触发）。</summary>
     Public ReadOnly Property HasDoubleMirror As Boolean
         Get
-            Return _u64 IsNot Nothing
+            Return _mirrored
         End Get
     End Property
 
@@ -191,14 +209,7 @@ Public Class FluidField
     ''' 镜像尚未物化时顺带完成物化，之后为就地逐元素写入，不产生新数组。
     ''' </summary>
     Public Sub SyncToDouble()
-        If Not HasDoubleMirror Then
-            _u64 = U.ToTensor()
-            _v64 = V.ToTensor()
-            _w64 = W.ToTensor()
-            _p64 = Pressure.ToTensor()
-            _d64 = Density.ToTensor()
-            Return
-        End If
+        EnsureDoubleMirror()
 
         CopyF32ToF64(U, _u64)
         CopyF32ToF64(V, _v64)
@@ -209,10 +220,10 @@ Public Class FluidField
 
     ''' <summary>
     ''' 把 Double 镜像回落写入 Single 主存储（模块边界一次性转换，O(5N)）。
-    ''' 镜像未物化时为空操作。
+    ''' 镜像未物化时为空操作（StableFluids 路径）。
     ''' </summary>
     Public Sub SyncToSingle()
-        If Not HasDoubleMirror Then Return
+        If Not _mirrored Then Return
 
         CopyF64ToF32(_u64, U)
         CopyF64ToF32(_v64, V)

@@ -1,10 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- FVM 发酵罐仿真引擎（含用户 Snapshot 快照系统源码）。
-       RootNamespace = Moira.CFDEngine，使 Snapshot 源码中的
-       `Imports Moira.CFDEngine.Snapshot.JSON` 与对 FluidField /
-       VoxelShape / Stirrer / FermentationTank 的非限定引用按原样解析。 -->
+  <!-- FVM 发酵罐仿真引擎（有限体积 / SIMPLE + MRF + k-epsilon + 欧拉两相 + PBM）。
+
+       混合精度契约：
+         Single（TensorF）= CFDEngine 统一 FluidField 的主存储，服务快照导出与
+                            CUDA 高收益模块（压力泊松 / 动量 Jacobi / 七点 Laplacian）；
+         Double（Tensor）  = FluidField 的惰性镜像，服务 CPU 上精度敏感的模块
+                            （MRF 源项 / k-epsilon 闭包 / PBM 转移 / DO 传质 / 诊断）。
+
+       领域类型（FluidField / VoxelShape / Stirrer）统一由 CFDEngine 定义，
+       本项目只扩展 FvmTank / FvmSolver / TankVtiRecorder 等 FVM 专属类型，
+       RootNamespace = Moira.FVMEngine，与 Moira.CFDEngine 互不冲突。 -->
   <PropertyGroup>
+    <OutputType>Library</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Moira.FVMEngine</RootNamespace>
     <AssemblyName>Moira.FVMEngine</AssemblyName>
@@ -12,6 +20,11 @@
     <OptionStrict>Off</OptionStrict>
     <OptionExplicit>On</OptionExplicit>
     <OptionInfer>On</OptionInfer>
+    <!-- ILCuda 是 AMD64 原生依赖，对齐到 x64 以消除 MSB3270 架构不匹配告警 -->
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="test\**" />

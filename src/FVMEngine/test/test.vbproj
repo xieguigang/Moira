@@ -3,12 +3,23 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>Moira.CFDEngine.Cli</RootNamespace>
+    <!-- 必须与 FVMEngine 对齐为 Moira.FVMEngine.* 前缀：
+         VB 的名字解析会沿「RootNamespace 及其外层命名空间链」查找并优先于 Imports，
+         若沿用旧的 Moira.CFDEngine.Cli，未限定的 FvmTank / FvmSolver 会错误地
+         绑到 Moira.CFDEngine.* 上的同名类型。 -->
+    <RootNamespace>Moira.FVMEngine.Test</RootNamespace>
     <AssemblyName>FvmTank</AssemblyName>
     <LangVersion>latest</LangVersion>
     <OptionStrict>Off</OptionStrict>
     <OptionExplicit>On</OptionExplicit>
     <OptionInfer>On</OptionInfer>
+    <!-- FVM 每步产生上千个临时张量（多数超过 LOH 阈值），
+         服务器 GC + 关闭后台并发可显著降低 gen2 回收开销。 -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <!-- 与 FVMEngine 一致对齐到 x64（ILCuda 为 AMD64 原生依赖） -->
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
   <ItemGroup>

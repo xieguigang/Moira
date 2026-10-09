@@ -73,6 +73,8 @@
   <ItemGroup>
     <!-- CFD float32 CUDA 内核源码：嵌入程序集，运行时由 CudaTensorF.CFDKernelSource 读取 -->
     <EmbeddedResource Include="Kernels\moira_cfd_f32.cu" />
+    <!-- FVM float32 CUDA 内核源码（逐面变系数七点 Jacobi）：运行时由 FvmCompute.FvmKernelSource 读取 -->
+    <EmbeddedResource Include="Kernels\moira_fvm_f32.cu" />
   </ItemGroup>
 
   <ItemGroup>

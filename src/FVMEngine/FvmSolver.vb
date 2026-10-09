@@ -282,6 +282,10 @@ Public Partial Class FvmSolver
 
         ' ★ 模块③ §3.3 PBM 初始化（12 组离散分组 + Luo-Svendsen/Prince-Blanch 核）
         InitPbm()
+
+        ' 构造期写入的是双精度镜像（旋流初始化 / 湍流初始化），
+        ' 立刻回写 Single 主存储，保证第 0 帧快照就能看到初始流场。
+        Tank.Field.SyncToSingle()
     End Sub
 
     ''' <summary>液面顶层掩膜（k = LiquidTop）。</summary>
