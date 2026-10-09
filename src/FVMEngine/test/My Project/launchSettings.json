@@ -2,7 +2,7 @@
   "profiles": {
     "test": {
       "commandName": "Project",
-      "commandLineArgs": "/demo"
+      "commandLineArgs": "/demo --steps 960 --no-cuda"
     }
   }
 }
