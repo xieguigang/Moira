@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/framework/">
+    <Project Path="../../GCModeller/src/runtime/sciBASIC#/cuda/ILCuda/ILCuda.vbproj" />
+    <Project Path="../../GCModeller/src/runtime/sciBASIC#/cuda/ILCudaTensor/ILCudaTensor.vbproj" />
+    <Project Path="../../GCModeller/src/runtime/sciBASIC#/Data_science/MachineLearning/TensorFlow/TensorFlow.vbproj" />
+    <Project Path="../../GCModeller/src/runtime/sciBASIC#/Data_science/Mathematica/Math/Math/Math.NET5.vbproj" />
+    <Project Path="../../GCModeller/src/runtime/sciBASIC#/Microsoft.VisualBasic.Core/src/Core.vbproj" />
+    <Project Path="../../GCModeller/src/runtime/sciBASIC#/vs_solutions/dev/VisualStudio/VisualStudio.NET5.vbproj" />
+  </Folder>
+  <Project Path="CFDEngine/CFDEngine.vbproj" />
+  <Project Path="FVMEngine/FVMEngine.vbproj" />
+  <Project Path="FVMEngine/test/test.vbproj" />
+</Solution>

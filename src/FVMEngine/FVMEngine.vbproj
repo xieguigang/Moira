@@ -6,16 +6,26 @@
        VoxelShape / Stirrer / FermentationTank 的非限定引用按原样解析。 -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>Moira.CFDEngine</RootNamespace>
-    <AssemblyName>Moira.CFDEngine</AssemblyName>
+    <RootNamespace>Moira.FVMEngine</RootNamespace>
+    <AssemblyName>Moira.FVMEngine</AssemblyName>
     <LangVersion>latest</LangVersion>
     <OptionStrict>Off</OptionStrict>
     <OptionExplicit>On</OptionExplicit>
     <OptionInfer>On</OptionInfer>
   </PropertyGroup>
-
   <ItemGroup>
-    <ProjectReference Include="..\TensorFlow\TensorFlow.vbproj" />
+    <Compile Remove="test\**" />
+    <EmbeddedResource Remove="test\**" />
+    <None Remove="test\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\cuda\ILCudaTensor\ILCudaTensor.vbproj" />
+    <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\cuda\ILCuda\ILCuda.vbproj" />
+    <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\Data_science\MachineLearning\TensorFlow\TensorFlow.vbproj" />
+    <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\Data_science\Mathematica\Math\Math\Math.NET5.vbproj" />
+    <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\Microsoft.VisualBasic.Core\src\Core.vbproj" />
+    <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\vs_solutions\dev\VisualStudio\VisualStudio.NET5.vbproj" />
+    <ProjectReference Include="..\CFDEngine\CFDEngine.vbproj" />
   </ItemGroup>
 
 </Project>
