@@ -18,8 +18,8 @@
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
     <!-- 与 FVMEngine 一致对齐到 x64（ILCuda 为 AMD64 原生依赖） -->
-    <Platforms>x64</Platforms>
-    <PlatformTarget>x64</PlatformTarget>
+    <Platforms>AnyCPU;x64</Platforms>
+    <Configurations>Debug;Release;nuget_release</Configurations>
   </PropertyGroup>
 
   <ItemGroup>

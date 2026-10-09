@@ -21,8 +21,8 @@
     <OptionExplicit>On</OptionExplicit>
     <OptionInfer>On</OptionInfer>
     <!-- ILCuda 是 AMD64 原生依赖，对齐到 x64 以消除 MSB3270 架构不匹配告警 -->
-    <Platforms>x64</Platforms>
-    <PlatformTarget>x64</PlatformTarget>
+    <Platforms>AnyCPU;x64</Platforms>
+    <Configurations>Debug;Release;nuget_release</Configurations>
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
