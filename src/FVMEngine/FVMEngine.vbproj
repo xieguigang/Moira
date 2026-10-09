@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- FVM 发酵罐仿真引擎（含用户 Snapshot 快照系统源码）。
+       RootNamespace = Moira.CFDEngine，使 Snapshot 源码中的
+       `Imports Moira.CFDEngine.Snapshot.JSON` 与对 FluidField /
+       VoxelShape / Stirrer / FermentationTank 的非限定引用按原样解析。 -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Moira.CFDEngine</RootNamespace>
+    <AssemblyName>Moira.CFDEngine</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <OptionStrict>Off</OptionStrict>
+    <OptionExplicit>On</OptionExplicit>
+    <OptionInfer>On</OptionInfer>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TensorFlow\TensorFlow.vbproj" />
+  </ItemGroup>
+
+</Project>
