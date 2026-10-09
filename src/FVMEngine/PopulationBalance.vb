@@ -45,10 +45,11 @@ Partial Public Class FvmSolver
     ''' <summary>PBM 组数（0.4–10mm 几何 12 组）。</summary>
     Public ReadOnly Property PbmBins As Integer = 12
 
-    ' 后端字段（ReadOnly 属性在构造中 ReDim 赋值不合法，改经字段填充）
-    Private _pbmD(PbmBins - 1) As Double
-    Private _pbmV(PbmBins - 1) As Double
-    Private _alphaBins(PbmBins - 1) As Tensor
+    ' 后端字段：上界不写死，统一由 InitPbm() 中的 ReDim 分配
+    ' （PbmBins 是实例属性而非 Const，作字段数组上界既不可靠也无必要）
+    Private _pbmD() As Double
+    Private _pbmV() As Double
+    Private _alphaBins() As Tensor
     Private _d32 As Tensor
     Private _n0 As Tensor
 

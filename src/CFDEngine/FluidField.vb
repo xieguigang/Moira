@@ -114,6 +114,159 @@ Public Class FluidField
 
 #End Region
 
+#Region "混合精度：双精度镜像（惰性构造）"
+
+    ' ─────────────────────────────────────────────────────────────────────────
+    '   精度分工（混合精度 CFD 引擎的核心契约）
+    '
+    '   Single（TensorF，本类的主存储）
+    '       → GPU / CUDA 收益最高的迭代式椭圆求解：压力泊松 Jacobi、动量预估
+    '         Jacobi、七点 Laplacian。Jacobi 对舍入不敏感，内迭代的截断误差会
+    '         被外层 SIMPLE / 时间推进吸收，且单精度使显存带宽与占用减半。
+    '
+    '   Double（Tensor，惰性镜像 U64/V64/W64/P64/Density64）
+    '       → CPU 上精度敏感的模块：MRF 桨盘源项、k-ε 湍流闭包（含 exp / pow）、
+    '         PBM 群体平衡（破碎/聚并转移矩阵与归一化）、DO 传质与 kLa 闭包、
+    '         以及所有比值型诊断统计量。这些量的误差会跨时间步累积。
+    '
+    '   镜像采用惰性构造：StableFluids 路径永不访问 U64 等属性，因此不会额外
+    '   分配任何双精度数组 —— 对既有路径是零内存、零行为回归。
+    ' ─────────────────────────────────────────────────────────────────────────
+
+    Private _u64 As Tensor
+    Private _v64 As Tensor
+    Private _w64 As Tensor
+    Private _p64 As Tensor
+    Private _d64 As Tensor
+
+    ''' <summary>X 方向速度场的双精度镜像（惰性构造；精度敏感模块用）。</summary>
+    Public ReadOnly Property U64 As Tensor
+        Get
+            If _u64 Is Nothing Then _u64 = U.ToTensor()
+            Return _u64
+        End Get
+    End Property
+
+    ''' <summary>Y 方向速度场的双精度镜像（惰性构造；精度敏感模块用）。</summary>
+    Public ReadOnly Property V64 As Tensor
+        Get
+            If _v64 Is Nothing Then _v64 = V.ToTensor()
+            Return _v64
+        End Get
+    End Property
+
+    ''' <summary>Z 方向速度场的双精度镜像（惰性构造；精度敏感模块用）。</summary>
+    Public ReadOnly Property W64 As Tensor
+        Get
+            If _w64 Is Nothing Then _w64 = W.ToTensor()
+            Return _w64
+        End Get
+    End Property
+
+    ''' <summary>压力场的双精度镜像（惰性构造；精度敏感模块用）。</summary>
+    Public ReadOnly Property P64 As Tensor
+        Get
+            If _p64 Is Nothing Then _p64 = Pressure.ToTensor()
+            Return _p64
+        End Get
+    End Property
+
+    ''' <summary>密度/示踪剂场的双精度镜像（惰性构造；精度敏感模块用）。</summary>
+    Public ReadOnly Property Density64 As Tensor
+        Get
+            If _d64 Is Nothing Then _d64 = Density.ToTensor()
+            Return _d64
+        End Get
+    End Property
+
+    ''' <summary>双精度镜像是否已被物化（用于诊断与避免无意触发）。</summary>
+    Public ReadOnly Property HasDoubleMirror As Boolean
+        Get
+            Return _u64 IsNot Nothing
+        End Get
+    End Property
+
+    ''' <summary>
+    ''' 把 Single 主存储提升到 Double 镜像（模块边界一次性转换，O(5N)）。
+    ''' 镜像尚未物化时顺带完成物化，之后为就地逐元素写入，不产生新数组。
+    ''' </summary>
+    Public Sub SyncToDouble()
+        If Not HasDoubleMirror Then
+            _u64 = U.ToTensor()
+            _v64 = V.ToTensor()
+            _w64 = W.ToTensor()
+            _p64 = Pressure.ToTensor()
+            _d64 = Density.ToTensor()
+            Return
+        End If
+
+        CopyF32ToF64(U, _u64)
+        CopyF32ToF64(V, _v64)
+        CopyF32ToF64(W, _w64)
+        CopyF32ToF64(Pressure, _p64)
+        CopyF32ToF64(Density, _d64)
+    End Sub
+
+    ''' <summary>
+    ''' 把 Double 镜像回落写入 Single 主存储（模块边界一次性转换，O(5N)）。
+    ''' 镜像未物化时为空操作。
+    ''' </summary>
+    Public Sub SyncToSingle()
+        If Not HasDoubleMirror Then Return
+
+        CopyF64ToF32(_u64, U)
+        CopyF64ToF32(_v64, V)
+        CopyF64ToF32(_w64, W)
+        CopyF64ToF32(_p64, Pressure)
+        CopyF64ToF32(_d64, Density)
+    End Sub
+
+    Private Shared Sub CopyF32ToF64(src As TensorF, dst As Tensor)
+        Dim s = src.Data
+        Dim d = dst.Data
+        For i = 0 To d.Length - 1
+            d(i) = s(i)
+        Next
+    End Sub
+
+    Private Shared Sub CopyF64ToF32(src As Tensor, dst As TensorF)
+        Dim s = src.Data
+        Dim d = dst.Data
+        For i = 0 To d.Length - 1
+            d(i) = CSng(s(i))
+        Next
+    End Sub
+
+#End Region
+
+#Region "扩展标量场（双精度）"
+
+    ''' <summary>
+    ''' 扩展标量场（湍流 k / epsilon / 气含率 alpha_g / 溶解氧 DO / 湍流粘度 nut /
+    ''' kLa / d32 / n0 / PBM 分组 αᵢ），名称 → Tensor（形状与标准场一致）。
+    ''' 全部走双精度：这些量包含指数、幂律与矩阵归一化，误差会跨步累积。
+    ''' VTI 快照记录器会把它们与五个标准场一并写出。
+    ''' </summary>
+    Public ReadOnly Property ExtraScalars As New Dictionary(Of String, Tensor)
+
+    ''' <summary>按名读取扩展场（不存在时返回 Nothing）。</summary>
+    Public Function GetExtra(name As String) As Tensor
+        Dim t As Tensor = Nothing
+        If ExtraScalars.TryGetValue(name, t) Then Return t
+        Return Nothing
+    End Function
+
+    ''' <summary>安全读取 (i,j,k) 处的场值（越界返回 0）。</summary>
+    Public Shared Function At(t As Tensor, nx As Integer, ny As Integer, nz As Integer,
+                             i As Integer, j As Integer, k As Integer) As Double
+        If i < 0 OrElse i >= nx OrElse j < 0 OrElse j >= ny OrElse k < 0 OrElse k >= nz Then
+            Return 0.0
+        End If
+        Return t.Data(i * (ny * nz) + j * nz + k)
+    End Function
+
+#End Region
+
 #Region "构造函数"
 
     ''' <summary>

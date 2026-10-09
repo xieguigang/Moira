@@ -53,6 +53,49 @@ Public Class VoxelShape
 
 #End Region
 
+#Region "FVM 扩展掩膜（可选，StableFluids 路径为 Nothing）"
+
+    ''' <summary>
+    ''' 固体结构体素掩膜（挡板 / 桨叶 / 轴 / 罐壁）。
+    ''' 仅 FVM（有限体积）路径使用；StableFluids 路径为 <c>Nothing</c>。
+    ''' </summary>
+    Public ReadOnly Property Solids As Boolean()
+
+    ''' <summary>
+    ''' 桨盘作用区掩膜（MRF 动量源加载区）。
+    ''' 仅 FVM 路径使用；StableFluids 路径为 <c>Nothing</c>。
+    ''' </summary>
+    Public ReadOnly Property ImpellerZone As Boolean()
+
+    ''' <summary>
+    ''' 气体分布环掩膜（气相入口单元）。
+    ''' 仅 FVM 路径使用；StableFluids 路径为 <c>Nothing</c>。
+    ''' </summary>
+    Public ReadOnly Property SpargerZone As Boolean()
+
+    ''' <summary>X 方向体素数（= <see cref="Width"/>，与 FluidField.Nx 对齐的别名）。</summary>
+    Public ReadOnly Property Nx As Integer
+        Get
+            Return Width
+        End Get
+    End Property
+
+    ''' <summary>Y 方向体素数（= <see cref="Height"/>，与 FluidField.Ny 对齐的别名）。</summary>
+    Public ReadOnly Property Ny As Integer
+        Get
+            Return Height
+        End Get
+    End Property
+
+    ''' <summary>Z 方向体素数（= <see cref="Depth"/>，与 FluidField.Nz 对齐的别名）。</summary>
+    Public ReadOnly Property Nz As Integer
+        Get
+            Return Depth
+        End Get
+    End Property
+
+#End Region
+
 #Region "构造函数"
 
     ''' <summary>
@@ -62,20 +105,44 @@ Public Class VoxelShape
     ''' <param name="height">Y 维度数（↔ Ny）</param>
     ''' <param name="depth">Z 维度数（↔ Nz）</param>
     ''' <param name="data">体素标记数组（长度须等于 width*height*depth）</param>
-    Public Sub New(width As Integer, height As Integer, depth As Integer, data As Boolean())
+    Public Sub New(width As Integer, height As Integer, depth As Integer, data As Boolean(),
+                   Optional solids As Boolean() = Nothing,
+                   Optional impellerZone As Boolean() = Nothing,
+                   Optional spargerZone As Boolean() = Nothing)
         If data Is Nothing Then Throw New ArgumentNullException(NameOf(data))
         If data.Length <> width * height * depth Then
             Throw New ArgumentException("shape 数组长度必须等于 width*height*depth", NameOf(data))
         End If
+
+        Dim n = width * height * depth
+        Dim count = 0
+
+        For Each b In data
+            If b Then count += 1
+        Next
+
         Me.Width = width
         Me.Height = height
         Me.Depth = depth
         Me.Shape = data
-        Dim count = 0
-        For Each b In data
-            If b Then count += 1
-        Next
         Me.TotalActive = count
+
+        ' ---- FVM 扩展掩膜（可选）----
+        ' 三者在 StableFluids 路径下恒为 Nothing，因此不会带来任何内存或行为回归；
+        ' FVM 路径下三者长度必须与主掩膜一致，否则立即抛出，避免后续越界。
+        If solids IsNot Nothing AndAlso solids.Length <> n Then
+            Throw New ArgumentException("solids 数组长度必须等于 width*height*depth", NameOf(solids))
+        End If
+        If impellerZone IsNot Nothing AndAlso impellerZone.Length <> n Then
+            Throw New ArgumentException("impellerZone 数组长度必须等于 width*height*depth", NameOf(impellerZone))
+        End If
+        If spargerZone IsNot Nothing AndAlso spargerZone.Length <> n Then
+            Throw New ArgumentException("spargerZone 数组长度必须等于 width*height*depth", NameOf(spargerZone))
+        End If
+
+        Me.Solids = solids
+        Me.ImpellerZone = impellerZone
+        Me.SpargerZone = spargerZone
     End Sub
 
 #End Region
@@ -104,6 +171,24 @@ Public Class VoxelShape
     ''' </summary>
     Public Function IsActive(idx As Integer) As Boolean
         Return Shape(idx)
+    End Function
+
+    ''' <summary>
+    ''' 判断体素 (x, y, z) 是否为固体结构（FVM 路径）。
+    ''' </summary>
+    ''' <remarks>
+    ''' <see cref="Solids"/> 为 <c>Nothing</c>（StableFluids 路径）时恒返回 False，
+    ''' 该情形下固体语义由 <c>Not IsActive(...)</c> 表达。
+    ''' </remarks>
+    Public Function IsSolid(x As Integer, y As Integer, z As Integer) As Boolean
+        If Solids Is Nothing Then Return False
+        Return Solids((x * Height + y) * Depth + z)
+    End Function
+
+    ''' <summary>判断一维索引 idx 处体素是否为固体结构（FVM 路径）。</summary>
+    Public Function IsSolid(idx As Integer) As Boolean
+        If Solids Is Nothing Then Return False
+        Return Solids(idx)
     End Function
 
     ''' <summary>

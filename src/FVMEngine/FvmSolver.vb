@@ -32,15 +32,24 @@ Option Explicit On
 
 Imports Microsoft.VisualBasic.MachineLearning.TensorFlow
 Imports tfMath = Microsoft.VisualBasic.MachineLearning.TensorFlow.Math
+Imports Moira.CFDEngine
 
 ''' <summary>
-''' 发酵罐 FVM 求解器：持有全部场变量（Tensor），按伪瞬态 SIMPLE 步进。
+''' 发酵罐 FVM 求解器：持有全部场变量，按伪瞬态 SIMPLE 步进。
+'''
+''' ★ 混合精度分工（CVDF 引擎契约）
+'''   五个标准速度/压力场取自统一 FluidField 的<b>双精度镜像</b>
+'''   （U64 / V64 / W64 / P64）：MRF 桨盘源项、k-ε 闭包、PBM 群体平衡、
+'''   DO 传质与比值型诊断量都在这条链路上，误差会跨时间步累积，必须 Double。
+'''   每步末尾 SyncToSingle() 把结果回写 Single 主存储，供快照导出与
+'''   CUDA 单精度算子消费。
 ''' </summary>
 Public Partial Class FvmSolver
 
 #Region "网格与几何（预计算 Tensor）"
 
-    Public ReadOnly Property Tank As FermentationTank
+    ''' <summary>发酵罐几何（FVM 几何构建器）。</summary>
+    Public ReadOnly Property Tank As FvmTank
     Private ReadOnly _nx, _ny, _nz As Integer
     Private ReadOnly _dx As Double
     Private ReadOnly _cellVolume As Double
@@ -193,7 +202,7 @@ Public Partial Class FvmSolver
     ''' <summary>
     ''' 从发酵罐几何构建求解器（场变量挂到 tank.Field 上供快照）。
     ''' </summary>
-    Public Sub New(tank As FermentationTank)
+    Public Sub New(tank As FvmTank)
         Me.Tank = tank
         _nx = tank.Nx
         _ny = tank.Ny
@@ -230,11 +239,12 @@ Public Partial Class FvmSolver
         _ty = TensorGrid.Wrap(tyd, _nx, _ny, _nz)
         _rPhys = TensorGrid.Wrap(rd, _nx, _ny, _nz)
 
-        ' ---- 场变量（挂 FluidField，五标准场 + 扩展场） ----
-        U = tank.Field.U
-        V = tank.Field.V
-        W = tank.Field.W
-        P = tank.Field.Pressure
+        ' ---- 场变量（挂统一 FluidField，五标准场走双精度镜像 + 扩展场） ----
+        ' 五标准场取 Double 镜像：MRF / k-ε / PBM / DO 链的误差会跨步累积，必须双精度。
+        U = tank.Field.U64
+        V = tank.Field.V64
+        W = tank.Field.W64
+        P = tank.Field.P64
         Alpha = New Tensor(_nx, _ny, _nz)
         K = New Tensor(_nx, _ny, _nz)
         Eps = New Tensor(_nx, _ny, _nz)
@@ -320,6 +330,11 @@ Public Partial Class FvmSolver
         TransportTurbulence() : Dbg("turb")
         TransportOxygen() : Dbg("o2")
         ApplyBoundaryMasks() : Dbg("mask")
+
+        ' ★ 精度边界：把本步的双精度结果回写 Single 主存储（O(5N)，相对步内
+        '   约 1400 次张量运算可忽略）。快照导出与 CUDA 单精度算子消费 Single 侧。
+        Tank.Field.SyncToSingle()
+
         _step += 1
         _time += Dt
     End Sub
@@ -331,7 +346,7 @@ Public Partial Class FvmSolver
         Dim rhoMix = tfMath.add(
             tfMath.multiply_scalar(Alpha, rhoG),
             tfMath.multiply_scalar(tfMath.add_scalar(tfMath.multiply_scalar(_act, -1.0R), 1.0R), Rho))
-        Array.Copy(rhoMix.Data, Tank.Field.Density.Data, _act.Length)
+        Array.Copy(rhoMix.Data, Tank.Field.Density64.Data, _act.Length)
     End Sub
 
     ' ╔════════════════════════════════════════════════════════════════════════════╗
@@ -358,7 +373,8 @@ Public Partial Class FvmSolver
         Dim dE = tfMath.multiply_scalar(nuEff, dcoef * Rho)
 
         ' ---- MRF 桨盘源（力密度）----
-        Dim sx, sy As Tensor
+        Dim sx As Tensor = Nothing
+        Dim sy As Tensor = Nothing
         ComputeImpellerSource(sx, sy)
 
         Dim aP0 = Rho * _cellVolume / Dt

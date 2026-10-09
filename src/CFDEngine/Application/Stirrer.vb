@@ -89,9 +89,12 @@ Public Class Stirrer
     ''' <param name="radius">叶轮半径</param>
     ''' <param name="height">叶轮厚度</param>
     ''' <param name="angularVelocity">角速度 (rad/时间)</param>
-    Public Sub New(centerX As Double, centerY As Double, zCenter As Double,
-                   radius As Double, height As Double,
-                   angularVelocity As Double)
+    Public Sub New(Optional centerX As Double = 0.0,
+                   Optional centerY As Double = 0.0,
+                   Optional zCenter As Double = 0.0,
+                   Optional radius As Double = 0.0,
+                   Optional height As Double = 0.0,
+                   Optional angularVelocity As Double = 0.0)
         Me.CenterX = centerX
         Me.CenterY = centerY
         Me.ZCenter = zCenter

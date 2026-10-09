@@ -3,9 +3,14 @@ Option Explicit On
 
 ' /********************************************************************************/
 '
-'   FermentationTank.vb
+'   FvmTank.vb
 '
-'   发酵罐几何构建器 —— 标准 Rushton 通气搅拌罐的体素化。
+'   发酵罐几何构建器（FVM 有限体积路径）—— 标准 Rushton 通气搅拌罐的体素化。
+'
+'   ★ 与 CFDEngine 的 FermentationTank（StableFluids 时间步进容器）职责不同：
+'       CFDEngine.FermentationTank = 容器 + StableFluidsSolver + StepForward(dt)
+'       本类                        = 几何体素化 + 统一混合精度 FluidField 初始化
+'     两者不可合并，故本类以 FvmTank 命名以消除同名类型冲突。
 '
 '   几何约定（体素坐标，z 自下而上）：
 '       - 圆柱罐体：中心 (cx, cy)，半径 R，液面高度 H（顶部 2 层留作
@@ -16,11 +21,14 @@ Option Explicit On
 '
 ' /********************************************************************************/
 
+Imports Microsoft.VisualBasic.MachineLearning.TensorFlow
+Imports Moira.CFDEngine
+
 ''' <summary>
-''' 通气搅拌发酵罐：几何体素化 + 标准场初始化。
-''' 提供 Snapshot 元数据所需的 Field / Viscosity / Diffusion 属性。
+''' 通气搅拌发酵罐：几何体素化 + 混合精度场初始化。
+''' 提供 Snapshot 元数据所需的 Field / Viscosity / Diffusion / Stirrer 属性。
 ''' </summary>
-Public Class FermentationTank
+Public Class FvmTank
 
     ''' <summary>罐直径 T（物理单位 m）。</summary>
     Public ReadOnly Property TankDiameter As Double
@@ -68,7 +76,7 @@ Public Class FermentationTank
     ''' <summary>挡板数。</summary>
     Public ReadOnly Property BaffleCount As Integer
 
-    ''' <summary>流体场（Tensor 承载）。</summary>
+    ''' <summary>混合精度流体场（Single 主存储 + 惰性 Double 镜像）。</summary>
     Public ReadOnly Property Field As FluidField
 
     ''' <summary>运动粘度 ν（物理单位 m²/s）。</summary>
@@ -80,13 +88,8 @@ Public Class FermentationTank
     ''' <summary>搅拌器（Snapshot 元数据）。</summary>
     Public ReadOnly Property Stirrer As Stirrer
 
-    ''' <summary>体素几何掩膜。</summary>
+    ''' <summary>体素几何掩膜（含固体 / 桨盘区 / 分布环扩展掩膜）。</summary>
     Public ReadOnly Property VoxelShape As VoxelShape
-
-    Private ReadOnly _impellerZone As Boolean()
-    Private ReadOnly _spargerZone As Boolean()
-    Private ReadOnly _solids As Boolean()
-    Private ReadOnly _active As Boolean()
 
     ''' <summary>
     ''' 构建标准通气 Rushton 发酵罐。
@@ -141,10 +144,10 @@ Public Class FermentationTank
 
         ' ---- 体素化 ----
         Dim n = nx * ny * nz
-        _active = New Boolean(n - 1) {}
-        _solids = New Boolean(n - 1) {}
-        _impellerZone = New Boolean(n - 1) {}
-        _spargerZone = New Boolean(n - 1) {}
+        Dim active = New Boolean(n - 1) {}
+        Dim solids = New Boolean(n - 1) {}
+        Dim impellerZone = New Boolean(n - 1) {}
+        Dim spargerZone = New Boolean(n - 1) {}
 
         Dim baffleWidth = TankDiameter / 12.0R / Dx   ' 挡板宽 T/12（体素）
 
@@ -162,42 +165,48 @@ Public Class FermentationTank
                     Dim belowSurface = k <= LiquidTop
 
                     If Not (inCylinder AndAlso belowSurface) Then Continue For
-                    _active(idx) = True
+                    active(idx) = True
 
                     ' 桨叶区（薄环带：桨半径外圈为叶片作用区）
                     Dim inImpellerBand =
                         rr <= ImpellerRadius AndAlso rr >= ImpellerRadius * 0.25R AndAlso
                         System.Math.Abs(k - ImpellerZ) <= ImpellerHalfHeight
-                    If inImpellerBand Then _impellerZone(idx) = True
+                    If inImpellerBand Then impellerZone(idx) = True
 
                     ' 桨毂/轴（细圆柱固体）：中心 r < 0.6 体素视为轴
-                    If rr <= 0.6R AndAlso belowSurface Then _solids(idx) = True
+                    If rr <= 0.6R AndAlso belowSurface Then solids(idx) = True
 
                     ' 分布环：薄圆环
                     Dim dRing = System.Math.Abs(rr - SpargerRadius)
                     If dRing <= 0.75R AndAlso System.Math.Abs(k - SpargerZ) <= 0.51R Then
-                        _spargerZone(idx) = True
+                        spargerZone(idx) = True
                     End If
                 Next
 
                 ' 4 块挡板（贴壁、全液高）
-                If _baffleAt(nx, ny, i, j, baffleWidth) Then
+                If _baffleAt(i, j, baffleWidth) Then
                     For k = 0 To LiquidTop
                         Dim idx = i * (ny * nz) + j * nz + k
-                        _solids(idx) = True
-                        _active(idx) = False
+                        solids(idx) = True
+                        active(idx) = False
                     Next
                 End If
             Next
         Next
 
-        VoxelShape = New VoxelShape(nx, ny, nz, _active, _solids, _impellerZone, _spargerZone)
-        Field = New FluidField(nx, ny, nz, VoxelShape)
+        VoxelShape = New VoxelShape(nx, ny, nz, active, solids, impellerZone, spargerZone)
+        Field = New FluidField(VoxelShape)
+
+        ' 液相初始密度（Single 主存储；Double 镜像在首次访问时惰性生成）
+        Dim rho0 As Single = 1000.0F
+        Dim rho = Field.Density.Data
+        For idx = 0 To Field.TotalVoxels - 1
+            rho(idx) = rho0
+        Next
     End Sub
 
     ''' <summary>4 块挡板位置判定（沿 +X/+Y/−X/−Y 四方向贴壁条带）。</summary>
-    Private Function _baffleAt(nx As Integer, ny As Integer, i As Integer, j As Integer,
-                               baffleWidth As Double) As Boolean
+    Private Function _baffleAt(i As Integer, j As Integer, baffleWidth As Double) As Boolean
         Dim x = i - CenterX
         Dim y = j - CenterY
         Dim rr = System.Math.Sqrt(x * x + y * y)
