@@ -20,11 +20,17 @@ Option Explicit On
 Imports System.IO
 Imports System.Text
 Imports Microsoft.VisualBasic.MachineLearning.TensorFlow
+Imports Moira.CFDEngine
 Imports Moira.CFDEngine.Snapshot
 Imports Moira.CFDEngine.Snapshot.JSON
 
 ''' <summary>
 ''' 发酵罐 FVM 仿真的 VTI 逐帧记录器（标准五场 + 湍流/两相/传质扩展场）。
+'''
+''' ★ 领域类型已收敛：FluidField 现在就是 Moira.CFDEngine 的混合精度
+'''   FluidField，因此本类可以<b>原生</b>实现 ISnapshotRecorder，无需任何
+'''   类型桥接。五个标准场读取 Single 主存储（求解器每步末已 SyncToSingle），
+'''   扩展标量场读取 Double 的 ExtraScalars。
 ''' </summary>
 Public Class TankVtiRecorder
     Implements ISnapshotRecorder
