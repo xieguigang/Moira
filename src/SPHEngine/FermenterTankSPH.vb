@@ -211,9 +211,9 @@ Public Class FermenterTankSPH
 
         Call engine.CalibrateDensity(
             Function(i)
-                Dim dx = st.px(i) - Rf
-                Dim dy = st.py(i) - Rf
-                Dim rr = dx * dx + dy * dy
+                Dim ex = st.px(i) - Rf
+                Dim ey = st.py(i) - Rf
+                Dim rr = ex * ex + ey * ey
                 Dim lim = Rf - 1.2F * hf
 
                 Return rr <= lim * lim AndAlso
@@ -384,6 +384,55 @@ Public Class FermenterTankSPH
         Dim rest = Engine.RestDensity
         If rest <= 0 Then Return 0
         Return Engine.State.MeanDensity() / rest
+    End Function
+
+    ''' <summary>
+    ''' mean normalized particle density per horizontal band (bottom → top),
+    ''' together with the particle count of each band. used to check the
+    ''' hydrostatic stratification of the broth.
+    ''' </summary>
+    Public Function DensityBands(bands As Integer) As (count As Integer, rho As Double)()
+        Dim st = Engine.State
+        Dim n = st.Count
+        Dim rest = Engine.RestDensity
+        Dim out As New List(Of (Integer, Double))()
+        Dim H = CSng(TankHeight)
+
+        If n = 0 OrElse rest <= 0 Then Return out.ToArray()
+
+        For b As Integer = 0 To bands - 1
+            Dim z0 = H * b / bands
+            Dim z1 = H * (b + 1) / bands
+            Dim sum As Double = 0
+            Dim cnt As Integer = 0
+
+            For i As Integer = 0 To n - 1
+                Dim z = st.pz(i)
+                If z < z0 OrElse z >= z1 Then Continue For
+                sum += st.dens(i)
+                cnt += 1
+            Next
+
+            If cnt = 0 Then
+                out.Add((0, 0.0))
+            Else
+                out.Add((cnt, sum / cnt / rest))
+            End If
+        Next
+
+        Return out.ToArray()
+    End Function
+
+    ''' <summary>highest particle position [m] (the broth surface)</summary>
+    Public Function SurfaceHeight() As Double
+        Dim st = Engine.State
+        Dim maxZ As Single = 0
+
+        For i As Integer = 0 To st.Count - 1
+            If st.pz(i) > maxZ Then maxZ = st.pz(i)
+        Next
+
+        Return maxZ
     End Function
 
     ''' <summary>mean particle speed [m/s]</summary>

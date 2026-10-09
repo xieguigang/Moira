@@ -147,6 +147,7 @@ Module Program
         Console.WriteLine("[5] 终态统计：")
         Console.WriteLine("    " & tank.Summary())
         Call PrintFieldStats(tank)
+        Call PrintBands(tank)
         Call PrintFinalProfile(tank)
         Console.WriteLine()
     End Sub
@@ -214,6 +215,18 @@ Module Program
             Dim mean = sum / count
             Dim barLen = CInt(std.Min(40, mean * 40))
             Console.WriteLine($"      z={(k + 0.5) * vz:F3} m  {mean:F3} |{New String("#"c, barLen)}")
+        Next
+    End Sub
+
+    ''' <summary>打印分层密度（核对静水压分层与液面高度）</summary>
+    Private Sub PrintBands(tank As FermenterTankSPH)
+        Dim bands = tank.DensityBands(6)
+        Dim H = tank.TankHeight
+
+        Console.WriteLine($"    分层密度  : 液面 {tank.SurfaceHeight():F3} m / 静止 {tank.LiquidHeight:F3} m")
+
+        For b As Integer = bands.Length - 1 To 0 Step -1
+            Console.WriteLine($"      z={H * b / 6:F3}-{H * (b + 1) / 6:F3} m  n={bands(b).count,6}  rho={bands(b).rho:F4}")
         Next
     End Sub
 
