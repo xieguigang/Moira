@@ -118,7 +118,9 @@ extern "C" __global__ void moira_sph_force(
 
         float pI = K * (rhoI - 1.0f);
         if (pI < pMin) pI = pMin;
-        float pnI = KN * rhoNI;
+        // 近压力只作"抗团聚"修正：以静止近密度为参考并截断到非负
+        float pnI = KN * (rhoNI - 1.0f);
+        if (pnI < 0.0f) pnI = 0.0f;
 
         press[i] = pI;
         pressNear[i] = pnI;
@@ -170,7 +172,8 @@ extern "C" __global__ void moira_sph_force(
 
                         float pJ = K * (rhoJ - 1.0f);
                         if (pJ < pMin) pJ = pMin;
-                        float pnJ = KN * rhoNJ;
+                        float pnJ = KN * (rhoNJ - 1.0f);
+                        if (pnJ < 0.0f) pnJ = 0.0f;
 
                         float coef  = vol * (cI  + pJ  / (rhoJ  * rhoJ));
                         float coefN = vol * (cnI + pnJ / (rhoNJ * rhoNJ));

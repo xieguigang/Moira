@@ -80,12 +80,14 @@ Public Class FermenterTankSPH
         End Get
     End Property
 
-    ''' <summary>simulated time [s]</summary>
+    ''' <summary>simulated time [s] (kept in double precision for clean frame stamps)</summary>
     Public ReadOnly Property Time As Double
         Get
-            Return Engine.Time
+            Return _time
         End Get
     End Property
+
+    Private _time As Double = 0.0
 
     ''' <summary>number of executed output steps</summary>
     Public ReadOnly Property StepCount As Integer
@@ -177,7 +179,8 @@ Public Class FermenterTankSPH
         impeller.SetRpm(CSng(rpm))
         impeller.ShaftRadius = CSng(tankRadius * 0.06)
         impeller.ShaftTop = CSng(tankHeight)
-        impeller.Influence = CSng(1.5 * s)
+        impeller.RadialPumping = 0.35F
+        impeller.Influence = CSng(std.Max(2.5 * s, tankRadius * 0.05))
         impeller.BlendRate = 40.0F
 
         ' ---- 填充粒子 ----
@@ -196,18 +199,49 @@ Public Class FermenterTankSPH
         engine.ReferenceSpeed = CSng(std.Sqrt(2 * 9.81 * LiquidHeight) + tip)
         engine.MaxVelocity = CSng(3.0 * engine.ReferenceSpeed)
         engine.MaxAccel = CSng(30.0 * 9.81)
-        engine.MaxSubSteps = 64
+        engine.MaxSubSteps = 128
         engine.CflFactor = 0.35F
 
-        ' 静止点阵上标定 rest density，并按标定结果重建压力刚度
-        Call engine.CalibrateDensity()
+        ' 静止点阵上标定 rest density（只取远离壁面 / 液面的内部粒子，
+        ' 避免自由液面与壁面的核亏损把静止密度标定偏低），再按标定结果重建压力刚度
+        Dim st = engine.State
+        Dim Rf = CSng(tankRadius)
+        Dim hf = CSng(SmoothingRadius)
+        Dim liquidTop = CSng(LiquidHeight)
+
+        Call engine.CalibrateDensity(
+            Function(i)
+                Dim dx = st.px(i) - Rf
+                Dim dy = st.py(i) - Rf
+                Dim rr = dx * dx + dy * dy
+                Dim lim = Rf - 1.2F * hf
+
+                Return rr <= lim * lim AndAlso
+                       st.pz(i) >= 1.2F * hf AndAlso
+                       st.pz(i) <= liquidTop - 1.2F * hf
+            End Function)
 
         Me.Engine = engine
         Me.Impeller = impeller
         Me.Sampler = New SphFieldSampler(Shape, CSng(SmoothingRadius),
                                          0.0F, 0.0F, 0.0F,
                                          CSng(dx), CSng(dx), CSng(dz))
+
+        ' 体素空间的静止填充基准：核支撑在壁面 / 液面处被截断，体素采样值
+        ' 会系统性地低于粒子静止密度。这里测一份"初始静止液面"的逐体素核和
+        ' 作为参考，使液体内部恒为 1.0、空气为 0，便于可视化时直接切阈值。
+        _restMap = Sampler.MeasureRest(Engine.State, Field)
+        Call SampleField()
     End Sub
+
+    ''' <summary>per voxel reference kernel sum of the initial broth fill</summary>
+    Public ReadOnly Property RestMap As Single()
+        Get
+            Return _restMap
+        End Get
+    End Property
+
+    Private ReadOnly _restMap As Single()
 
     ''' <summary>
     ''' fill the broth volume with a slightly jittered regular particle lattice.
@@ -273,11 +307,19 @@ Public Class FermenterTankSPH
     ''' <summary>advance the simulation by one output step</summary>
     Public Sub StepForward(dt As Double)
         Call Engine.RunStep(CSng(dt))
+        _time += dt
     End Sub
 
     ''' <summary>sample the particles into <see cref="Field"/></summary>
     Public Sub SampleField()
-        Call Sampler.Sample(Engine.State, Field, Engine.RestDensity)
+        ' GPU 后端在 FullSync=False 时标量场驻留显存，采样前同步一次
+        Dim cuda = TryCast(Engine.Backend, CudaSphBackend)
+
+        If cuda IsNot Nothing AndAlso Not cuda.FullSync Then
+            Call cuda.SyncFields(Engine.State)
+        End If
+
+        Call Sampler.Sample(Engine.State, Field, Engine.RestDensity, _restMap)
     End Sub
 
     ''' <summary>
@@ -317,11 +359,11 @@ Public Class FermenterTankSPH
 
             If (s Mod interval) = 0 OrElse s = steps Then
                 Call SampleField()
-                Call recorder.Capture(Field, Engine.StepCount, Engine.Time)
+                Call recorder.Capture(Field, Engine.StepCount, _time)
             End If
 
             If onStep IsNot Nothing Then
-                Call onStep(s, Engine.Time, MaxSpeed())
+                Call onStep(s, _time, MaxSpeed())
             End If
         Next
 
@@ -344,10 +386,26 @@ Public Class FermenterTankSPH
         Return Engine.State.MeanDensity() / rest
     End Function
 
+    ''' <summary>mean particle speed [m/s]</summary>
+    Public Function MeanSpeed() As Double
+        Dim st = Engine.State
+        Dim n = st.Count
+        If n = 0 Then Return 0
+
+        Dim sum As Double = 0
+
+        For i As Integer = 0 To n - 1
+            sum += std.Sqrt(st.vx(i) * st.vx(i) + st.vy(i) * st.vy(i) + st.vz(i) * st.vz(i))
+        Next
+
+        Return sum / n
+    End Function
+
     ''' <summary>a one line summary of the current state</summary>
     Public Function Summary() As String
         Return $"t={Time:F3}s  step={StepCount}  particles={ParticleCount}  " &
-               $"maxSpeed={MaxSpeed():F3} m/s  meanRho={MeanNormalizedDensity():F4}  " &
+               $"maxSpeed={MaxSpeed():F3} m/s  meanSpeed={MeanSpeed():F3} m/s  " &
+               $"meanRho={MeanNormalizedDensity():F4}  " &
                $"subSteps={Engine.LastSubSteps}  c={Engine.EffectiveSoundSpeed:F2} m/s"
     End Function
 

@@ -69,6 +69,13 @@ Public Class CudaSphBackend : Implements ISphCompute3D
         End Get
     End Property
 
+    ''' <summary>
+    ''' when true every sub step reads back density / pressure as well;
+    ''' set it to false and call <see cref="SyncFields"/> right before a snapshot
+    ''' to cut the per sub step PCIe traffic in half.
+    ''' </summary>
+    Public Property FullSync As Boolean = True
+
     Private Sub New(engine As ILCudaRuntime.CudaEngine)
         _engine = engine
     End Sub
@@ -279,14 +286,12 @@ Public Class CudaSphBackend : Implements ISphCompute3D
                            d_press, d_pressNear,
                            d_ax, d_ay, d_az, n)
 
-            ' ---- 回读 ----
-            state.dens = d_dens.Read()
-            state.densNear = d_densNear.Read()
-            state.press = d_press.Read()
-            state.pressNear = d_pressNear.Read()
+            ' ---- 回读：加速度每步都要（主机侧积分），标量场按需同步 ----
             state.ax = d_ax.Read()
             state.ay = d_ay.Read()
             state.az = d_az.Read()
+
+            If FullSync Then Call SyncFields(state)
 
             Return True
         Catch ex As Exception
@@ -295,6 +300,24 @@ Public Class CudaSphBackend : Implements ISphCompute3D
             Return False
         End Try
     End Function
+
+    ''' <summary>
+    ''' read the density / pressure fields back from the device into the host state.
+    ''' call this before sampling when <see cref="FullSync"/> is off.
+    ''' </summary>
+    Public Sub SyncFields(state As SphState3D)
+        If _failed OrElse d_dens Is Nothing Then Return
+
+        Try
+            state.dens = d_dens.Read()
+            state.densNear = d_densNear.Read()
+            state.press = d_press.Read()
+            state.pressNear = d_pressNear.Read()
+        Catch ex As Exception
+            _failed = True
+            LastError = ex.Message
+        End Try
+    End Sub
 
 #Region "释放"
 

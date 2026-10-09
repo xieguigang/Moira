@@ -100,15 +100,63 @@ Public Class SphFieldSampler
     End Sub
 
     ''' <summary>
+    ''' measure the per voxel rest kernel sum of the given particle fill.
+    ''' </summary>
+    ''' <returns>
+    ''' a flat array (engine layout idx = i*(ny*nz) + j*nz + k) of the raw
+    ''' kernel sums; it can be handed back to <see cref="Sample"/> as the
+    ''' <c>restMap</c> so that a filled voxel reads exactly 1.
+    ''' </returns>
+    Public Function MeasureRest(state As SphState3D, field As FluidField) As Single()
+        ' 原始核和不做截断（截断只作用于归一化之后的填充率）
+        Call Sample(state, field, 1.0F, Nothing, clampFill:=False)
+
+        Dim out = New Single(field.TotalVoxels - 1) {}
+        Array.Copy(field.Density.Data, out, out.Length)
+
+        ' 参考值的典型尺度（非零参考值的中位数）：远离参考值异常小的体素
+        ' （初始液面之上偶尔被单个粒子扫到的体素）改用全局静止密度归一
+        Dim nonzero As New List(Of Single)()
+
+        For Each v In out
+            If v > 0.000000001F Then nonzero.Add(v)
+        Next
+
+        If nonzero.Count > 0 Then
+            nonzero.Sort()
+            restTypical = nonzero(nonzero.Count \ 2)
+        Else
+            restTypical = 1.0F
+        End If
+
+        Return out
+    End Function
+
+    ''' <summary>typical (median) per voxel reference kernel sum of the rest fill</summary>
+    Private restTypical As Single = 1.0F
+
+    ''' <summary>
     ''' sample the particle state into the given fluid field.
     ''' </summary>
     ''' <param name="state">the SPH particle state</param>
     ''' <param name="field">target field (cleared and refilled in place)</param>
     ''' <param name="restDensity">
-    ''' the calibrated rest density of the SPH kernel sum; the density output is
-    ''' normalized by it so that a filled voxel reads ~1.
+    ''' global normalizer of the density output (used when <paramref name="restMap"/>
+    ''' is Nothing or when the per voxel reference is 0).
     ''' </param>
-    Public Sub Sample(state As SphState3D, field As FluidField, Optional restDensity As Single = 1.0F)
+    ''' <param name="restMap">
+    ''' optional per voxel reference kernel sum (see <see cref="MeasureRest"/>);
+    ''' when given, the density output becomes the local fill fraction, so that
+    ''' a voxel that is filled exactly like the initial broth reads 1.
+    ''' </param>
+    ''' <param name="clampFill">
+    ''' clamp the density output to 4 (protects against splashes landing on
+    ''' voxels with a tiny reference). must be off when measuring the reference.
+    ''' </param>
+    Public Sub Sample(state As SphState3D, field As FluidField,
+                      Optional restDensity As Single = 1.0F,
+                      Optional restMap As Single() = Nothing,
+                      Optional clampFill As Boolean = True)
         Call field.Clear()
 
         Dim n = state.Count
@@ -193,7 +241,26 @@ Public Class SphFieldSampler
                                         v(i, j, k) = sv * inv
                                         w(i, j, k) = sw * inv
                                         p(i, j, k) = sp * inv
-                                        d(i, j, k) = sumW / rest
+
+                                        Dim fill As Single
+
+                                        If restMap Is Nothing Then
+                                            fill = sumW / rest
+                                        Else
+                                            Dim vidx = i * (ny * nz) + j * nz + k
+                                            Dim ref = restMap(vidx)
+
+                                            ' 参考值过小（初始为空气、后来被液体填充）时退回全局归一，
+                                            ' 避免出现除以极小值导致的荒谬填充率
+                                            If ref > 0.25F * restTypical Then
+                                                fill = sumW / ref
+                                            Else
+                                                fill = sumW / rest
+                                            End If
+                                        End If
+
+                                        If clampFill AndAlso fill > 4.0F Then fill = 4.0F
+                                        d(i, j, k) = fill
                                     Next
                                 Next
                             End Sub)

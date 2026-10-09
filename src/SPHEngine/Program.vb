@@ -92,6 +92,8 @@ Module Program
             Console.WriteLine("[2] 尝试启用 CUDA GPU 后端 ...")
             If CudaSphBackend.TryEnableGpu(tank.Engine) Then
                 Console.WriteLine($"    GPU 后端已启用：{tank.Engine.Backend.Name}")
+                ' 标量场（密度/压力）只在采样帧回读，减少每子步的 PCIe 传输
+                DirectCast(tank.Engine.Backend, CudaSphBackend).FullSync = False
             Else
                 Console.WriteLine($"    GPU 不可用（{CudaSphBackend.LastError}），回落 CPU 并行后端：{tank.Engine.Backend.Name}")
             End If
@@ -144,6 +146,8 @@ Module Program
 
         Console.WriteLine("[5] 终态统计：")
         Console.WriteLine("    " & tank.Summary())
+        Call PrintFieldStats(tank)
+        Call PrintFinalProfile(tank)
         Console.WriteLine()
     End Sub
 
@@ -182,6 +186,66 @@ Module Program
         Next
 
         Console.WriteLine()
+    End Sub
+
+    ''' <summary>打印终态液面剖面（核对搅拌后的液面形态）</summary>
+    Private Sub PrintFinalProfile(tank As FermenterTankSPH)
+        Dim f = tank.Field
+        Dim vz = tank.VoxelSizeZ
+
+        Console.WriteLine("    终态液面剖面（层平均填充率）：")
+
+        Dim stride = std.Max(1, f.Nz \ 10)
+
+        For k As Integer = f.Nz - 1 To 0 Step -stride
+            Dim sum As Double = 0
+            Dim count As Integer = 0
+
+            For i As Integer = 0 To f.Nx - 1
+                For j As Integer = 0 To f.Ny - 1
+                    If Not f.IsActive(i, j, k) Then Continue For
+                    sum += f.Density(i, j, k)
+                    count += 1
+                Next
+            Next
+
+            If count = 0 Then Continue For
+
+            Dim mean = sum / count
+            Dim barLen = CInt(std.Min(40, mean * 40))
+            Console.WriteLine($"      z={(k + 0.5) * vz:F3} m  {mean:F3} |{New String("#"c, barLen)}")
+        Next
+    End Sub
+
+    ''' <summary>统计导出网格场（即 .vti 中实际写入的数据）</summary>
+    Private Sub PrintFieldStats(tank As FermenterTankSPH)
+        Dim f = tank.Field
+        Dim maxS As Double = 0, sumS As Double = 0, cnt As Integer = 0
+        Dim maxD As Double = 0, minP As Double = Double.MaxValue, maxP As Double = Double.MinValue
+
+        For i As Integer = 0 To f.Nx - 1
+            For j As Integer = 0 To f.Ny - 1
+                For k As Integer = 0 To f.Nz - 1
+                    If Not f.IsActive(i, j, k) Then Continue For
+
+                    Dim u = f.U(i, j, k), v = f.V(i, j, k), w = f.W(i, j, k)
+                    Dim s = std.Sqrt(u * u + v * v + w * w)
+                    If s > maxS Then maxS = s
+                    sumS += s
+                    cnt += 1
+
+                    If f.Density(i, j, k) > maxD Then maxD = f.Density(i, j, k)
+                    If f.Pressure(i, j, k) < minP Then minP = f.Pressure(i, j, k)
+                    If f.Pressure(i, j, k) > maxP Then maxP = f.Pressure(i, j, k)
+                Next
+            Next
+        Next
+
+        If cnt = 0 Then Return
+
+        Console.WriteLine($"    导出场    : 活动体素 {cnt}，最大速度 {maxS:F3} m/s，" &
+                          $"平均速度 {sumS / cnt:F4} m/s")
+        Console.WriteLine($"    密度范围  : [0, {maxD:F3}]   压力范围 : [{minP:F3}, {maxP:F3}]")
     End Sub
 
     Private Sub PrintBanner()
