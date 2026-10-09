@@ -5,6 +5,7 @@
   </Configurations>
   <Folder Name="/framework/">
     <Project Path="../../GCModeller/src/runtime/sciBASIC#/Data_science/Graph/graph-netcore5.vbproj">
+      <BuildType Solution="Release|x64" Project="nuget_release" />
       <Platform Solution="*|x64" Project="x64" />
     </Project>
     <Project Path="../../GCModeller/src/runtime/sciBASIC#/Data_science/MachineLearning/TensorFlow/TensorFlow.vbproj">
@@ -20,6 +21,7 @@
       <Platform Solution="*|x64" Project="x64" />
     </Project>
     <Project Path="../../GCModeller/src/runtime/sciBASIC#/gr/physics/physics-netcore5.vbproj">
+      <BuildType Solution="Release|x64" Project="nuget_release" />
       <Platform Solution="*|x64" Project="x64" />
     </Project>
     <Project Path="../../GCModeller/src/runtime/sciBASIC#/Microsoft.VisualBasic.Core/src/Core.vbproj">
@@ -80,7 +82,9 @@
     <BuildType Solution="Release|x64" Project="nuget_release" />
     <Platform Solution="*|x64" Project="x64" />
   </Project>
-  <Project Path="SPHEngine/SPHEngine.vbproj" Id="cf6346dc-536b-4e53-8ba8-34df0e9f32d3" />
+  <Project Path="SPHEngine/SPHEngine.vbproj" Id="cf6346dc-536b-4e53-8ba8-34df0e9f32d3">
+    <Platform Solution="Release|x64" Project="x64" />
+  </Project>
   <Project Path="ZMesh/ZMesh.vbproj" Id="9e164694-844e-48a5-a596-35587f9b3578">
     <BuildType Solution="Release|x64" Project="nuget_release" />
     <Platform Solution="*|x64" Project="x64" />
