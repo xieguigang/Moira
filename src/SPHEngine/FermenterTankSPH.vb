@@ -159,8 +159,20 @@ Public Class FermenterTankSPH
         Me.Field = New FluidField(Shape)
 
         ' ---- 粒子间距 ----
-        Dim liquidVolume = std.PI * tankRadius * tankRadius * LiquidHeight
-        Dim s = std.Pow(liquidVolume / std.Max(1, particles), 1.0 / 3.0)
+        ' 初始点阵要在壁面 / 罐底留出 half spacing 的间隙（否则第一步就被边界
+        ' 推回，造成一次虚假塌落）。因此用"实际可填充体积"反推间距，
+        ' 使沉降后的发酵液体积 = 液面以下罐容，液位最终仍落在 FillFraction。
+        ' 点阵排布沉降到无序排布时会略微密实化（离散求积差），
+        ' 初始填充高度按 SettlingBoost 略微超高，沉降后正好落在设定液位
+        Dim fillTop = LiquidHeight * SettlingBoost
+        Dim s = std.Pow(std.PI * tankRadius * tankRadius * fillTop / std.Max(1, particles), 1.0 / 3.0)
+
+        For iter As Integer = 1 To 3
+            Dim pad0 = 0.5 * s
+            Dim vLat = std.PI * (tankRadius - pad0) * (tankRadius - pad0) * (fillTop - pad0)
+            s = std.Pow(vLat / std.Max(1, particles), 1.0 / 3.0)
+        Next
+
         Me.Spacing = s
         Me.SmoothingRadius = 2.0 * s
 
@@ -202,24 +214,19 @@ Public Class FermenterTankSPH
         engine.MaxSubSteps = 128
         engine.CflFactor = 0.35F
 
-        ' 静止点阵上标定 rest density（只取远离壁面 / 液面的内部粒子，
-        ' 避免自由液面与壁面的核亏损把静止密度标定偏低），再按标定结果重建压力刚度
-        Dim st = engine.State
-        Dim Rf = CSng(tankRadius)
-        Dim hf = CSng(SmoothingRadius)
-        Dim liquidTop = CSng(LiquidHeight)
+        ' ---- 静止密度 ----
+        ' 直接取"初始填充的数密度" N / V_fill（连续介质口径），而不是点阵上实测的核和：
+        ' 规则点阵的离散核和比连续积分 ∫W dV = 1 高出约 15%（求积误差），若拿它当静止
+        ' 密度，沉降后的发酵液会被压密同样比例，液位就掉到 3/4 罐高以下。
+        ' 用数密度则液体在无序（真实）排布下恰为 rho = 1，液位稳定在设定值。
+        Dim padFill = 0.5 * s
+        Dim vFill = std.PI * (tankRadius - padFill) * (tankRadius - padFill) *
+                    (LiquidHeight * SettlingBoost - padFill)
+        Dim nFill = std.Max(1, engine.Count)
 
-        Call engine.CalibrateDensity(
-            Function(i)
-                Dim ex = st.px(i) - Rf
-                Dim ey = st.py(i) - Rf
-                Dim rr = ex * ex + ey * ey
-                Dim lim = Rf - 1.2F * hf
-
-                Return rr <= lim * lim AndAlso
-                       st.pz(i) >= 1.2F * hf AndAlso
-                       st.pz(i) <= liquidTop - 1.2F * hf
-            End Function)
+        engine.AutoCalibrateDensity = False
+        engine.RestDensity = CSng(nFill / vFill)
+        engine.RestNearDensity = CSng(nFill / vFill)
 
         Me.Engine = engine
         Me.Impeller = impeller
@@ -246,19 +253,26 @@ Public Class FermenterTankSPH
     ''' <summary>
     ''' fill the broth volume with a slightly jittered regular particle lattice.
     ''' </summary>
+    ''' <summary>
+    ''' 沉降补偿：初始点阵按此系数略微超高填充，
+    ''' 补偿"规则点阵 → 无序排布"的密实化，使液位稳定在 FillFraction
+    ''' </summary>
+    Private Const SettlingBoost As Double = 1.05
+
     Private Sub FillLiquid(engine As FluidEngine3D, seed As Integer)
         Dim rnd As New Random(seed)
         Dim s = CSng(Spacing)
         Dim R = CSng(TankRadius)
-        Dim pad = CSng(0.55 * Spacing)
+        ' 与求解器 WallPadding 一致的留边（0.5 * spacing）
+        Dim pad = CSng(0.5 * Spacing)
         Dim innerR = R - pad
-        Dim liquidH = CSng(LiquidHeight)
+        Dim liquidH = CSng(LiquidHeight * SettlingBoost)
         Dim jitter = 0.06F * s
 
         Dim list As New List(Of Single())()
         Dim z As Single = pad
 
-        While z <= liquidH - pad * 0.5F
+        While z <= liquidH
             Dim y As Single = pad
 
             While y <= 2 * R - pad
