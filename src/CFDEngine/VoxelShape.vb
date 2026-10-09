@@ -194,6 +194,54 @@ Public Class VoxelShape
 
     End Function
 
+    ''' <summary>
+    ''' 生成竖直（沿 Z 轴）放置的圆柱形体素模型。
+    ''' 圆柱 = 半径 radius 的圆形截面沿 Z 轴从 bottomZ 拉伸到 topZ。
+    ''' 空间中某体素属于圆柱，当且仅当：
+    '''   - 其径向距离 sqrt((x-centerX)^2 + (y-centerY)^2) ≤ radius
+    '''   - 且 bottomZ ≤ z ≤ topZ
+    ''' </summary>
+    ''' <param name="width">X 维度数</param>
+    ''' <param name="height">Y 维度数</param>
+    ''' <param name="depth">Z 维度数</param>
+    ''' <param name="radius">圆柱半径（网格单位）</param>
+    ''' <param name="centerX">圆心 X 位置（默认网格中心）</param>
+    ''' <param name="centerY">圆心 Y 位置（默认网格中心）</param>
+    ''' <param name="bottomZ">圆柱底部 Z（含，默认 0）</param>
+    ''' <param name="topZ">圆柱顶部 Z（含，默认网格顶端 depth-1）</param>
+    Public Shared Function Cylinder(width As Integer, height As Integer, depth As Integer,
+                                    radius As Double,
+                                    Optional centerX As Double = -1,
+                                    Optional centerY As Double = -1,
+                                    Optional bottomZ As Double = 0,
+                                    Optional topZ As Double = -1) As VoxelShape
+
+        If centerX < 0 Then centerX = (width - 1) * 0.5
+        If centerY < 0 Then centerY = (height - 1) * 0.5
+        If topZ < 0 Then topZ = depth - 1
+
+        Dim n = width * height * depth
+        Dim data(n - 1) As Boolean
+        Dim r2 = radius * radius
+
+        For x = 0 To width - 1
+            Dim dx = x - centerX
+            For y = 0 To height - 1
+                Dim dy = y - centerY
+                Dim radial2 = dx * dx + dy * dy
+                If radial2 > r2 Then Continue For   ' 超出圆柱半径，必为空腔
+
+                For z = 0 To depth - 1
+                    If z < bottomZ OrElse z > topZ Then Continue For
+                    data((x * height + y) * depth + z) = True
+                Next
+            Next
+        Next
+
+        Return New VoxelShape(width, height, depth, data)
+
+    End Function
+
 #End Region
 
 End Class
