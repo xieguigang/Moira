@@ -120,7 +120,7 @@ Partial Public Class FvmSolver
     End Sub
 
     ''' <summary>
-    ' ★ 模块① 通用离散算子：一阶迎风面通量（FVM.md §一 1.2，被 ③④ 各输运方程复用）
+    ''' ★ 模块① 通用离散算子：一阶迎风面通量（FVM.md §一 1.2，被 ③④ 各输运方程复用）
     ''' 标量 φ 沿速度分量 vel 的迎风面通量（East 面约定）：
     ''' F = [0.5(uP+uE) − 0.5|uP+uE|]·φ_P…——返回“以 P 为参考的出流面通量” φ_f·q_f，
     ''' div 用 ShiftX(F, -1) 组合。
