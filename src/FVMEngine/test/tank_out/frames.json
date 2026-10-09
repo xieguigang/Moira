@@ -1,0 +1,20 @@
+{
+  "format": "vti",
+  "grid": { "nx": 36, "ny": 36, "nz": 45 },
+  "fields": ["mask", "pressure", "density", "velocity", "alpha_g", "k", "epsilon", "DO", "nut", "kLa", "d32", "n0", "speed"],
+  "frames": [
+    { "step": 0, "time": 0, "file": "frame_0000.vti" },
+    { "step": 20, "time": 0.06631455962162304, "file": "frame_0001.vti" },
+    { "step": 40, "time": 0.13262911924324608, "file": "frame_0002.vti" },
+    { "step": 60, "time": 0.1989436788648691, "file": "frame_0003.vti" },
+    { "step": 80, "time": 0.26525823848649216, "file": "frame_0004.vti" },
+    { "step": 100, "time": 0.3315727981081152, "file": "frame_0005.vti" },
+    { "step": 120, "time": 0.3978873577297382, "file": "frame_0006.vti" },
+    { "step": 140, "time": 0.46420191735136124, "file": "frame_0007.vti" },
+    { "step": 160, "time": 0.5305164769729843, "file": "frame_0008.vti" },
+    { "step": 180, "time": 0.5968310365946073, "file": "frame_0009.vti" },
+    { "step": 200, "time": 0.6631455962162304, "file": "frame_0010.vti" },
+    { "step": 220, "time": 0.7294601558378534, "file": "frame_0011.vti" },
+    { "step": 240, "time": 0.7957747154594764, "file": "frame_0012.vti" }
+  ]
+}

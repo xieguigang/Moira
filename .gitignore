@@ -395,3 +395,9 @@ src/CFDEngine/viz-check-C.png
 71/step_page.png
 *.pvd
 *.vti
+src/FVMEngine/test/tank_out/metadata.json
+src/FVMEngine/test/smoke_s/metadata.json
+src/FVMEngine/test/smoke_d/metadata.json
+src/FVMEngine/test/smoke_cuda/metadata.json
+src/FVMEngine/test/cmp_s/metadata.json
+src/FVMEngine/test/cmp_d/metadata.json

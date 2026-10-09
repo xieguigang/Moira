@@ -55,6 +55,8 @@ Public Module Program
         Console.WriteLine("  --interval N   每 N 步导出一帧（默认 20）")
         Console.WriteLine("  --gas Q        充气量 m³/s（默认 0.0004）")
         Console.WriteLine("  --fast         跳过 O2/DO 与 k-ε 扩展（快速调试）")
+        Console.WriteLine("  --double       强制纯 Double 参考路径（热点 Jacobi 不降精度，用于对拍）")
+        Console.WriteLine("  --no-cuda      不尝试 CUDA，热点仍走 float32 但限 SIMD CPU")
     End Sub
 
     Private Function Demo(args As String()) As Integer
@@ -65,6 +67,8 @@ Public Module Program
         Dim rpm = 120.0R
         Dim interval = 20
         Dim gas = 0.0004R
+        Dim forceDouble = False
+        Dim useCuda = True
 
         Dim i = 0
         While i < args.Length
@@ -74,6 +78,8 @@ Public Module Program
                 Case "--rpm" : i += 1 : rpm = Single.Parse(args(i), Globalization.CultureInfo.InvariantCulture)
                 Case "--interval" : i += 1 : interval = Integer.Parse(args(i))
                 Case "--gas" : i += 1 : gas = Double.Parse(args(i), Globalization.CultureInfo.InvariantCulture)
+                Case "--double" : forceDouble = True      ' 强制纯 Double 参考路径（对拍用）
+                Case "--no-cuda" : useCuda = False         ' 只用 float32 + SIMD CPU，不尝试 CUDA
                 Case Else
                     If Not args(i).StartsWith("--", StringComparison.Ordinal) Then outDir = args(i)
             End Select
@@ -93,9 +99,24 @@ Public Module Program
                                 diffusion:=2.0R * 1e-9R,
                                 rpm:=rpm)
 
+        ' ---- 混合精度后端 ----
+        ' 热点（p' 泊松 Jacobi + 动量预估 Jacobi）走 float32；CUDA 可用时整个迭代驻留显存，
+        ' 否则回落 TensorF + SIMD CPU。源项与闭包恒为 Double。
+        If useCuda Then Call FvmSolver.TryEnableCudaBackend()
+        If FvmSolver.CudaBackendEnabled Then
+            Console.WriteLine("  精度策略: 热点 float32 + CUDA | 源项/闭包 Double(CPU)")
+        Else
+            Console.WriteLine($"  精度策略: 热点 float32 + SIMD-CPU | 源项/闭包 Double(CPU)" &
+                              If(useCuda, $"  [CUDA 不可用: {FvmSolver.CudaBackendError}]", "  [--no-cuda]"))
+        End If
+
         ' ---- 求解器 ----
         Dim solver As New FvmSolver(tank)
         solver.GasFlowRate = gas
+        If forceDouble Then
+            solver.UseSingleBackend = False
+            Console.WriteLine("  参考路径: 已强制纯 Double（--double），热点 Jacobi 不降精度")
+        End If
 
         ' ---- 快照 ----
         ' 领域模型已统一：tank.Field 就是 Moira.CFDEngine 的混合精度 FluidField，

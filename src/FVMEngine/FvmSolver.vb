@@ -69,6 +69,12 @@ Public Partial Class FvmSolver
     ''' <summary>体素到轴距离（物理单位 m）。</summary>
     Private ReadOnly _rPhys As Tensor
 
+    ''' <summary>
+    ''' 活动体素的字节掩膜（1 = 流体，0 = 固体 / 非活动）。
+    ''' 供单精度 Jacobi 内核（FvmCompute）在 GPU / CPU 侧屏蔽非活动体素。
+    ''' </summary>
+    Private ReadOnly _mask8 As Byte()
+
 #End Region
 
 #Region "场变量（全部 Tensor）"
@@ -124,6 +130,13 @@ Public Partial Class FvmSolver
     Public Property PressureUrf As Double = 0.7R
     ''' <summary>p' Jacobi 内迭代数。</summary>
     Public Property PressureSweeps As Integer = 40
+
+    ''' <summary>
+    ''' 是否把热点 Jacobi（动量预估 + p' 泊松）下沉到 float32 执行。
+    ''' True（默认）时优先走 CUDA，无 NVIDIA 设备则回落到 TensorF + SIMD CPU；
+    ''' False 时走纯 Double 参考路径（用于对拍与精度诊断）。
+    ''' </summary>
+    Public Property UseSingleBackend As Boolean = True
 
     ' k-ε 常数
     Private Const Cmu As Double = 0.09
@@ -199,6 +212,42 @@ Public Partial Class FvmSolver
 
 #End Region
 
+#Region "混合精度边界"
+
+    ''' <summary>Double → Single（跨精度边界：进入 float32 热点算子前）。</summary>
+    Private Shared Function ToF(t As Tensor) As TensorF
+        Return TensorF.FromTensor(t)
+    End Function
+
+    ''' <summary>Single → Double（跨精度边界：离开 float32 热点算子后）。</summary>
+    Private Shared Function ToD(t As TensorF) As Tensor
+        Return t.ToTensor()
+    End Function
+
+    ''' <summary>
+    ''' 尝试启用 CUDA 单精度后端（供热点 Jacobi 使用）。
+    ''' 无 NVIDIA 设备 / NVRTC 编译失败时返回 False，热点自动回落 CPU float32。
+    ''' </summary>
+    Public Shared Function TryEnableCudaBackend(Optional deviceOrdinal As Integer = -1) As Boolean
+        Return FvmCompute.TryRegister(deviceOrdinal)
+    End Function
+
+    ''' <summary>CUDA 单精度后端是否已启用。</summary>
+    Public Shared ReadOnly Property CudaBackendEnabled As Boolean
+        Get
+            Return FvmCompute.IsGpuAvailable
+        End Get
+    End Property
+
+    ''' <summary>最近一次 CUDA 后端注册失败的原因（成功时为 Nothing）。</summary>
+    Public Shared ReadOnly Property CudaBackendError As String
+        Get
+            Return FvmCompute.LastError
+        End Get
+    End Property
+
+#End Region
+
     ''' <summary>
     ''' 从发酵罐几何构建求解器（场变量挂到 tank.Field 上供快照）。
     ''' </summary>
@@ -216,6 +265,14 @@ Public Partial Class FvmSolver
         _impZone = TensorGrid.MaskTensor(tank.VoxelShape.ImpellerZone, _nx, _ny, _nz)
         _spgZone = TensorGrid.MaskTensor(tank.VoxelShape.SpargerZone, _nx, _ny, _nz)
         _topZone = TopZoneMask()
+
+        ' 单精度 Jacobi 内核使用的字节掩膜（几何不变，整个仿真期间常量）
+        Dim activeMask = tank.VoxelShape.Shape
+        Dim maskBuf(activeMask.Length - 1) As Byte
+        For idx = 0 To activeMask.Length - 1
+            maskBuf(idx) = If(activeMask(idx), CByte(1), CByte(0))
+        Next
+        _mask8 = maskBuf
 
         ' 极坐标方向张量
         Dim txd(_act.Length - 1) As Double
@@ -427,11 +484,35 @@ Public Partial Class FvmSolver
         SolveComponent(W, aPdiag, anbE, anbW, anbN, anbS, anbT, anbB, aP0, Nothing)
     End Sub
 
-    ''' <summary>单个速度分量的 Jacobi 更新（in-place 写回 u.Data）。</summary>
+    ''' <summary>
+    ''' 单个速度分量的 Jacobi 更新（in-place 写回 u.Data）。
+    '''
+    ''' ★ 混合精度热点①：默认把这一扫下沉到 float32 —— GPU 优先
+    '''   （FvmCompute / moira_fvm_jacobi_var，整个迭代驻留显存），
+    '''   无 NVIDIA 设备时自动回落到 TensorF + SIMD CPU。
+    '''   UseSingleBackend = False 时走纯 Double 参考路径，用于对拍与精度诊断。
+    ''' </summary>
     Private Sub SolveComponent(u As Tensor, aP As Tensor,
                                anbE As Tensor, anbW As Tensor, anbN As Tensor, anbS As Tensor,
                                anbT As Tensor, anbB As Tensor, aP0 As Double, sourceV As Tensor)
-        ' H = Σ_nb a_nb·u_nb（六面各自系数）
+        ' RHS = aP0·u_old + S·V
+        ' 邻居贡献 Σ_nb a_nb·u_nb 由 Jacobi 内核内部累加（Single 路径）
+        Dim rhs = tfMath.multiply_scalar(u, aP0)
+        If sourceV IsNot Nothing Then rhs = tfMath.add(rhs, sourceV)
+
+        If UseSingleBackend Then
+            ' 1 扫 Jacobi：以当前 u 为初始猜测，六面变系数 + 对角 aP
+            Dim x32 = FvmCompute.Jacobi(
+                ToF(rhs), ToF(anbE), ToF(anbW), ToF(anbN), ToF(anbS), ToF(anbT), ToF(anbB),
+                ToF(aP), _mask8, 1, ToF(u))
+
+            ' 回到 Double 做速度限幅（稳健性处理留在精度敏感侧）
+            Dim uNew = tfMath.clip_by_value(x32.ToTensor(), -4.0R * TipSpeed, 4.0R * TipSpeed)
+            Array.Copy(uNew.Data, u.Data, u.Length)
+            Return
+        End If
+
+        ' ---- 纯 Double 参考路径 ----
         Dim hSum = tfMath.multiply(anbE, TensorGrid.East(u))
         hSum = tfMath.add(hSum, tfMath.multiply(anbW, TensorGrid.West(u)))
         hSum = tfMath.add(hSum, tfMath.multiply(anbN, TensorGrid.North(u)))
@@ -439,16 +520,13 @@ Public Partial Class FvmSolver
         hSum = tfMath.add(hSum, tfMath.multiply(anbT, TensorGrid.Top(u)))
         hSum = tfMath.add(hSum, tfMath.multiply(anbB, TensorGrid.Bottom(u)))
 
-        ' RHS = aP0·u_old + H + S·V
-        Dim rhs = tfMath.multiply_scalar(u, aP0)
         rhs = tfMath.add(rhs, hSum)
-        If sourceV IsNot Nothing Then rhs = tfMath.add(rhs, sourceV)
 
         ' u = RHS / aP（仅在活动体素）
-        Dim uNew = tfMath.multiply(_act, tfMath.divide(rhs, aP))
+        Dim uNew64 = tfMath.multiply(_act, tfMath.divide(rhs, aP))
         ' 速度限幅（稳健）
-        uNew = tfMath.clip_by_value(uNew, -4.0R * TipSpeed, 4.0R * TipSpeed)
-        Array.Copy(uNew.Data, u.Data, u.Length)
+        uNew64 = tfMath.clip_by_value(uNew64, -4.0R * TipSpeed, 4.0R * TipSpeed)
+        Array.Copy(uNew64.Data, u.Data, u.Length)
     End Sub
 
     ' ★ 模块① 面通量三关键量之一：F_f = ρ·u_f·A（FVM.md §1.2 引擎核心数据结构）
@@ -519,21 +597,33 @@ Public Partial Class FvmSolver
         Dim apfT = tfMath.multiply_scalar(dFaceT, _dx)
         Dim apfB = tfMath.multiply_scalar(tfMath.multiply_scalar(
             tfMath.add(invAP, TensorGrid.Bottom(invAP)), 0.5R), _dx)
-        Dim pp As Tensor = TensorGrid.Filled(_nx, _ny, _nz, 0.0R)
         Dim aPp = tfMath.add_scalar(
             tfMath.multiply(tfMath.add(tfMath.add(
                 tfMath.add(apfE, apfW), tfMath.add(apfN, apfS)), tfMath.add(apfT, apfB)), _act), 1e-6R)
-        For sweep = 1 To PressureSweeps
-            Dim nbSum = tfMath.add(tfMath.add(
-                tfMath.add(tfMath.multiply(apfE, TensorGrid.East(pp)),
-                           tfMath.multiply(apfW, TensorGrid.West(pp))),
-                tfMath.add(tfMath.multiply(apfN, TensorGrid.North(pp)),
-                           tfMath.multiply(apfS, TensorGrid.South(pp)))),
-                tfMath.add(tfMath.multiply(apfT, TensorGrid.Top(pp)),
-                           tfMath.multiply(apfB, TensorGrid.Bottom(pp))))
-            pp = tfMath.divide(tfMath.add(nbSum, bVec), aPp)
 
-        Next
+        ' ★ 混合精度热点②：p' 泊松的全部 PressureSweeps 次 Jacobi 扫描下沉到 float32。
+        '   GPU 路径下整个迭代在显存内 ping-pong，主机侧只承担 7 个系数场的一次上传
+        '   与结果的一次回读 —— 这是本求解器 GPU 收益最高的模块（约占步内 40% 运算）。
+        '   无 NVIDIA 设备 / NVRTC 失败时 FvmCompute 自动回落到 TensorF + SIMD CPU。
+        Dim pp As Tensor
+
+        If UseSingleBackend Then
+            pp = FvmCompute.Jacobi(ToF(bVec), ToF(apfE), ToF(apfW), ToF(apfN), ToF(apfS),
+                                   ToF(apfT), ToF(apfB), ToF(aPp), _mask8, PressureSweeps).ToTensor()
+        Else
+            ' ---- 纯 Double 参考路径 ----
+            pp = TensorGrid.Filled(_nx, _ny, _nz, 0.0R)
+            For sweep = 1 To PressureSweeps
+                Dim nbSum = tfMath.add(tfMath.add(
+                    tfMath.add(tfMath.multiply(apfE, TensorGrid.East(pp)),
+                               tfMath.multiply(apfW, TensorGrid.West(pp))),
+                    tfMath.add(tfMath.multiply(apfN, TensorGrid.North(pp)),
+                               tfMath.multiply(apfS, TensorGrid.South(pp)))),
+                    tfMath.add(tfMath.multiply(apfT, TensorGrid.Top(pp)),
+                               tfMath.multiply(apfB, TensorGrid.Bottom(pp))))
+                pp = tfMath.divide(tfMath.add(nbSum, bVec), aPp)
+            Next
+        End If
 
         ' 残差诊断（相对平均进出通量）
         Dim resSum = tfMath.reduce_sum(tfMath.abs(tfMath.multiply(_act, divF)))

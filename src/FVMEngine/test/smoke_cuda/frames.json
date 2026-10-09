@@ -1,0 +1,9 @@
+{
+  "format": "vti",
+  "grid": { "nx": 12, "ny": 12, "nz": 15 },
+  "fields": ["mask", "pressure", "density", "velocity", "alpha_g", "k", "epsilon", "DO", "nut", "kLa", "d32", "n0", "speed"],
+  "frames": [
+    { "step": 0, "time": 0, "file": "frame_0000.vti" },
+    { "step": 5, "time": 0.0497359197162173, "file": "frame_0001.vti" }
+  ]
+}
