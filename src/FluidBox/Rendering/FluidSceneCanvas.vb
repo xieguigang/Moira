@@ -131,7 +131,9 @@ Namespace Rendering
         Private ReadOnly m_shake As New BoxShakeController()
         Private m_sim As FluidBoxSim
         Private m_mapper As SpeedHeatMapper
+        Private m_packer As InstancePacker
         Private m_backend As Direct3D11SceneRenderer
+        Private m_lastGeneration As Long = -1
         Private m_drawn As Integer = 0
         Private m_packMs As Double = 0
         Private m_drawMs As Double = 0
@@ -186,6 +188,13 @@ Namespace Rendering
         End Sub
 
         ''' <summary>
+        ''' hand the background packer to the canvas
+        ''' </summary>
+        Public Sub AttachPacker(packer As InstancePacker)
+            m_packer = packer
+        End Sub
+
+        ''' <summary>
         ''' the palette has been changed by the user
         ''' </summary>
         Public Sub ApplyPalette()
@@ -220,7 +229,7 @@ Namespace Rendering
         ''' <returns>true when the cloud has been rebuilt, false when the frame
         ''' was skipped because nothing has changed</returns>
         Public Function PushFrame() As Boolean
-            If m_sim Is Nothing OrElse m_mapper Is Nothing Then
+            If m_sim Is Nothing OrElse m_packer Is Nothing Then
                 m_skipped = True
                 Return False
             End If
@@ -229,40 +238,52 @@ Namespace Rendering
             Dim tiltMoved As Boolean =
                 std.Abs(m_shake.TiltX - m_cloudTiltX) > CloudTiltEpsilon OrElse
                 std.Abs(m_shake.TiltY - m_cloudTiltY) > CloudTiltEpsilon
+            Dim wanted As Boolean = m_dirty OrElse steps <> m_lastStep OrElse tiltMoved
 
-            If Not m_dirty AndAlso steps = m_lastStep AndAlso Not tiltMoved Then
-                ' the gpu still holds exactly the cloud that is on the screen
+            If wanted Then
+                Dim state = m_sim.ReadSnapshot()
+                Dim n As Integer = m_sim.ParticleCount
+
+                If state IsNot Nothing AndAlso state.Count > 0 Then n = state.Count
+
+                ' the tilt of the box changes while the user is dragging it, so
+                ' the world transform of the cloud has to follow it
+                Call m_packer.Request(state, n, m_shake.Rotation, m_half, m_half, m_half)
+
+                m_lastStep = steps
+                m_cloudTiltX = m_shake.TiltX
+                m_cloudTiltY = m_shake.TiltY
+                m_dirty = False
+            End If
+
+            Dim data As Single() = Nothing
+            Dim count As Integer = 0
+            Dim generation As Long = 0
+
+            If Not m_packer.TryTake(data, count, generation) Then
+                ' the packer has not finished a cloud yet, ask again next frame
+                If wanted Then m_dirty = True
+
                 m_skipped = True
                 Return False
             End If
 
-            m_lastStep = steps
-            m_dirty = False
-            m_cloudTiltX = m_shake.TiltX
-            m_cloudTiltY = m_shake.TiltY
+            If generation = m_lastGeneration Then
+                ' the gpu already holds exactly this cloud
+                m_skipped = True
+                Return False
+            End If
+
+            m_lastGeneration = generation
+            m_packMs = m_packer.PackMs
             m_skipped = False
-
-            Dim state = m_sim.ReadSnapshot()
-            Dim n As Integer = m_sim.ParticleCount
-
-            If state IsNot Nothing AndAlso state.Count > 0 Then n = state.Count
-
-            Dim pack = Stopwatch.StartNew()
-
-            ' the tilt of the box changes while the user is dragging it, so the
-            ' world transform of the cloud has to be refreshed with it
-            Call m_mapper.SetTransform(m_shake.Rotation, m_half, m_half, m_half)
-            Call m_mapper.Build(state, n, RenderBudget)
-
-            pack.Stop()
-            m_packMs = pack.Elapsed.TotalMilliseconds
 
             If m_backend IsNot Nothing Then
                 Call m_backend.EnsureInstanceCapacity(RenderBudget)
-                Call m_backend.UploadInstances(m_mapper.Instances, m_mapper.Count)
+                Call m_backend.UploadInstances(data, count)
             End If
 
-            m_drawn = m_mapper.Count
+            m_drawn = count
 
             Call UploadBoxLines(False)
             Call Invalidate()
@@ -281,6 +302,12 @@ Namespace Rendering
 
             watch.Stop()
             m_drawMs = watch.Elapsed.TotalMilliseconds
+
+            ' the instance buffer of this frame has reached the gpu, the packer
+            ' may write into it again
+            If m_packer IsNot Nothing Then
+                Call m_packer.ReleaseTaken()
+            End If
         End Sub
 
         ''' <summary>

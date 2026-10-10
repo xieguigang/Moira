@@ -30,6 +30,7 @@ Public Class Form1
     Private m_canvas As FluidSceneCanvas
     Private m_sim As FluidBoxSim
     Private m_mapper As SpeedHeatMapper
+    Private m_packer As InstancePacker
 
     Private m_toolbar As Panel
     Private m_body As Panel
@@ -604,19 +605,25 @@ Public Class Form1
         m_sim = sim
         m_mapper = mapper
 
-        Call mapper.SetTransform(m_canvas.Shake.Rotation,
-                                 sim.BoxSize / 2.0F, sim.BoxSize / 2.0F, sim.BoxSize / 2.0F)
-        mapper.EnsureCapacity(m_renderBudget)
+        ' the cloud is packed on its own thread, the ui thread only hands the
+        ' finished buffer to the gpu
+        If m_packer IsNot Nothing Then Call m_packer.Stop()
+
+        m_packer = New InstancePacker(mapper)
+        Call m_packer.Resize(m_renderBudget)
 
         m_canvas.RenderBudget = m_renderBudget
         Call m_canvas.Attach(sim, mapper)
+        Call m_canvas.AttachPacker(m_packer)
+        Call m_packer.Start()
 
         m_legendName.Text = m_paletteBox.SelectedItem.ToString()
 
         m_ready = True
         m_loading.Visible = False
 
-        Call m_canvas.PushFrame()
+        ' the first cloud is packed by the worker, the idle loop picks it up
+        Call m_canvas.InvalidateFrame()
         Call m_sim.Start()
         Call UpdateStatus()
 
@@ -737,6 +744,7 @@ Public Class Form1
 
     Private Sub OnResetClick(sender As Object, e As EventArgs)
         If m_sim IsNot Nothing Then Call m_sim.Stop()
+        If m_packer IsNot Nothing Then Call m_packer.Stop()
 
         m_ready = False
         Call StartLoading()
@@ -768,7 +776,8 @@ Public Class Form1
 
         If Not m_ready OrElse m_mapper Is Nothing Then Return
 
-        Call m_mapper.EnsureCapacity(m_renderBudget)
+        If m_packer IsNot Nothing Then Call m_packer.Resize(m_renderBudget)
+
         m_canvas.RenderBudget = m_renderBudget
         Call m_canvas.InvalidateFrame()
     End Sub
@@ -839,6 +848,8 @@ Public Class Form1
 
     Protected Overrides Sub OnFormClosing(e As FormClosingEventArgs)
         If m_sim IsNot Nothing Then Call m_sim.Stop()
+        If m_packer IsNot Nothing Then Call m_packer.Stop()
+
         Call MyBase.OnFormClosing(e)
     End Sub
 End Class
