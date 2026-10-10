@@ -90,6 +90,19 @@ Public Class Form1
     Private WithEvents m_tiltRead As Label
     Private WithEvents m_tiltBar As TrackBar
 
+    ' 设计器内联创建的装饰性控件（间距、说明、标题），按规范提到类字段并 WithEvents
+    Private WithEvents m_gap1 As Panel
+    Private WithEvents m_gap2 As Panel
+    Private WithEvents m_gap3 As Panel
+    Private WithEvents m_gap4 As Panel
+    Private WithEvents m_gap5 As Panel
+    Private WithEvents m_gap6 As Panel
+    Private WithEvents m_lblPalette As Label
+    Private WithEvents m_lblPointSize As Label
+    Private WithEvents m_lblParamsTitle As Label
+    Private WithEvents m_lblParamsHint As Label
+    Private WithEvents m_gapParams As Panel
+
     Private m_progress As Double = 0
     Private m_ready As Boolean = False
     Private m_frameClock As Stopwatch = Stopwatch.StartNew()

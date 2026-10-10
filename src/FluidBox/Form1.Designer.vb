@@ -281,33 +281,83 @@ Partial Class Form1
         Me.m_sizeBar.Height = 28
         Me.m_sizeBar.BackColor = Color.FromArgb(19, 26, 34)
         '
+        'm_gap1
+        '
+        Me.m_gap1 = New Panel()
+        Me.m_gap1.Width = 8
+        Me.m_gap1.Height = 1
+        Me.m_gap1.BackColor = Color.FromArgb(19, 26, 34)
+        '
+        'm_gap2
+        '
+        Me.m_gap2 = New Panel()
+        Me.m_gap2.Width = 8
+        Me.m_gap2.Height = 1
+        Me.m_gap2.BackColor = Color.FromArgb(19, 26, 34)
+        '
+        'm_gap3
+        '
+        Me.m_gap3 = New Panel()
+        Me.m_gap3.Width = 8
+        Me.m_gap3.Height = 1
+        Me.m_gap3.BackColor = Color.FromArgb(19, 26, 34)
+        '
+        'm_gap4
+        '
+        Me.m_gap4 = New Panel()
+        Me.m_gap4.Width = 20
+        Me.m_gap4.Height = 1
+        Me.m_gap4.BackColor = Color.FromArgb(19, 26, 34)
+        '
+        'm_gap5
+        '
+        Me.m_gap5 = New Panel()
+        Me.m_gap5.Width = 14
+        Me.m_gap5.Height = 1
+        Me.m_gap5.BackColor = Color.FromArgb(19, 26, 34)
+        '
+        'm_lblPalette
+        '
+        Me.m_lblPalette = New Label()
+        Me.m_lblPalette.Text = "色表"
+        Me.m_lblPalette.AutoSize = True
+        Me.m_lblPalette.ForeColor = Color.FromArgb(139, 152, 165)
+        Me.m_lblPalette.Font = New Font("Segoe UI", 9.0F)
+        Me.m_lblPalette.Margin = New Padding(0, 5, 0, 0)
+        Me.m_lblPalette.Padding = New Padding(0)
+        '
+        'm_gap6
+        '
+        Me.m_gap6 = New Panel()
+        Me.m_gap6.Width = 14
+        Me.m_gap6.Height = 1
+        Me.m_gap6.BackColor = Color.FromArgb(19, 26, 34)
+        '
+        'm_lblPointSize
+        '
+        Me.m_lblPointSize = New Label()
+        Me.m_lblPointSize.Text = "点大小"
+        Me.m_lblPointSize.AutoSize = True
+        Me.m_lblPointSize.ForeColor = Color.FromArgb(139, 152, 165)
+        Me.m_lblPointSize.Font = New Font("Segoe UI", 9.0F)
+        Me.m_lblPointSize.Margin = New Padding(0, 5, 0, 0)
+        Me.m_lblPointSize.Padding = New Padding(0)
+        '
         'm_flow content
         '
         Me.m_flow.Controls.Add(Me.m_btnRun)
-        Me.m_flow.Controls.Add(New Panel() With {.Width = 8, .Height = 1, .BackColor = Color.FromArgb(19, 26, 34)})
+        Me.m_flow.Controls.Add(Me.m_gap1)
         Me.m_flow.Controls.Add(Me.m_btnStep)
-        Me.m_flow.Controls.Add(New Panel() With {.Width = 8, .Height = 1, .BackColor = Color.FromArgb(19, 26, 34)})
+        Me.m_flow.Controls.Add(Me.m_gap2)
         Me.m_flow.Controls.Add(Me.m_btnReset)
-        Me.m_flow.Controls.Add(New Panel() With {.Width = 8, .Height = 1, .BackColor = Color.FromArgb(19, 26, 34)})
+        Me.m_flow.Controls.Add(Me.m_gap3)
         Me.m_flow.Controls.Add(Me.m_btnFit)
-        Me.m_flow.Controls.Add(New Panel() With {.Width = 20, .Height = 1, .BackColor = Color.FromArgb(19, 26, 34)})
-        Me.m_flow.Controls.Add(New Panel() With {.Width = 14, .Height = 1, .BackColor = Color.FromArgb(19, 26, 34)})
-        Me.m_flow.Controls.Add(New Label() With {
-            .Text = "色表",
-            .AutoSize = True,
-            .ForeColor = Color.FromArgb(139, 152, 165),
-            .Font = New Font("Segoe UI", 9.0F),
-            .Margin = New Padding(0, 5, 0, 0),
-            .Padding = New Padding(0)})
+        Me.m_flow.Controls.Add(Me.m_gap4)
+        Me.m_flow.Controls.Add(Me.m_gap5)
+        Me.m_flow.Controls.Add(Me.m_lblPalette)
         Me.m_flow.Controls.Add(Me.m_paletteBox)
-        Me.m_flow.Controls.Add(New Panel() With {.Width = 14, .Height = 1, .BackColor = Color.FromArgb(19, 26, 34)})
-        Me.m_flow.Controls.Add(New Label() With {
-            .Text = "点大小",
-            .AutoSize = True,
-            .ForeColor = Color.FromArgb(139, 152, 165),
-            .Font = New Font("Segoe UI", 9.0F),
-            .Margin = New Padding(0, 5, 0, 0),
-            .Padding = New Padding(0)})
+        Me.m_flow.Controls.Add(Me.m_gap6)
+        Me.m_flow.Controls.Add(Me.m_lblPointSize)
         Me.m_flow.Controls.Add(Me.m_sizeBar)
         Me.m_toolbar.Controls.Add(Me.m_flow)
         '
@@ -386,14 +436,15 @@ Partial Class Form1
         Me.m_status.Controls.Add(Me.m_lstStep)
         Me.m_status.Controls.Add(Me.m_lstBackend)
         '
-        'm_params: title
+        'm_lblParamsTitle
         '
-        Me.m_params.Controls.Add(New Label() With {
-            .Text = "物理参数",
-            .Dock = DockStyle.Top,
-            .Height = 26,
-            .ForeColor = Color.FromArgb(230, 237, 243),
-            .Font = New Font("Segoe UI", 11.0F, FontStyle.Bold)})
+        Me.m_lblParamsTitle = New Label()
+        Me.m_lblParamsTitle.Text = "物理参数"
+        Me.m_lblParamsTitle.Dock = DockStyle.Top
+        Me.m_lblParamsTitle.Height = 26
+        Me.m_lblParamsTitle.ForeColor = Color.FromArgb(230, 237, 243)
+        Me.m_lblParamsTitle.Font = New Font("Segoe UI", 11.0F, FontStyle.Bold)
+        Me.m_params.Controls.Add(Me.m_lblParamsTitle)
         '
         'm_gravityHost
         '
@@ -641,21 +692,25 @@ Partial Class Form1
         Me.m_tiltBar.Height = 30
         Me.m_tiltBar.BackColor = Color.FromArgb(19, 26, 34)
         '
-        'm_params: hint
+        'm_lblParamsHint
         '
-        Me.m_params.Controls.Add(New Label() With {
-            .Dock = DockStyle.Top,
-            .Height = 78,
-            .ForeColor = Color.FromArgb(139, 152, 165),
-            .Font = New Font("Segoe UI", 8.0F),
-            .Text = "左键拖拽 = 晃动盒子（惯性 + 倾斜）" & vbCrLf &
-                    "右键拖拽 = 环绕视角" & vbCrLf &
-                    "滚轮 = 缩放" & vbCrLf &
-                    "物理在后台线程推进，画面始终显示最新一帧。"})
+        Me.m_lblParamsHint = New Label()
+        Me.m_lblParamsHint.Dock = DockStyle.Top
+        Me.m_lblParamsHint.Height = 78
+        Me.m_lblParamsHint.ForeColor = Color.FromArgb(139, 152, 165)
+        Me.m_lblParamsHint.Font = New Font("Segoe UI", 8.0F)
+        Me.m_lblParamsHint.Text = "左键拖拽 = 晃动盒子（惯性 + 倾斜）" & vbCrLf &
+                                 "右键拖拽 = 环绕视角" & vbCrLf &
+                                 "滚轮 = 缩放" & vbCrLf &
+                                 "物理在后台线程推进，画面始终显示最新一帧。"
+        Me.m_params.Controls.Add(Me.m_lblParamsHint)
         '
-        'm_params: spacer
+        'm_gapParams
         '
-        Me.m_params.Controls.Add(New Panel() With {.Dock = DockStyle.Top, .Height = 14})
+        Me.m_gapParams = New Panel()
+        Me.m_gapParams.Dock = DockStyle.Top
+        Me.m_gapParams.Height = 14
+        Me.m_params.Controls.Add(Me.m_gapParams)
         '
         'Form1 final assembly
         '
