@@ -23,9 +23,10 @@
 ' /********************************************************************************/
 
 Imports Microsoft.VisualBasic.Imaging.Physics
+Imports Moira.SPHEngine
 Imports std = System.Math
 
-Module Program
+Module SPHProgram
 
     ''' <summary>参数默认值</summary>
     Private particles As Integer = 25000

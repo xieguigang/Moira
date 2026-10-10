@@ -78,6 +78,9 @@
   <Project Path="CFDEngine/test/test.vbproj" Id="f44f484f-ca15-4bfe-b49d-cdf30ef9a673">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
+  <Project Path="FluidBox/FluidBox.vbproj" Id="eb5e55b1-ecd0-4b6b-ab4f-fbd74a34c2db">
+    <Platform Solution="Release|x64" Project="x64" />
+  </Project>
   <Project Path="MeshGraph/MeshGraph.vbproj" Id="103de77f-19e2-467f-8c44-6fc4bdc24325">
     <BuildType Solution="Release|x64" Project="nuget_release" />
     <Platform Solution="*|x64" Project="x64" />
