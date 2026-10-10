@@ -47,7 +47,6 @@ Namespace Rendering
         Private m_oz As Single = 0
         Private m_pending As Boolean = False
         Private m_front As Integer = -1
-        Private m_taken As Integer = -1
         Private m_generation As Long = 0
         Private m_packMs As Double = 0
 
@@ -149,7 +148,6 @@ Namespace Rendering
                 End If
 
                 m_busy(i) = True
-                m_taken = i
                 data = m_data(i)
                 count = m_produced(i)
                 generation = m_generation
@@ -159,15 +157,23 @@ Namespace Rendering
         End Function
 
         ''' <summary>
-        ''' the frame has been painted, the buffer of the last
-        ''' <see cref="TryTake"/> may be written again
+        ''' the frame has been painted: every buffer that was handed over has
+        ''' been copied into the instance buffer of the gpu by now, so all of
+        ''' them may be written again
         ''' </summary>
+        ''' <remarks>
+        ''' The release deliberately drops the busy flag of every slot instead
+        ''' of the one of the last take: the canvas can hand over a second
+        ''' buffer before the paint of the first one when the packer is faster
+        ''' than the display, and remembering a single slot would leak the flag
+        ''' of the older one. Three leaks are enough to leave the packer
+        ''' without any free buffer at all.
+        ''' </remarks>
         Public Sub ReleaseTaken()
             SyncLock m_lock
-                If m_taken >= 0 Then
-                    m_busy(m_taken) = False
-                    m_taken = -1
-                End If
+                For i As Integer = 0 To Slots - 1
+                    m_busy(i) = False
+                Next
             End SyncLock
         End Sub
 
