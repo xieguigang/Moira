@@ -72,6 +72,15 @@ Namespace Rendering
             End Get
         End Property
 
+        ''' <summary>how many clouds the canvas has asked for</summary>
+        Public ReadOnly Property Requests As Long
+            Get
+                Return m_requests
+            End Get
+        End Property
+
+        Private m_requests As Long = 0
+
         ''' <summary>
         ''' give every buffer room for <paramref name="budget"/> points
         ''' </summary>
@@ -117,6 +126,7 @@ Namespace Rendering
                 m_oy = oy
                 m_oz = oz
                 m_pending = True
+                m_requests += 1
             End SyncLock
 
             Call m_signal.Set()
@@ -165,10 +175,13 @@ Namespace Rendering
             If m_running Then Return
 
             m_running = True
+            ' A pack costs a few milliseconds only, but it has to happen while
+            ' the solver is stepping: at a lower priority the solver starves it
+            ' and the box stops following the mouse.
             m_worker = New Thread(AddressOf WorkerLoop) With {
                 .IsBackground = True,
                 .Name = "fluid-box-packer",
-                .Priority = ThreadPriority.BelowNormal
+                .Priority = ThreadPriority.Normal
             }
             Call m_worker.Start()
         End Sub

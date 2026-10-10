@@ -269,7 +269,11 @@ Namespace Rendering
             End If
 
             If generation = m_lastGeneration Then
-                ' the gpu already holds exactly this cloud
+                ' the gpu already holds exactly this cloud, but the packer is
+                ' still working on the one that was asked for: keep the flag so
+                ' that the next frame picks it up
+                If wanted Then m_dirty = True
+
                 m_skipped = True
                 Return False
             End If

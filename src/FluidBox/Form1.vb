@@ -71,6 +71,8 @@ Public Class Form1
     Private m_particleCount As Integer = 100_000
     Private m_renderBudget As Integer = 100_000
     Private m_adaptive As Boolean = False
+    Private m_clock As Timer
+    Private m_statusClock As Stopwatch = Stopwatch.StartNew()
 
     ' the built in frame benchmark: FluidBox.exe --bench 20 writes the frame
     ' times of the first twenty seconds into fluidbox-bench.log and exits
@@ -109,9 +111,14 @@ Public Class Form1
         Call BuildShell()
         Call StartLoading()
 
-        ' the animation is driven whenever the message queue runs dry, the
-        ' handler throttles itself to the refresh rate of the display
-        AddHandler Application.Idle, AddressOf OnIdleTick
+        ' The animation must not be driven by Application.Idle: the winforms
+        ' message pump blocks in GetMessage as soon as the queue runs dry, so
+        ' the idle event only fires once per message. With nothing to repaint
+        ' the loop then stalls at a few ticks per second. A timer posts a
+        ' message of its own and keeps the loop at a steady rate.
+        m_clock = New Timer() With {.Interval = 8}
+        AddHandler m_clock.Tick, AddressOf OnIdleTick
+        Call m_clock.Start()
     End Sub
 
     ''' <summary>
@@ -694,7 +701,13 @@ Public Class Form1
             m_fpsClock.Restart()
         End If
 
-        Call UpdateStatus()
+        ' every label of the status bar repaints itself when its text changes,
+        ' which is far too much work for a frame that lasts a few milliseconds
+        If m_statusClock.ElapsedMilliseconds >= 200 Then
+            m_statusClock.Restart()
+            Call UpdateStatus()
+        End If
+
         Call BenchSample()
     End Sub
 
@@ -746,6 +759,7 @@ Public Class Form1
         Call log.AppendLine($"loop rate    : {m_benchTicks / elapsed:F1} /s")
         Call log.AppendLine($"sim steps    : {m_sim.StepCount}")
         Call log.AppendLine($"packs done   : {If(m_packer Is Nothing, -1, m_packer.Generation)}")
+        Call log.AppendLine($"requests     : {If(m_packer Is Nothing, -1, m_packer.Requests)}")
         Call log.AppendLine($"updated      : {m_benchWorkFrames}")
         Call log.AppendLine($"skipped      : {m_benchTicks - m_benchWorkFrames}")
         Call log.AppendLine($"work per upd : {work:F2} ms")
@@ -950,6 +964,7 @@ Public Class Form1
     End Sub
 
     Protected Overrides Sub OnFormClosing(e As FormClosingEventArgs)
+        If m_clock IsNot Nothing Then Call m_clock.Stop()
         If m_sim IsNot Nothing Then Call m_sim.Stop()
         If m_packer IsNot Nothing Then Call m_packer.Stop()
 
