@@ -160,7 +160,10 @@ Public Class SphFieldSampler
         Call field.Clear()
 
         Dim n = state.Count
-        If n = 0 Then Return
+
+        If n = 0 Then
+            Return
+        End If
 
         Call grid.Build(state, predicted:=False)
 
@@ -178,92 +181,98 @@ Public Class SphFieldSampler
         Dim u = field.U, v = field.V, w = field.W
         Dim p = field.Pressure, d = field.Density
 
-        Call par.For(0, nz, Sub(k)
-                                Dim wz = oz + (k + 0.5F) * dzS
+        Call par.For(0, nz,
+            body:=Sub(k)
+                      Dim wz = oz + (k + 0.5F) * dzS
 
-                                For j As Integer = 0 To ny - 1
-                                    Dim wy = oy + (j + 0.5F) * dyS
+                      For j As Integer = 0 To ny - 1
+                          Dim wy = oy + (j + 0.5F) * dyS
 
-                                    For i As Integer = 0 To nx - 1
-                                        If Not shape.IsActive(i, j, k) Then Continue For
+                          For i As Integer = 0 To nx - 1
+                              If Not shape.IsActive(i, j, k) Then Continue For
 
-                                        Dim wx = ox + (i + 0.5F) * dxS
-                                        Dim cx = grid.CoordX(wx)
-                                        Dim cy = grid.CoordY(wy)
-                                        Dim cz = grid.CoordZ(wz)
+                              Dim wx = ox + (i + 0.5F) * dxS
+                              Dim cx = grid.CoordX(wx)
+                              Dim cy = grid.CoordY(wy)
+                              Dim cz = grid.CoordZ(wz)
 
-                                        Dim sumW As Single = 0
-                                        Dim su As Single = 0, sv As Single = 0, sw As Single = 0
-                                        Dim sp As Single = 0
+                              Dim sumW As Single = 0
+                              Dim su As Single = 0, sv As Single = 0, sw As Single = 0
+                              Dim sp As Single = 0
 
-                                        For ddx As Integer = -1 To 1
-                                            Dim ax = cx + ddx
-                                            If ax < 0 OrElse ax >= gnx Then Continue For
-                                            For ddy As Integer = -1 To 1
-                                                Dim ay = cy + ddy
-                                                If ay < 0 OrElse ay >= gny Then Continue For
-                                                For ddz As Integer = -1 To 1
-                                                    Dim az = cz + ddz
-                                                    If az < 0 OrElse az >= gnz Then Continue For
+                              For ddx As Integer = -1 To 1
+                                  Dim ax = cx + ddx
+                                  If ax < 0 OrElse ax >= gnx Then Continue For
+                                  For ddy As Integer = -1 To 1
+                                      Dim ay = cy + ddy
+                                      If ay < 0 OrElse ay >= gny Then Continue For
+                                      For ddz As Integer = -1 To 1
+                                          Dim az = cz + ddz
+                                          If az < 0 OrElse az >= gnz Then Continue For
 
-                                                    Dim c = (ax * gny + ay) * gnz + az
-                                                    Dim s0 = cellStart(c)
-                                                    Dim e0 = cellStart(c + 1)
+                                          Dim c = (ax * gny + ay) * gnz + az
+                                          Dim s0 = cellStart(c)
+                                          Dim e0 = cellStart(c + 1)
 
-                                                    For t As Integer = s0 To e0 - 1
-                                                        Dim q = entries(t)
+                                          For t As Integer = s0 To e0 - 1
+                                              Dim q = entries(t)
 
-                                                        Dim rx = px(q) - wx
-                                                        Dim ry = py(q) - wy
-                                                        Dim rz = pz(q) - wz
-                                                        Dim r2 = rx * rx + ry * ry + rz * rz
+                                              Dim rx = px(q) - wx
+                                              Dim ry = py(q) - wy
+                                              Dim rz = pz(q) - wz
+                                              Dim r2 = rx * rx + ry * ry + rz * rz
 
-                                                        If r2 >= hh2 Then Continue For
+                                              If r2 >= hh2 Then Continue For
 
-                                                        Dim ur = hh - std.Sqrt(r2)
-                                                        Dim weight = ur * ur * kk
+                                              Dim ur = hh - std.Sqrt(r2)
+                                              Dim weight = ur * ur * kk
 
-                                                        sumW += weight
-                                                        su += weight * vx(q)
-                                                        sv += weight * vy(q)
-                                                        sw += weight * vz(q)
-                                                        sp += weight * press(q)
-                                                    Next
-                                                Next
-                                            Next
-                                        Next
+                                              sumW += weight
+                                              su += weight * vx(q)
+                                              sv += weight * vy(q)
+                                              sw += weight * vz(q)
+                                              sp += weight * press(q)
+                                          Next
+                                      Next
+                                  Next
+                              Next
 
-                                        If sumW <= 0.0000000001F Then Continue For
+                              If sumW <= 1.0E-10F Then
+                                  Continue For
+                              End If
 
-                                        Dim inv = 1.0F / sumW
+                              Dim inv = 1.0F / sumW
 
-                                        u(i, j, k) = su * inv
-                                        v(i, j, k) = sv * inv
-                                        w(i, j, k) = sw * inv
-                                        p(i, j, k) = sp * inv
+                              u(i, j, k) = su * inv
+                              v(i, j, k) = sv * inv
+                              w(i, j, k) = sw * inv
+                              p(i, j, k) = sp * inv
 
-                                        Dim fill As Single
+                              Dim fill As Single
 
-                                        If restMap Is Nothing Then
-                                            fill = sumW / rest
-                                        Else
-                                            Dim vidx = i * (ny * nz) + j * nz + k
-                                            Dim ref = restMap(vidx)
+                              If restMap Is Nothing Then
+                                  fill = sumW / rest
+                              Else
+                                  Dim vidx = i * (ny * nz) + j * nz + k
+                                  Dim ref = restMap(vidx)
 
-                                            ' 参考值过小（初始为空气、后来被液体填充）时退回全局归一，
-                                            ' 避免出现除以极小值导致的荒谬填充率
-                                            If ref > 0.25F * restTypical Then
-                                                fill = sumW / ref
-                                            Else
-                                                fill = sumW / rest
-                                            End If
-                                        End If
+                                  ' 参考值过小（初始为空气、后来被液体填充）时退回全局归一，
+                                  ' 避免出现除以极小值导致的荒谬填充率
+                                  If ref > 0.25F * restTypical Then
+                                      fill = sumW / ref
+                                  Else
+                                      fill = sumW / rest
+                                  End If
+                              End If
 
-                                        If clampFill AndAlso fill > 4.0F Then fill = 4.0F
-                                        d(i, j, k) = fill
-                                    Next
-                                Next
-                            End Sub)
+                              If clampFill AndAlso fill > 4.0F Then
+                                  fill = 4.0F
+                              End If
+
+                              d(i, j, k) = fill
+                          Next
+                      Next
+                  End Sub)
     End Sub
 
 End Class
