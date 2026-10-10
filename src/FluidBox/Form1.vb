@@ -81,6 +81,7 @@ Public Class Form1
     Private m_benchWork As Double = 0
     Private m_benchWorkFrames As Long = 0
     Private m_benchMaxDraw As Double = 0
+    Private m_benchDrawSum As Double = 0
     Private m_gpuLogged As Boolean = False
 
     Private Shared Function UiFont(size As Single, Optional bold As Boolean = False) As Font
@@ -700,6 +701,7 @@ Public Class Form1
 
         If Not m_canvas.FrameSkipped Then
             m_benchWork += m_canvas.PackMs + m_canvas.UploadMs + m_canvas.DrawMs
+            m_benchDrawSum += m_canvas.DrawMs
             m_benchWorkFrames += 1
 
             If m_canvas.DrawMs > m_benchMaxDraw Then
@@ -720,12 +722,14 @@ Public Class Form1
         Call log.AppendLine($"gpu pipeline : {m_canvas.IsGpuActive} {m_canvas.GpuFailure}")
         Call log.AppendLine($"seconds      : {elapsed:F1}")
         Call log.AppendLine($"loop rate    : {m_benchTicks / elapsed:F1} /s")
+        Call log.AppendLine($"sim steps    : {m_sim.StepCount}")
+        Call log.AppendLine($"packs done   : {If(m_packer Is Nothing, -1, m_packer.Generation)}")
         Call log.AppendLine($"updated      : {m_benchWorkFrames}")
         Call log.AppendLine($"skipped      : {m_benchTicks - m_benchWorkFrames}")
         Call log.AppendLine($"work per upd : {work:F2} ms")
         Call log.AppendLine($"pack         : {m_canvas.PackMs:F2} ms")
         Call log.AppendLine($"upload       : {m_canvas.UploadMs:F2} ms")
-        Call log.AppendLine($"draw max     : {m_benchMaxDraw:F2} ms")
+        Call log.AppendLine($"draw         : {If(m_benchWorkFrames > 0, m_benchDrawSum / m_benchWorkFrames, 0):F2} ms avg / {m_benchMaxDraw:F2} ms max")
         Call log.AppendLine($"physics      : {m_sim.LastStepMs:F0} ms / {m_sim.LastSubSteps} substeps")
 
         Try
