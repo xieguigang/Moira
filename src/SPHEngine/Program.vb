@@ -28,13 +28,13 @@ Imports std = System.Math
 Module Program
 
     ''' <summary>参数默认值</summary>
-    Private particles As Integer = 15000
-    Private gridRes As Integer = 40
+    Private particles As Integer = 25000
+    Private gridRes As Integer = 80
     Private tankRadius As Double = 0.15
     Private tankHeight As Double = 0.45
     Private fill As Double = 0.75
     Private rpm As Double = 150.0
-    Private steps As Integer = 60
+    Private steps As Integer = 360
     Private dt As Double = 0.02
     Private interval As Integer = 1
     Private viscosity As Single = 4.0F
