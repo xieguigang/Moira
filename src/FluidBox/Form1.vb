@@ -69,6 +69,7 @@ Public Class Form1
     Private m_fpsClock As Stopwatch = Stopwatch.StartNew()
     Private m_particleCount As Integer = 100_000
     Private m_renderBudget As Integer = 100_000
+    Private m_adaptive As Boolean = False
 
     Private Shared Function UiFont(size As Single, Optional bold As Boolean = False) As Font
         If s_fontName Is Nothing Then

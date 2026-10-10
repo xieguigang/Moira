@@ -1,4 +1,5 @@
 Imports System.Drawing
+Imports System.Threading
 Imports System.Threading.Tasks
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
 Imports Microsoft.VisualBasic.Imaging.Physics
@@ -23,6 +24,14 @@ Namespace Simulation
 
         ''' <summary>one instance is eight singles = 32 bytes</summary>
         Public Const FloatsPerPoint As Integer = 8
+
+        ''' <summary>
+        ''' the packing pass is deliberately kept off one core: the solver of the
+        ''' box runs on its own thread and must not be starved by the renderer
+        ''' </summary>
+        Private Shared ReadOnly PackOptions As New ParallelOptions With {
+            .MaxDegreeOfParallelism = std.Max(1, Environment.ProcessorCount - 1)
+        }
 
         ''' <summary>the color table that is currently in use</summary>
         Public Property Palette As ScalerPalette = ScalerPalette.Jet
@@ -183,9 +192,32 @@ Namespace Simulation
         ''' <param name="state">the live state of the solver</param>
         ''' <param name="count">how many particles of the state are active</param>
         ''' <param name="budget">the largest number of points that may be drawn</param>
+        ''' <summary>
+        ''' sample the particles and pack them into the instance buffer
+        ''' </summary>
+        ''' <param name="state">the live state of the solver</param>
+        ''' <param name="count">how many particles of the state are active</param>
+        ''' <param name="budget">the largest number of points that may be drawn</param>
         Public Sub Build(state As SphState3D, count As Integer, budget As Integer)
+            If budget < 1 Then budget = 1
+            If m_instances.Length < budget * FloatsPerPoint Then
+                Call EnsureCapacity(budget)
+            End If
 
-            If state Is Nothing OrElse count <= 0 Then
+            Call BuildInto(state, count, budget, m_instances)
+        End Sub
+
+        ''' <summary>
+        ''' pack the cloud into a buffer that the caller owns
+        ''' </summary>
+        ''' <remarks>
+        ''' The background packer owns its buffers, so the mapper has to be able
+        ''' to fill one that it did not allocate itself.
+        ''' </remarks>
+        Public Sub BuildInto(state As SphState3D, count As Integer, budget As Integer,
+                             target As Single())
+
+            If state Is Nothing OrElse count <= 0 OrElse target Is Nothing Then
                 m_count = 0
                 Return
             End If
@@ -196,13 +228,18 @@ Namespace Simulation
             If stride < 1 Then stride = 1
 
             Dim drawn As Integer = (count + stride - 1) \ stride
-            If drawn > budget Then drawn = budget
 
-            Call EnsureCapacity(budget)
+            If drawn > budget Then drawn = budget
+            If target.Length < drawn * FloatsPerPoint Then
+                drawn = target.Length \ FloatsPerPoint
+            End If
+            If drawn <= 0 Then
+                m_count = 0
+                Return
+            End If
 
             Dim px = state.px, py = state.py, pz = state.pz
             Dim vx = state.vx, vy = state.vy, vz = state.vz
-            Dim inst = m_instances
 
             Call UpdateSpeedRange(vx, vy, vz, count)
 
@@ -219,7 +256,7 @@ Namespace Simulation
             Dim r6 = m_r6, r7 = m_r7, r8 = m_r8
             Dim ox = m_ox, oy = m_oy, oz = m_oz
 
-            Call Parallel.For(0, drawnCount,
+            Call Parallel.For(0, drawnCount, PackOptions,
                 Sub(k As Integer)
                     Dim i As Integer = k * strideUsed
                     If i >= count Then Return
