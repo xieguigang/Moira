@@ -75,6 +75,7 @@ Public Class Form1
     ' the built in frame benchmark: FluidBox.exe --bench 20 writes the frame
     ' times of the first twenty seconds into fluidbox-bench.log and exits
     Private m_bench As Boolean = False
+    Private m_noPhysics As Boolean = False
     Private m_benchSeconds As Double = 0
     Private m_benchClock As Stopwatch = Nothing
     Private m_benchTicks As Long = 0
@@ -128,6 +129,8 @@ Public Class Form1
             ElseIf args(i) = "--bench" AndAlso i + 1 < args.Count Then
                 m_bench = True
                 m_benchSeconds = CDbl(args(i + 1))
+            ElseIf args(i) = "--nophys" Then
+                m_noPhysics = True
             End If
         Next
 
@@ -641,10 +644,15 @@ Public Class Form1
 
         ' the first cloud is packed by the worker, the idle loop picks it up
         Call m_canvas.InvalidateFrame()
-        Call m_sim.Start()
-        Call UpdateStatus()
 
-        m_btnRun.Text = "⏸  暂停"
+        If m_noPhysics Then
+            m_btnRun.Text = "▶  开始"
+        Else
+            Call m_sim.Start()
+            m_btnRun.Text = "⏸  暂停"
+        End If
+
+        Call UpdateStatus()
     End Sub
 
     Private Function CurrentPalette() As ScalerPalette
@@ -697,7 +705,21 @@ Public Class Form1
     Private Sub BenchSample()
         If Not m_bench OrElse Not m_ready Then Return
 
+        If m_benchClock Is Nothing Then m_benchClock = Stopwatch.StartNew()
+
+        ' without the solver nothing would ever change, so the benchmark of the
+        ' renderer asks for a new cloud on every tick: that is exactly what a
+        ' drag of the box does
+        If m_noPhysics Then Call m_canvas.InvalidateFrame()
+
         m_benchTicks += 1
+
+        If m_benchTicks = 1 Then
+            Try
+                Call IO.File.WriteAllText("fluidbox-bench.log", "benchmark started")
+            Catch
+            End Try
+        End If
 
         If Not m_canvas.FrameSkipped Then
             m_benchWork += m_canvas.PackMs + m_canvas.UploadMs + m_canvas.DrawMs
