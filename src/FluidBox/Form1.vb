@@ -67,8 +67,8 @@ Public Class Form1
     Private m_frames As Integer = 0
     Private m_fps As Double = 0
     Private m_fpsClock As Stopwatch = Stopwatch.StartNew()
-    Private m_particleCount As Integer = 10_000_000
-    Private m_renderBudget As Integer = 2_000_000
+    Private m_particleCount As Integer = 100_000
+    Private m_renderBudget As Integer = 100_000
 
     Private Shared Function UiFont(size As Single, Optional bold As Boolean = False) As Font
         If s_fontName Is Nothing Then
@@ -559,13 +559,16 @@ Public Class Form1
         m_loading.Visible = True
         Call m_loading.BringToFront()
 
+        ' everything that the worker needs from the shell has to be read here:
+        ' a winforms control may only be touched by the thread that created it
         Dim count As Integer = m_particleCount
+        Dim palette As ScalerPalette = CurrentPalette()
 
         Call Task.Run(
             Sub()
                 Try
                     Dim mapper As New SpeedHeatMapper() With {
-                        .Palette = CurrentPalette()
+                        .Palette = palette
                     }
                     Dim sim As New FluidBoxSim(
                         boxSize:=100.0F,
@@ -583,9 +586,14 @@ Public Class Form1
 
                     Call BeginInvoke(Sub() FinishLoading(sim, mapper))
                 Catch ex As Exception
+                    Try
+                        Call IO.File.WriteAllText("fluidbox-init.log", ex.ToString())
+                    Catch
+                    End Try
+
                     Call BeginInvoke(Sub()
                                          m_loadingText.Text = "初始化失败：" & ex.Message
-                                         m_loadingPct.Text = ""
+                                         m_loadingPct.Text = "详情见 fluidbox-init.log"
                                      End Sub)
                 End Try
             End Sub)
