@@ -92,8 +92,16 @@ Namespace Simulation
         ''' <summary>the message of the last failure of the solver thread</summary>
         Public Property LastError As String
 
-        ''' <summary>the simulated time of one step in seconds</summary>
-        Public Property TimeStep As Single = 1.0F / 60.0F
+        ''' <summary>
+        ''' the simulated time of one step in seconds.
+        ''' </summary>
+        ''' <remarks>
+        ''' A step of ten million particles costs seconds of wall clock time, so
+        ''' the animation is far away from real time no matter what. A small
+        ''' step keeps the number of cfl sub steps (and therefore the wall clock
+        ''' cost of a step) low and gives the eye more frames per minute.
+        ''' </remarks>
+        Public Property TimeStep As Single = 1.0F / 120.0F
         ''' <summary>the multiplier of the acceleration that a mouse drag injects</summary>
         Public Property ShakeStrength As Single = 1.0F
 
@@ -214,33 +222,34 @@ Namespace Simulation
             Dim pz = state.pz
             Const jitter As Single = 0.06F
 
-            ' one xorshift per z slice keeps the fill deterministic, parallel
-            ' and allocation free
+            ' a shift only hash of the lattice index gives every particle a
+            ' deterministic jitter: it breaks the symmetry of the lattice
+            ' without an allocation and without any integer multiplication
             Call Parallel.For(0, nz,
                 Sub(iz As Integer)
-                    Dim seed As UInteger = CUInt(iz) * 2654435761UI + 12345UI
+                    Dim zb As UInteger = CUInt(iz) << 16
                     Dim slice As Integer = iz * nx * ny
                     Dim z As Single = (iz + 0.5F) * sz
 
                     For iy As Integer = 0 To ny - 1
                         Dim y As Single = (iy + 0.5F) * sy
+                        Dim yb As UInteger = zb Xor (CUInt(iy) << 8)
                         Dim i As Integer = slice + iy * nx
 
                         For ix As Integer = 0 To nx - 1
-                            seed = seed Xor (seed << 13)
-                            seed = seed Xor (seed >> 17)
-                            seed = seed Xor (seed << 5)
-                            Dim jx As Single = (CSng(seed And 1023UI) / 1023.0F - 0.5F) * jitter * sx
+                            Dim h As UInteger = yb Xor CUInt(ix)
 
-                            seed = seed Xor (seed << 13)
-                            seed = seed Xor (seed >> 17)
-                            seed = seed Xor (seed << 5)
-                            Dim jy As Single = (CSng(seed And 1023UI) / 1023.0F - 0.5F) * jitter * sy
+                            h = h Xor (h >> 7)
+                            h = h Xor (h << 11)
+                            Dim jx As Single = (CSng(h And 1023UI) / 1023.0F - 0.5F) * jitter * sx
 
-                            seed = seed Xor (seed << 13)
-                            seed = seed Xor (seed >> 17)
-                            seed = seed Xor (seed << 5)
-                            Dim jz As Single = (CSng(seed And 1023UI) / 1023.0F - 0.5F) * jitter * sz
+                            h = h Xor (h >> 5)
+                            h = h Xor (h << 9)
+                            Dim jy As Single = (CSng(h And 1023UI) / 1023.0F - 0.5F) * jitter * sy
+
+                            h = h Xor (h >> 3)
+                            h = h Xor (h << 13)
+                            Dim jz As Single = (CSng(h And 1023UI) / 1023.0F - 0.5F) * jitter * sz
 
                             px(i) = (ix + 0.5F) * sx + jx
                             py(i) = (iy + 0.5F) * sy + jy

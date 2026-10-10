@@ -7,6 +7,9 @@
     <UseWindowsForms>true</UseWindowsForms>
     <MyType>WindowsForms</MyType>
     <Platforms>AnyCPU;x64</Platforms>
+    <!-- a numerical kernel: the per particle loops must not pay for the
+         integer overflow checks of the default debug friendly settings -->
+    <RemoveIntegerOverflowChecks>true</RemoveIntegerOverflowChecks>
   </PropertyGroup>
 
   <ItemGroup>

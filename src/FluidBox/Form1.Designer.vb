@@ -24,8 +24,9 @@ Partial Class Form1
     Private Sub InitializeComponent()
         components = New System.ComponentModel.Container()
         AutoScaleMode = AutoScaleMode.Font
-        ClientSize = New Size(800, 450)
-        Text = "Form1"
+        ClientSize = New Size(1440, 900)
+        MinimumSize = New Size(1024, 640)
+        Text = "Fluid Box · 3D SPH 液体盒子模拟器"
     End Sub
 
 End Class
