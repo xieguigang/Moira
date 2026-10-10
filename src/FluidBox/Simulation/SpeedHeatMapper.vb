@@ -139,16 +139,51 @@ Namespace Simulation
         End Sub
 
         ''' <summary>
+        ''' the world transform of the box: the row major 3x3 rotation about the
+        ''' center of the box and the center itself
+        ''' </summary>
+        ''' <param name="rotation">nine elements, row major 3x3</param>
+        ''' <param name="originX">the x of the center of the box in the solver space</param>
+        Public Sub SetTransform(rotation As Single(),
+                                originX As Single, originY As Single, originZ As Single)
+            If rotation Is Nothing OrElse rotation.Length < 9 Then
+                m_identity = True
+                m_r0 = 1 : m_r1 = 0 : m_r2 = 0
+                m_r3 = 0 : m_r4 = 1 : m_r5 = 0
+                m_r6 = 0 : m_r7 = 0 : m_r8 = 1
+            Else
+                m_identity = False
+                m_r0 = rotation(0) : m_r1 = rotation(1) : m_r2 = rotation(2)
+                m_r3 = rotation(3) : m_r4 = rotation(4) : m_r5 = rotation(5)
+                m_r6 = rotation(6) : m_r7 = rotation(7) : m_r8 = rotation(8)
+            End If
+
+            m_ox = originX
+            m_oy = originY
+            m_oz = originZ
+        End Sub
+
+        Private m_identity As Boolean = True
+        Private m_r0 As Single = 1
+        Private m_r1 As Single = 0
+        Private m_r2 As Single = 0
+        Private m_r3 As Single = 0
+        Private m_r4 As Single = 1
+        Private m_r5 As Single = 0
+        Private m_r6 As Single = 0
+        Private m_r7 As Single = 0
+        Private m_r8 As Single = 1
+        Private m_ox As Single = 0
+        Private m_oy As Single = 0
+        Private m_oz As Single = 0
+
+        ''' <summary>
         ''' sample the particles and pack them into the instance buffer
         ''' </summary>
         ''' <param name="state">the live state of the solver</param>
         ''' <param name="count">how many particles of the state are active</param>
         ''' <param name="budget">the largest number of points that may be drawn</param>
-        ''' <param name="originX">the x of the center of the box, it is subtracted so that the box sits on the origin of the scene</param>
-        ''' <param name="originY">the y of the center of the box</param>
-        ''' <param name="originZ">the z of the center of the box</param>
-        Public Sub Build(state As SphState3D, count As Integer, budget As Integer,
-                         originX As Single, originY As Single, originZ As Single)
+        Public Sub Build(state As SphState3D, count As Integer, budget As Integer)
 
             If state Is Nothing OrElse count <= 0 Then
                 m_count = 0
@@ -178,11 +213,32 @@ Namespace Simulation
 
             Dim drawnCount As Integer = drawn
             Dim strideUsed As Integer = stride
+            Dim rotate As Boolean = Not m_identity
+            Dim r0 = m_r0, r1 = m_r1, r2 = m_r2
+            Dim r3 = m_r3, r4 = m_r4, r5 = m_r5
+            Dim r6 = m_r6, r7 = m_r7, r8 = m_r8
+            Dim ox = m_ox, oy = m_oy, oz = m_oz
 
             Call Parallel.For(0, drawnCount,
                 Sub(k As Integer)
                     Dim i As Integer = k * strideUsed
                     If i >= count Then Return
+
+                    Dim x As Single = px(i) - ox
+                    Dim y As Single = py(i) - oy
+                    Dim z As Single = pz(i) - oz
+
+                    Dim o As Integer = k * FloatsPerPoint
+
+                    If rotate Then
+                        inst(o) = x * r0 + y * r1 + z * r2
+                        inst(o + 1) = x * r3 + y * r4 + z * r5
+                        inst(o + 2) = x * r6 + y * r7 + z * r8
+                    Else
+                        inst(o) = x
+                        inst(o + 1) = y
+                        inst(o + 2) = z
+                    End If
 
                     Dim sx As Single = vx(i), sy As Single = vy(i), sz As Single = vz(i)
                     Dim speed As Single = CSng(std.Sqrt(sx * sx + sy * sy + sz * sz))
@@ -191,11 +247,6 @@ Namespace Simulation
                     If t < 0.0F Then t = 0.0F
                     If t > 1.0F Then t = 1.0F
 
-                    Dim o As Integer = k * FloatsPerPoint
-
-                    inst(o) = px(i) - originX
-                    inst(o + 1) = py(i) - originY
-                    inst(o + 2) = pz(i) - originZ
                     ' the x of the normal slot is the per point size factor of
                     ' the palette mode of the point shader
                     inst(o + 3) = 1.0F
