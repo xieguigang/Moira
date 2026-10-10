@@ -3,6 +3,7 @@ Imports System.Drawing.Drawing2D
 Imports System.Threading.Tasks
 Imports System.Windows.Forms
 Imports System.Diagnostics
+Imports System.Linq
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
 Imports FluidBox.Rendering
 Imports FluidBox.Simulation
@@ -27,38 +28,72 @@ Public Class Form1
 
     Private Shared s_fontName As String = Nothing
 
-    Private m_canvas As FluidSceneCanvas
     Private m_sim As FluidBoxSim
     Private m_mapper As SpeedHeatMapper
     Private m_packer As InstancePacker
 
-    Private m_toolbar As Panel
-    Private m_body As Panel
-    Private m_stage As Panel
-    Private m_params As Panel
-    Private m_status As Panel
-    Private m_legend As Panel
-    Private m_legendBar As Panel
-    Private m_legendMin As Label
-    Private m_legendMax As Label
-    Private m_legendName As Label
-    Private m_hud As Label
-    Private m_loading As Panel
-    Private m_loadingBar As Panel
-    Private m_loadingText As Label
-    Private m_loadingPct As Label
+    Private WithEvents m_canvas As FluidSceneCanvas
 
-    Private m_btnRun As Button
-    Private m_btnStep As Button
-    Private m_btnReset As Button
-    Private m_btnFit As Button
-    Private m_paletteBox As ComboBox
-    Private m_sizeBar As TrackBar
+    Private WithEvents m_toolbar As Panel
+    Private WithEvents m_body As Panel
+    Private WithEvents m_stage As Panel
+    Private WithEvents m_params As Panel
+    Private WithEvents m_status As Panel
+    Private WithEvents m_legend As Panel
+    Private WithEvents m_legendBar As Panel
+    Private WithEvents m_legendMin As Label
+    Private WithEvents m_legendMax As Label
+    Private WithEvents m_legendName As Label
+    Private WithEvents m_hud As Label
+    Private WithEvents m_loading As Panel
+    Private WithEvents m_loadingBar As Panel
+    Private WithEvents m_loadingText As Label
+    Private WithEvents m_loadingPct As Label
 
-    Private m_lstBackend As Label
-    Private m_lstStep As Label
-    Private m_lstRender As Label
-    Private m_lstMemory As Label
+    Private WithEvents m_btnRun As Button
+    Private WithEvents m_btnStep As Button
+    Private WithEvents m_btnReset As Button
+    Private WithEvents m_btnFit As Button
+    Private WithEvents m_paletteBox As ComboBox
+    Private WithEvents m_sizeBar As TrackBar
+
+    Private WithEvents m_lstBackend As Label
+    Private WithEvents m_lstStep As Label
+    Private WithEvents m_lstRender As Label
+    Private WithEvents m_lstMemory As Label
+
+    Private WithEvents m_flow As FlowLayoutPanel
+    Private WithEvents m_loadingStack As Panel
+
+    Private WithEvents m_gravityHost As Panel
+    Private WithEvents m_gravityName As Label
+    Private WithEvents m_gravityRead As Label
+    Private WithEvents m_gravityBar As TrackBar
+
+    Private WithEvents m_viscosityHost As Panel
+    Private WithEvents m_viscosityName As Label
+    Private WithEvents m_viscosityRead As Label
+    Private WithEvents m_viscosityBar As TrackBar
+
+    Private WithEvents m_dampingHost As Panel
+    Private WithEvents m_dampingName As Label
+    Private WithEvents m_dampingRead As Label
+    Private WithEvents m_dampingBar As TrackBar
+
+    Private WithEvents m_soundHost As Panel
+    Private WithEvents m_soundName As Label
+    Private WithEvents m_soundRead As Label
+    Private WithEvents m_soundBar As TrackBar
+
+    Private WithEvents m_shakeHost As Panel
+    Private WithEvents m_shakeName As Label
+    Private WithEvents m_shakeRead As Label
+    Private WithEvents m_shakeBar As TrackBar
+
+    Private WithEvents m_tiltHost As Panel
+    Private WithEvents m_tiltName As Label
+    Private WithEvents m_tiltRead As Label
+    Private WithEvents m_tiltBar As TrackBar
 
     Private m_progress As Double = 0
     Private m_ready As Boolean = False
@@ -85,6 +120,11 @@ Public Class Form1
     Private m_benchDrawSum As Double = 0
     Private m_gpuLogged As Boolean = False
 
+    Sub New()
+        ' 此调用是设计器所必需的。
+        InitializeComponent()
+    End Sub
+
     Private Shared Function UiFont(size As Single, Optional bold As Boolean = False) As Font
         If s_fontName Is Nothing Then
             s_fontName = "Segoe UI"
@@ -106,7 +146,8 @@ Public Class Form1
 
     Private Sub Form1_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Call ParseCommandLine()
-        Call BuildShell()
+        Call SetupControls()
+        Call RelayoutOverlay()
         Call StartLoading()
 
         ' The animation must not be driven by Application.Idle: the winforms
@@ -145,425 +186,67 @@ Public Class Form1
         m_renderBudget = std.Min(m_renderBudget, m_particleCount)
     End Sub
 
+    ''' <summary>
+    ''' fill the controls that are populated at runtime (the palette combo box
+    ''' and the six parameter sliders) and apply their default values
+    ''' </summary>
+    Private Sub SetupControls()
+        m_paletteBox.Items.AddRange(System.Enum.GetValues(GetType(ScalerPalette)).Cast(Of Object)().ToArray())
+        m_paletteBox.SelectedIndex = 0
+        Call InitSliders()
+    End Sub
+
+    Private Sub InitSliders()
+        Call OnGravityChanged(Nothing, Nothing)
+        Call OnViscosityChanged(Nothing, Nothing)
+        Call OnDampingChanged(Nothing, Nothing)
+        Call OnSoundChanged(Nothing, Nothing)
+        Call OnShakeChanged(Nothing, Nothing)
+        Call OnTiltChanged(Nothing, Nothing)
+    End Sub
+
+    Private Sub UpdateSliderRead(bar As TrackBar, read As Label, scale As Integer)
+        Dim v As Double = bar.Value / std.Pow(10, scale)
+        read.Text = v.ToString("F" & scale.ToString())
+    End Sub
+
     Protected Overrides Sub OnShown(e As EventArgs)
         Call MyBase.OnShown(e)
         Call RelayoutOverlay()
     End Sub
 
-    Private Sub BuildShell()
-        BackColor = Back0
-        ForeColor = Text0
-        Font = UiFont(9.0F)
-        Text = "Fluid Box · 3D SPH 液体盒子模拟器"
-        StartPosition = FormStartPosition.CenterScreen
-        WindowState = FormWindowState.Maximized
-
-        ' ---- the toolbar ----
-        m_toolbar = New Panel With {
-            .Dock = DockStyle.Top,
-            .Height = 52,
-            .BackColor = Back1,
-            .Padding = New Padding(12, 0, 12, 0)
-        }
-        AddHandler m_toolbar.Paint, AddressOf OnToolbarPaint
-
-        m_btnRun = MakeButton("▶  开始", 108)
-        m_btnStep = MakeButton("单步", 78)
-        m_btnReset = MakeButton("重置", 78)
-        m_btnFit = MakeButton("视角复位", 96)
-
-        AddHandler m_btnRun.Click, AddressOf OnRunClick
-        AddHandler m_btnStep.Click, AddressOf OnStepClick
-        AddHandler m_btnReset.Click, AddressOf OnResetClick
-        AddHandler m_btnFit.Click, AddressOf OnFitClick
-
-        m_paletteBox = MakeCombo("色表", Enums(Of ScalerPalette), 0)
-
-        AddHandler m_paletteBox.SelectedIndexChanged, AddressOf OnPaletteChanged
-
-        m_sizeBar = New TrackBar With {
-            .Minimum = 1, .Maximum = 6, .Value = 2,
-            .Width = 96, .Height = 28,
-            .BackColor = Back1
-        }
-        AddHandler m_sizeBar.ValueChanged, AddressOf OnPointSizeChanged
-
-        Call LayoutToolbar()
-
-        ' ---- the viewport ----
-        m_body = New Panel With {.Dock = DockStyle.Fill, .BackColor = Back0}
-        m_params = New Panel With {
-            .Dock = DockStyle.Right,
-            .Width = 272,
-            .BackColor = Back1,
-            .Padding = New Padding(14, 12, 14, 12),
-            .AutoScroll = True
-        }
-        m_stage = New Panel With {.Dock = DockStyle.Fill, .BackColor = Back0}
-
-        m_canvas = New FluidSceneCanvas() With {
-            .Dock = DockStyle.Fill,
-            .BackColor = Back0,
-            .Margin = New Padding(0)
-        }
-
-        m_legend = New Panel With {
-            .Width = 236, .Height = 96,
-            .BackColor = Back1,
-            .Padding = New Padding(12, 10, 12, 8)
-        }
-        AddHandler m_legend.Paint, AddressOf OnLegendPaint
-
-        m_legendBar = New Panel With {.Height = 16, .Dock = DockStyle.Top}
-        AddHandler m_legendBar.Paint, AddressOf OnLegendBarPaint
-
-        m_legendMin = New Label With {
-            .Dock = DockStyle.Top, .Height = 18,
-            .ForeColor = Text1, .Font = UiFont(8.5F),
-            .Text = "0.00 m/s"
-        }
-        m_legendMax = New Label With {
-            .Dock = DockStyle.Top, .Height = 18,
-            .ForeColor = Text0, .Font = UiFont(8.5F, True),
-            .Text = "0.00 m/s", .TextAlign = ContentAlignment.TopRight
-        }
-        m_legendName = New Label With {
-            .Dock = DockStyle.Bottom, .Height = 18,
-            .ForeColor = Accent, .Font = UiFont(8.5F),
-            .Text = "Jet"
-        }
-
-        m_hud = New Label With {
-            .Width = 360, .Height = 22,
-            .ForeColor = Text1,
-            .Font = UiFont(8.5F),
-            .BackColor = Back1,
-            .TextAlign = ContentAlignment.MiddleLeft,
-            .Padding = New Padding(8, 0, 0, 0),
-            .Text = ""
-        }
-
-        Call m_legend.Controls.Add(m_legendName)
-        Call m_legend.Controls.Add(m_legendMax)
-        Call m_legend.Controls.Add(m_legendMin)
-        Call m_legend.Controls.Add(m_legendBar)
-
-        Call m_stage.Controls.Add(m_canvas)
-        Call m_stage.Controls.Add(m_hud)
-        Call m_stage.Controls.Add(m_legend)
-
-        ' the canvas is the first child and therefore the front most one in the
-        ' z order of winforms, the overlays have to be pulled to the front
-        Call m_legend.BringToFront()
-        Call m_hud.BringToFront()
-
-        ' ---- the status bar ----
-        m_status = New Panel With {.Dock = DockStyle.Bottom, .Height = 30, .BackColor = Back1}
-        AddHandler m_status.Paint, AddressOf OnToolbarPaint
-
-        m_lstBackend = MakeStatusLabel(300)
-        m_lstStep = MakeStatusLabel(260)
-        m_lstRender = MakeStatusLabel(280)
-        m_lstMemory = MakeStatusLabel(320)
-
-        m_lstBackend.Dock = DockStyle.Left
-        m_lstStep.Dock = DockStyle.Left
-        m_lstRender.Dock = DockStyle.Left
-        m_lstMemory.Dock = DockStyle.Fill
-
-        Call m_status.Controls.Add(m_lstMemory)
-        Call m_status.Controls.Add(m_lstRender)
-        Call m_status.Controls.Add(m_lstStep)
-        Call m_status.Controls.Add(m_lstBackend)
-
-        Call m_body.Controls.Add(m_stage)
-        Call m_body.Controls.Add(m_params)
-        Call Controls.Add(m_body)
-        Call Controls.Add(m_status)
-        Call Controls.Add(m_toolbar)
-
-        Call BuildParams()
-        Call BuildLoading()
-
-        AddHandler m_stage.Resize, Sub(s, ev) RelayoutOverlay()
-        Call RelayoutOverlay()
-    End Sub
-
-    Private Sub LayoutToolbar()
-        m_toolbar.Controls.Clear()
-
-        Dim flow As New FlowLayoutPanel With {
-            .Dock = DockStyle.Fill,
-            .BackColor = Back1,
-            .FlowDirection = FlowDirection.LeftToRight,
-            .WrapContents = False,
-            .Padding = New Padding(0, 11, 0, 0)
-        }
-
-        Call flow.Controls.Add(m_btnRun)
-        Call flow.Controls.Add(MakeGap(8))
-        Call flow.Controls.Add(m_btnStep)
-        Call flow.Controls.Add(MakeGap(8))
-        Call flow.Controls.Add(m_btnReset)
-        Call flow.Controls.Add(MakeGap(8))
-        Call flow.Controls.Add(m_btnFit)
-        Call flow.Controls.Add(MakeGap(20))
-
-        Call flow.Controls.Add(MakeGap(14))
-        Call flow.Controls.Add(MakeCaption("色表"))
-        Call flow.Controls.Add(m_paletteBox)
-        Call flow.Controls.Add(MakeGap(14))
-        Call flow.Controls.Add(MakeCaption("点大小"))
-        Call flow.Controls.Add(m_sizeBar)
-
-        Call m_toolbar.Controls.Add(flow)
-    End Sub
-
-    Private Function MakeGap(w As Integer) As Control
-        Return New Panel With {.Width = w, .Height = 1, .BackColor = Back1}
-    End Function
-
-    Private Function MakeCaption(text As String) As Control
-        Return New Label With {
-            .Text = text,
-            .AutoSize = True,
-            .ForeColor = Text1,
-            .Font = UiFont(9.0F),
-            .Margin = New Padding(0, 5, 0, 0),
-            .Padding = New Padding(0)
-        }
-    End Function
-
-    Private Function MakeButton(text As String, width As Integer) As Button
-        Dim btn As New Button With {
-            .Text = text,
-            .Width = width,
-            .Height = 28,
-            .FlatStyle = FlatStyle.Flat,
-            .BackColor = Back2,
-            .ForeColor = Text0,
-            .Font = UiFont(9.0F, True),
-            .Cursor = Cursors.Hand,
-            .Margin = New Padding(0)
-        }
-
-        btn.FlatAppearance.BorderSize = 1
-        btn.FlatAppearance.BorderColor = Accent
-        btn.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 41, 59)
-        btn.FlatAppearance.MouseDownBackColor = Color.FromArgb(45, 212, 191)
-
-        Return btn
-    End Function
-
-    Private Function MakeCombo(Of T)(caption As String, items As T(), selected As Integer) As ComboBox
-        Dim box As New ComboBox With {
-            .DropDownStyle = ComboBoxStyle.DropDownList,
-            .Width = If(items.Length > 4, 118, 96),
-            .Height = 26,
-            .BackColor = Back2,
-            .ForeColor = Text0,
-            .Font = UiFont(9.0F),
-            .FlatStyle = FlatStyle.Flat,
-            .Margin = New Padding(0, 0, 0, 0)
-        }
-
-        Call box.Items.AddRange(items.Cast(Of Object).ToArray())
-        box.SelectedIndex = selected
-
-        Return box
-    End Function
-
-    Private Function MakeStatusLabel(width As Integer) As Label
-        Return New Label With {
-            .Width = width,
-            .ForeColor = Text1,
-            .Font = New Font("Consolas", 8.5F),
-            .TextAlign = ContentAlignment.MiddleLeft,
-            .AutoSize = False,
-            .Padding = New Padding(12, 0, 0, 0)
-        }
-    End Function
-
     ' /********************************************************************************/
-    '  the parameter drawer
+    '  the parameter sliders
     ' /********************************************************************************/
 
-    Private Sub BuildParams()
-        Dim title As New Label With {
-            .Text = "物理参数",
-            .Dock = DockStyle.Top,
-            .Height = 26,
-            .ForeColor = Text0,
-            .Font = UiFont(11.0F, True)
-        }
-
-        Call m_params.Controls.Add(title)
-
-        Call AddSlider("重力 (m/s²)", 0, 300, 98, 2, AddressOf OnGravity)
-        Call AddSlider("粘性强度", 0, 100, 30, 1, AddressOf OnViscosity)
-        Call AddSlider("碰撞阻尼", 0, 100, 40, 2, AddressOf OnDamping)
-        Call AddSlider("声速因子", 10, 100, 30, 1, AddressOf OnSoundSpeed)
-        Call AddSlider("晃动强度", 0, 300, 100, 2, AddressOf OnShakeStrength)
-        Call AddSlider("最大倾角 (°)", 3, 60, 26, 0, AddressOf OnMaxTilt)
-
-        Dim hint As New Label With {
-            .Dock = DockStyle.Top,
-            .Height = 78,
-            .ForeColor = Text1,
-            .Font = UiFont(8.0F),
-            .Text = "左键拖拽 = 晃动盒子（惯性 + 倾斜）" & vbCrLf &
-                    "右键拖拽 = 环绕视角" & vbCrLf &
-                    "滚轮 = 缩放" & vbCrLf &
-                    "物理在后台线程推进，画面始终显示最新一帧。"
-        }
-
-        Call m_params.Controls.Add(hint)
-        Call m_params.Controls.Add(New Panel With {.Dock = DockStyle.Top, .Height = 14})
+    Private Sub OnGravityChanged(sender As Object, e As EventArgs) Handles m_gravityBar.ValueChanged
+        UpdateSliderRead(m_gravityBar, m_gravityRead, 2)
+        OnGravity(m_gravityBar.Value / 100.0)
     End Sub
 
-    Private Sub AddSlider(caption As String, min As Integer, max As Integer,
-                          value As Integer, scale As Integer, handler As Action(Of Double))
-        Dim host As New Panel With {.Dock = DockStyle.Top, .Height = 52, .BackColor = Back1}
-
-        Dim name As New Label With {
-            .Text = caption,
-            .Dock = DockStyle.Top,
-            .Height = 18,
-            .ForeColor = Text1,
-            .Font = UiFont(8.5F)
-        }
-        Dim read As New Label With {
-            .Text = "",
-            .Dock = DockStyle.Right,
-            .Width = 58,
-            .Height = 18,
-            .ForeColor = Accent,
-            .Font = UiFont(8.5F, True),
-            .TextAlign = ContentAlignment.MiddleRight
-        }
-        Dim bar As New TrackBar With {
-            .Minimum = min, .Maximum = max, .Value = value,
-            .Dock = DockStyle.Top, .Height = 30,
-            .BackColor = Back1
-        }
-
-        Dim update As Action =
-            Sub()
-                Dim v As Double = bar.Value / std.Pow(10, scale)
-                read.Text = v.ToString("F" & scale.ToString())
-                Call handler(v)
-            End Sub
-
-        bar.Tag = update
-        AddHandler bar.ValueChanged, Sub(s, ev) DirectCast(bar.Tag, Action).Invoke()
-
-        Call host.Controls.Add(bar)
-        Call host.Controls.Add(read)
-        Call host.Controls.Add(name)
-        Call m_params.Controls.Add(host)
-        Call host.BringToFront()
-
-        Call update()
+    Private Sub OnViscosityChanged(sender As Object, e As EventArgs) Handles m_viscosityBar.ValueChanged
+        UpdateSliderRead(m_viscosityBar, m_viscosityRead, 1)
+        OnViscosity(m_viscosityBar.Value / 10.0)
     End Sub
 
-    Private Sub OnGravity(v As Double)
-        If m_sim IsNot Nothing Then m_sim.Engine.Gravity = CSng(v)
+    Private Sub OnDampingChanged(sender As Object, e As EventArgs) Handles m_dampingBar.ValueChanged
+        UpdateSliderRead(m_dampingBar, m_dampingRead, 2)
+        OnDamping(m_dampingBar.Value / 100.0)
     End Sub
 
-    Private Sub OnViscosity(v As Double)
-        If m_sim IsNot Nothing Then
-            m_sim.Engine.ViscosityStrength = CSng(v)
-            Call m_sim.Engine.InvalidateParams()
-        End If
+    Private Sub OnSoundChanged(sender As Object, e As EventArgs) Handles m_soundBar.ValueChanged
+        UpdateSliderRead(m_soundBar, m_soundRead, 1)
+        OnSoundSpeed(m_soundBar.Value / 10.0)
     End Sub
 
-    Private Sub OnDamping(v As Double)
-        If m_sim IsNot Nothing Then m_sim.Engine.CollisionDamping = CSng(v)
+    Private Sub OnShakeChanged(sender As Object, e As EventArgs) Handles m_shakeBar.ValueChanged
+        UpdateSliderRead(m_shakeBar, m_shakeRead, 2)
+        OnShakeStrength(m_shakeBar.Value / 100.0)
     End Sub
 
-    Private Sub OnSoundSpeed(v As Double)
-        If m_sim IsNot Nothing Then
-            m_sim.Engine.SoundSpeedFactor = CSng(v)
-            Call m_sim.Engine.InvalidateParams()
-        End If
-    End Sub
-
-    Private Sub OnShakeStrength(v As Double)
-        If m_canvas IsNot Nothing Then m_canvas.Shake.ShakeStrength = CSng(v)
-        If m_sim IsNot Nothing Then m_sim.ShakeStrength = CSng(v)
-    End Sub
-
-    Private Sub OnMaxTilt(v As Double)
-        If m_canvas IsNot Nothing Then
-            m_canvas.Shake.MaxTilt = CSng(v * std.PI / 180.0)
-        End If
-    End Sub
-
-    ' /********************************************************************************/
-    '  the loading overlay
-    ' /********************************************************************************/
-
-    Private Sub BuildLoading()
-        m_loading = New Panel With {.BackColor = Back0, .Dock = DockStyle.Fill}
-        AddHandler m_loading.Paint, AddressOf OnLoadingPaint
-
-        m_loadingText = New Label With {
-            .Text = "正在生成液体盒子 …",
-            .AutoSize = False,
-            .Width = 520, .Height = 24,
-            .ForeColor = Text0,
-            .Font = UiFont(12.0F, True),
-            .TextAlign = ContentAlignment.MiddleCenter
-        }
-        m_loadingPct = New Label With {
-            .Text = "0%",
-            .AutoSize = False,
-            .Width = 520, .Height = 20,
-            .ForeColor = Accent,
-            .Font = UiFont(9.5F),
-            .TextAlign = ContentAlignment.MiddleCenter
-        }
-        m_loadingBar = New Panel With {.Width = 420, .Height = 8, .BackColor = Back2}
-        AddHandler m_loadingBar.Paint, AddressOf OnLoadingBarPaint
-
-        Dim stack As New Panel With {.Width = 560, .Height = 120}
-
-        m_loadingText.Location = New Point(20, 8)
-        m_loadingBar.Location = New Point(70, 48)
-        m_loadingPct.Location = New Point(20, 66)
-
-        Call stack.Controls.Add(m_loadingPct)
-        Call stack.Controls.Add(m_loadingBar)
-        Call stack.Controls.Add(m_loadingText)
-
-        AddHandler m_loading.Resize, Sub(s, ev)
-                                         stack.Location = New Point(
-                                             (m_loading.Width - stack.Width) \ 2,
-                                             (m_loading.Height - stack.Height) \ 2)
-                                     End Sub
-
-        Call m_loading.Controls.Add(stack)
-        Call Controls.Add(m_loading)
-        Call m_loading.BringToFront()
-    End Sub
-
-    Private Sub OnLoadingPaint(sender As Object, e As PaintEventArgs)
-        Dim bar = DirectCast(sender, Panel).Controls(0)
-
-        bar.Location = New Point((DirectCast(sender, Panel).Width - bar.Width) \ 2,
-                                 (DirectCast(sender, Panel).Height - bar.Height) \ 2)
-    End Sub
-
-    Private Sub OnLoadingBarPaint(sender As Object, e As PaintEventArgs)
-        Dim host = DirectCast(sender, Panel)
-        Dim w As Integer = CInt(host.Width * m_progress)
-
-        e.Graphics.SmoothingMode = SmoothingMode.None
-        e.Graphics.FillRectangle(New SolidBrush(Back2), 0, 0, host.Width, host.Height)
-
-        Using brush As New LinearGradientBrush(New Point(0, 0), New Point(host.Width, 0), Accent, Accent2)
-            e.Graphics.FillRectangle(brush, 0, 0, std.Max(1, w), host.Height)
-        End Using
+    Private Sub OnTiltChanged(sender As Object, e As EventArgs) Handles m_tiltBar.ValueChanged
+        UpdateSliderRead(m_tiltBar, m_tiltRead, 0)
+        OnMaxTilt(m_tiltBar.Value * std.PI / 180.0)
     End Sub
 
     ' /********************************************************************************/
@@ -826,7 +509,7 @@ Public Class Form1
     '  the events of the shell
     ' /********************************************************************************/
 
-    Private Sub OnRunClick(sender As Object, e As EventArgs)
+    Private Sub OnRunClick(sender As Object, e As EventArgs) Handles m_btnRun.Click
         If m_sim Is Nothing Then Return
 
         If m_sim.IsRunning Then
@@ -838,7 +521,7 @@ Public Class Form1
         End If
     End Sub
 
-    Private Sub OnStepClick(sender As Object, e As EventArgs)
+    Private Sub OnStepClick(sender As Object, e As EventArgs) Handles m_btnStep.Click
         If m_sim Is Nothing Then Return
 
         Call m_sim.Stop()
@@ -848,7 +531,7 @@ Public Class Form1
         Call UpdateStatus()
     End Sub
 
-    Private Sub OnResetClick(sender As Object, e As EventArgs)
+    Private Sub OnResetClick(sender As Object, e As EventArgs) Handles m_btnReset.Click
         If m_sim IsNot Nothing Then Call m_sim.Stop()
         If m_packer IsNot Nothing Then Call m_packer.Stop()
 
@@ -856,13 +539,13 @@ Public Class Form1
         Call StartLoading()
     End Sub
 
-    Private Sub OnFitClick(sender As Object, e As EventArgs)
+    Private Sub OnFitClick(sender As Object, e As EventArgs) Handles m_btnFit.Click
         If m_canvas Is Nothing Then Return
 
         Call m_canvas.FitView()
     End Sub
 
-    Private Sub OnPaletteChanged(sender As Object, e As EventArgs)
+    Private Sub OnPaletteChanged(sender As Object, e As EventArgs) Handles m_paletteBox.SelectedIndexChanged
         If m_mapper Is Nothing Then Return
 
         m_mapper.Palette = CurrentPalette()
@@ -872,11 +555,44 @@ Public Class Form1
         Call m_legendBar.Invalidate()
     End Sub
 
-    Private Sub OnPointSizeChanged(sender As Object, e As EventArgs)
+    Private Sub OnPointSizeChanged(sender As Object, e As EventArgs) Handles m_sizeBar.ValueChanged
         If m_canvas Is Nothing Then Return
 
         m_canvas.PointSize = m_sizeBar.Value
         Call m_canvas.InvalidateFrame()
+    End Sub
+
+    Private Sub OnGravity(v As Double)
+        If m_sim IsNot Nothing Then m_sim.Engine.Gravity = CSng(v)
+    End Sub
+
+    Private Sub OnViscosity(v As Double)
+        If m_sim IsNot Nothing Then
+            m_sim.Engine.ViscosityStrength = CSng(v)
+            Call m_sim.Engine.InvalidateParams()
+        End If
+    End Sub
+
+    Private Sub OnDamping(v As Double)
+        If m_sim IsNot Nothing Then m_sim.Engine.CollisionDamping = CSng(v)
+    End Sub
+
+    Private Sub OnSoundSpeed(v As Double)
+        If m_sim IsNot Nothing Then
+            m_sim.Engine.SoundSpeedFactor = CSng(v)
+            Call m_sim.Engine.InvalidateParams()
+        End If
+    End Sub
+
+    Private Sub OnShakeStrength(v As Double)
+        If m_canvas IsNot Nothing Then m_canvas.Shake.ShakeStrength = CSng(v)
+        If m_sim IsNot Nothing Then m_sim.ShakeStrength = CSng(v)
+    End Sub
+
+    Private Sub OnMaxTilt(v As Double)
+        If m_canvas IsNot Nothing Then
+            m_canvas.Shake.MaxTilt = CSng(v * std.PI / 180.0)
+        End If
     End Sub
 
     Private Sub RelayoutOverlay()
@@ -887,7 +603,11 @@ Public Class Form1
         m_hud.Location = New Point(16, 12)
     End Sub
 
-    Private Sub OnToolbarPaint(sender As Object, e As PaintEventArgs)
+    Private Sub OnStageResize(sender As Object, e As EventArgs) Handles m_stage.Resize
+        Call RelayoutOverlay()
+    End Sub
+
+    Private Sub OnToolbarPaint(sender As Object, e As PaintEventArgs) Handles m_toolbar.Paint, m_status.Paint
         Dim host = DirectCast(sender, Panel)
 
         Using pen As New Pen(Color.FromArgb(45, 212, 191), 1)
@@ -895,7 +615,7 @@ Public Class Form1
         End Using
     End Sub
 
-    Private Sub OnLegendPaint(sender As Object, e As PaintEventArgs)
+    Private Sub OnLegendPaint(sender As Object, e As PaintEventArgs) Handles m_legend.Paint
         Dim host = DirectCast(sender, Panel)
 
         Using pen As New Pen(Color.FromArgb(56, 189, 248), 1)
@@ -903,7 +623,7 @@ Public Class Form1
         End Using
     End Sub
 
-    Private Sub OnLegendBarPaint(sender As Object, e As PaintEventArgs)
+    Private Sub OnLegendBarPaint(sender As Object, e As PaintEventArgs) Handles m_legendBar.Paint
         Dim host = DirectCast(sender, Panel)
         Dim colors As Color() = If(m_mapper Is Nothing, Nothing, m_mapper.Colors(256))
 
@@ -924,6 +644,30 @@ Public Class Form1
                 e.Graphics.FillRectangle(brush, x, 0, width, host.Height)
             End Using
         Next
+    End Sub
+
+    Private Sub OnLoadingPaint(sender As Object, e As PaintEventArgs) Handles m_loading.Paint
+        Dim bar = DirectCast(sender, Panel).Controls(0)
+
+        bar.Location = New Point((DirectCast(sender, Panel).Width - bar.Width) \ 2,
+                                 (DirectCast(sender, Panel).Height - bar.Height) \ 2)
+    End Sub
+
+    Private Sub OnLoadingBarPaint(sender As Object, e As PaintEventArgs) Handles m_loadingBar.Paint
+        Dim host = DirectCast(sender, Panel)
+        Dim w As Integer = CInt(host.Width * m_progress)
+
+        e.Graphics.SmoothingMode = SmoothingMode.None
+        e.Graphics.FillRectangle(New SolidBrush(Back2), 0, 0, host.Width, host.Height)
+
+        Using brush As New LinearGradientBrush(New Point(0, 0), New Point(host.Width, 0), Accent, Accent2)
+            e.Graphics.FillRectangle(brush, 0, 0, std.Max(1, w), host.Height)
+        End Using
+    End Sub
+
+    Private Sub OnLoadingResize(sender As Object, e As EventArgs) Handles m_loading.Resize
+        m_loadingStack.Location = New Point((m_loading.Width - m_loadingStack.Width) \ 2,
+                                            (m_loading.Height - m_loadingStack.Height) \ 2)
     End Sub
 
     Protected Overrides Sub OnFormClosing(e As FormClosingEventArgs)
