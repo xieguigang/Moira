@@ -56,10 +56,42 @@ Namespace Rendering
             End Get
         End Property
 
-        ''' <summary>the wall clock time of the last upload in milliseconds</summary>
+        ''' <summary>
+        ''' the cpu time of the last rebuild of the instance data in milliseconds
+        ''' </summary>
+        Public ReadOnly Property PackMs As Double
+            Get
+                Return m_packMs
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' the time the gpu back end spent on the upload of the instance buffer
+        ''' in milliseconds, zero when the back end does not report it
+        ''' </summary>
         Public ReadOnly Property UploadMs As Double
             Get
-                Return m_uploadMs
+                Return If(m_backend Is Nothing, 0.0, m_backend.LastUploadMs)
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' the whole paint of the last frame: the upload, the draw call and the
+        ''' present
+        ''' </summary>
+        Public ReadOnly Property DrawMs As Double
+            Get
+                Return m_drawMs
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' true while the last call of <see cref="PushFrame"/> had nothing to
+        ''' do: the gpu still holds exactly the cloud that is on the screen
+        ''' </summary>
+        Public ReadOnly Property FrameSkipped As Boolean
+            Get
+                Return m_skipped
             End Get
         End Property
 
@@ -82,18 +114,45 @@ Namespace Rendering
             End Get
         End Property
 
+        ''' <summary>
+        ''' the smallest change of the tilt that makes the cloud worth a rebuild,
+        ''' about 0.05 degrees
+        ''' </summary>
+        Private Const CloudTiltEpsilon As Single = 0.0008F
+        ''' <summary>
+        ''' the smallest change of the tilt that refreshes the wire frame, about
+        ''' 0.4 degrees: every refresh raises Scene.Version and therefore drops
+        ''' the whole cached geometry of the pipeline
+        ''' </summary>
+        Private Const LineTiltEpsilon As Single = 0.007F
+        ''' <summary>two refreshes of the wire frame are at least this far apart</summary>
+        Private Const LineIntervalMs As Long = 50
+
         Private ReadOnly m_shake As New BoxShakeController()
         Private m_sim As FluidBoxSim
         Private m_mapper As SpeedHeatMapper
         Private m_backend As Direct3D11SceneRenderer
         Private m_drawn As Integer = 0
-        Private m_uploadMs As Double = 0
+        Private m_packMs As Double = 0
+        Private m_drawMs As Double = 0
         Private m_half As Single = 50.0F
         Private m_shaking As Boolean = False
         Private m_orbiting As Boolean = False
+
+        ' the tilt that the cloud on the gpu was built with
+        Private m_cloudTiltX As Single = Single.MinValue
+        Private m_cloudTiltY As Single = Single.MinValue
+        ' the tilt that the wire frame of the scene was built with
         Private m_tiltX As Single = Single.MinValue
         Private m_tiltY As Single = Single.MinValue
+        Private m_lineClock As Stopwatch = Stopwatch.StartNew()
         Private m_lastFrame As Stopwatch = Stopwatch.StartNew()
+
+        ' the dirty flag of the frame: the solver step that is on the gpu and
+        ' a flag that the host raises when a setting has changed
+        Private m_lastStep As Long = -1
+        Private m_dirty As Boolean = True
+        Private m_skipped As Boolean = False
 
         ''' <summary>
         ''' configure the canvas for the given simulation
@@ -133,26 +192,70 @@ Namespace Rendering
             If m_mapper Is Nothing Then Return
 
             ColorScheme = m_mapper.SchemeName()
+            m_dirty = True
             Call Invalidate()
+        End Sub
+
+        ''' <summary>
+        ''' tell the canvas that something the cloud depends on has changed (the
+        ''' palette, the render budget, the point size), the next
+        ''' <see cref="PushFrame"/> then rebuilds the cloud even when the solver
+        ''' and the tilt did not move
+        ''' </summary>
+        Public Sub InvalidateFrame()
+            m_dirty = True
         End Sub
 
         ''' <summary>
         ''' rebuild the point cloud of the current snapshot and push it onto the
         ''' gpu, then request a repaint
         ''' </summary>
-        Public Sub PushFrame()
-            If m_sim Is Nothing OrElse m_mapper Is Nothing Then Return
+        ''' <remarks>
+        ''' The solver needs seconds for one step while the display refreshes
+        ''' sixty times per second, so the vast majority of the frames would
+        ''' pack and upload exactly the same cloud again. The frame is therefore
+        ''' skipped unless the solver has stepped, the tilt has moved or the
+        ''' host has raised <see cref="InvalidateFrame"/>.
+        ''' </remarks>
+        ''' <returns>true when the cloud has been rebuilt, false when the frame
+        ''' was skipped because nothing has changed</returns>
+        Public Function PushFrame() As Boolean
+            If m_sim Is Nothing OrElse m_mapper Is Nothing Then
+                m_skipped = True
+                Return False
+            End If
 
-            Dim watch = Stopwatch.StartNew()
+            Dim steps As Long = m_sim.StepCount
+            Dim tiltMoved As Boolean =
+                std.Abs(m_shake.TiltX - m_cloudTiltX) > CloudTiltEpsilon OrElse
+                std.Abs(m_shake.TiltY - m_cloudTiltY) > CloudTiltEpsilon
+
+            If Not m_dirty AndAlso steps = m_lastStep AndAlso Not tiltMoved Then
+                ' the gpu still holds exactly the cloud that is on the screen
+                m_skipped = True
+                Return False
+            End If
+
+            m_lastStep = steps
+            m_dirty = False
+            m_cloudTiltX = m_shake.TiltX
+            m_cloudTiltY = m_shake.TiltY
+            m_skipped = False
+
             Dim state = m_sim.ReadSnapshot()
             Dim n As Integer = m_sim.ParticleCount
 
             If state IsNot Nothing AndAlso state.Count > 0 Then n = state.Count
 
+            Dim pack = Stopwatch.StartNew()
+
             ' the tilt of the box changes while the user is dragging it, so the
-            ' world transform of the cloud has to be refreshed every frame
+            ' world transform of the cloud has to be refreshed with it
             Call m_mapper.SetTransform(m_shake.Rotation, m_half, m_half, m_half)
             Call m_mapper.Build(state, n, RenderBudget)
+
+            pack.Stop()
+            m_packMs = pack.Elapsed.TotalMilliseconds
 
             If m_backend IsNot Nothing Then
                 Call m_backend.EnsureInstanceCapacity(RenderBudget)
@@ -162,11 +265,22 @@ Namespace Rendering
             m_drawn = m_mapper.Count
 
             Call UploadBoxLines(False)
+            Call Invalidate()
+
+            Return True
+        End Function
+
+        ''' <summary>
+        ''' measure the whole paint of one frame: the upload of the instance
+        ''' buffer, the draw call and the present
+        ''' </summary>
+        Protected Overrides Sub OnPaint(e As PaintEventArgs)
+            Dim watch = Stopwatch.StartNew()
+
+            Call MyBase.OnPaint(e)
 
             watch.Stop()
-            m_uploadMs = watch.Elapsed.TotalMilliseconds
-
-            Call Invalidate()
+            m_drawMs = watch.Elapsed.TotalMilliseconds
         End Sub
 
         ''' <summary>
@@ -190,16 +304,31 @@ Namespace Rendering
         ''' the twelve edges of the container, rotated by the current tilt and
         ''' centered on the origin of the scene
         ''' </summary>
+        ''' <remarks>
+        ''' Every refresh calls <c>Scene.LoadLineSegments</c>, which raises
+        ''' <c>Scene.Version</c>; the cache key of
+        ''' <c>D3D11ScenePipeline.GeometryOf</c> contains that version, so a
+        ''' refresh drops the whole cached geometry (the palette texture and
+        ''' every small buffer of the pipeline) and rebuilds it. While the user
+        ''' is dragging that would happen sixty times per second, so a refresh
+        ''' needs a visible change of the tilt and a minimum interval.
+        ''' </remarks>
         Private Sub UploadBoxLines(force As Boolean)
-            If Not force AndAlso
-               std.Abs(m_shake.TiltX - m_tiltX) < 0.0015F AndAlso
-               std.Abs(m_shake.TiltY - m_tiltY) < 0.0015F Then
+            If Not force Then
+                If std.Abs(m_shake.TiltX - m_tiltX) < LineTiltEpsilon AndAlso
+                   std.Abs(m_shake.TiltY - m_tiltY) < LineTiltEpsilon Then
 
-                Return
+                    Return
+                End If
+
+                If m_lineClock.ElapsedMilliseconds < LineIntervalMs Then
+                    Return
+                End If
             End If
 
             m_tiltX = m_shake.TiltX
             m_tiltY = m_shake.TiltY
+            m_lineClock.Restart()
 
             Call UpdateConnections(BuildBoxEdges(m_shake.Rotation, BoxSize / 2.0F))
         End Sub

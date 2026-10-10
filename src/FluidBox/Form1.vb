@@ -678,7 +678,8 @@ Public Class Form1
 
         m_lstStep.Text = $"步 {m_sim.StepCount}  子步 {m_sim.LastSubSteps}  物理 {m_sim.LastStepMs:F0} ms"
 
-        m_lstRender.Text = $"渲染 {m_fps:F1} fps  {m_canvas.DrawnPoints.ToString("N0")} 点  {m_canvas.UploadMs:F0} ms"
+        m_lstRender.Text = $"渲染 {m_fps:F1} fps  {m_canvas.DrawnPoints.ToString("N0")} 点" &
+                           $"  pack {m_canvas.PackMs:F1} / up {m_canvas.UploadMs:F1} / draw {m_canvas.DrawMs:F1} ms"
 
         Dim hostMB As Double = m_sim.ParticleCount * 18 * 4 / 1024.0 / 1024.0
         Dim gpuMB As Double = m_renderBudget * 32 / 1024.0 / 1024.0
@@ -690,8 +691,17 @@ Public Class Form1
 
         Dim fail As String = m_canvas.GpuFailure
 
-        m_hud.Text = If(gpu, "CUDA GPU 求解", "CPU 并行求解") &
-                     If(fail = "", "", "  ·  " & fail)
+        m_hud.Text = If(gpu, "CUDA GPU 求解", "CPU 并行求解")
+
+        If m_canvas.FrameSkipped Then
+            m_hud.Text &= "  ·  帧已跳过（画面无变化）"
+        End If
+
+        If m_adaptive Then
+            m_hud.Text &= "  ·  自适应"
+        End If
+
+        If fail <> "" Then m_hud.Text &= "  ·  " & fail
 
         If m_sim.LastError <> "" Then
             m_hud.Text &= "  ·  " & m_sim.LastError
@@ -759,6 +769,7 @@ Public Class Form1
 
         Call m_mapper.EnsureCapacity(m_renderBudget)
         m_canvas.RenderBudget = m_renderBudget
+        Call m_canvas.InvalidateFrame()
     End Sub
 
     Private Sub OnPaletteChanged(sender As Object, e As EventArgs)
@@ -775,6 +786,7 @@ Public Class Form1
         If m_canvas Is Nothing Then Return
 
         m_canvas.PointSize = m_sizeBar.Value
+        Call m_canvas.InvalidateFrame()
     End Sub
 
     Private Sub RelayoutOverlay()
