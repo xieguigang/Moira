@@ -26,700 +26,878 @@ Partial Class Form1
     'Do not modify it using the code editor.
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
-        Me.components = New System.ComponentModel.Container()
-        Me.SuspendLayout()
-        '
-        'Form1
-        '
-        Me.AutoScaleMode = AutoScaleMode.Font
-        Me.ClientSize = New Size(1440, 900)
-        Me.MinimumSize = New Size(1024, 640)
-        Me.Text = "Fluid Box · 3D SPH 液体盒子模拟器"
-        Me.BackColor = Color.FromArgb(11, 15, 20)
-        Me.ForeColor = Color.FromArgb(230, 237, 243)
-        Me.Font = New Font("Segoe UI", 9.0F)
-        Me.StartPosition = FormStartPosition.CenterScreen
-        Me.WindowState = FormWindowState.Maximized
-        '
-        'm_body
-        '
-        Me.m_body = New Panel()
-        Me.m_body.Dock = DockStyle.Fill
-        Me.m_body.BackColor = Color.FromArgb(11, 15, 20)
-        '
-        'm_params
-        '
-        Me.m_params = New Panel()
-        Me.m_params.Dock = DockStyle.Right
-        Me.m_params.Width = 272
-        Me.m_params.BackColor = Color.FromArgb(19, 26, 34)
-        Me.m_params.Padding = New Padding(14, 12, 14, 12)
-        Me.m_params.AutoScroll = True
-        '
-        'm_stage
-        '
-        Me.m_stage = New Panel()
-        Me.m_stage.Dock = DockStyle.Fill
-        Me.m_stage.BackColor = Color.FromArgb(11, 15, 20)
-        '
-        'm_canvas
-        '
-        Me.m_canvas = New FluidSceneCanvas()
-        Me.m_canvas.Dock = DockStyle.Fill
-        Me.m_canvas.BackColor = Color.FromArgb(11, 15, 20)
-        Me.m_canvas.Margin = New Padding(0)
-        '
-        'm_legend
-        '
-        Me.m_legend = New Panel()
-        Me.m_legend.Width = 236
-        Me.m_legend.Height = 96
-        Me.m_legend.BackColor = Color.FromArgb(19, 26, 34)
-        Me.m_legend.Padding = New Padding(12, 10, 12, 8)
-        '
-        'm_legendBar
-        '
-        Me.m_legendBar = New Panel()
-        Me.m_legendBar.Height = 16
-        Me.m_legendBar.Dock = DockStyle.Top
-        '
-        'm_legendMin
-        '
-        Me.m_legendMin = New Label()
-        Me.m_legendMin.Dock = DockStyle.Top
-        Me.m_legendMin.Height = 18
-        Me.m_legendMin.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_legendMin.Font = New Font("Segoe UI", 8.5F)
-        Me.m_legendMin.Text = "0.00 m/s"
-        '
-        'm_legendMax
-        '
-        Me.m_legendMax = New Label()
-        Me.m_legendMax.Dock = DockStyle.Top
-        Me.m_legendMax.Height = 18
-        Me.m_legendMax.ForeColor = Color.FromArgb(230, 237, 243)
-        Me.m_legendMax.Font = New Font("Segoe UI", 8.5F, FontStyle.Bold)
-        Me.m_legendMax.Text = "0.00 m/s"
-        Me.m_legendMax.TextAlign = ContentAlignment.TopRight
-        '
-        'm_legendName
-        '
-        Me.m_legendName = New Label()
-        Me.m_legendName.Dock = DockStyle.Bottom
-        Me.m_legendName.Height = 18
-        Me.m_legendName.ForeColor = Color.FromArgb(45, 212, 191)
-        Me.m_legendName.Font = New Font("Segoe UI", 8.5F)
-        Me.m_legendName.Text = "Jet"
-        '
-        'm_hud
-        '
-        Me.m_hud = New Label()
-        Me.m_hud.Width = 360
-        Me.m_hud.Height = 22
-        Me.m_hud.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_hud.Font = New Font("Segoe UI", 8.5F)
-        Me.m_hud.BackColor = Color.FromArgb(19, 26, 34)
-        Me.m_hud.TextAlign = ContentAlignment.MiddleLeft
-        Me.m_hud.Padding = New Padding(8, 0, 0, 0)
-        Me.m_hud.Text = ""
-        '
-        'm_status
-        '
-        Me.m_status = New Panel()
-        Me.m_status.Dock = DockStyle.Bottom
-        Me.m_status.Height = 30
-        Me.m_status.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_lstBackend
-        '
-        Me.m_lstBackend = New Label()
-        Me.m_lstBackend.Width = 300
-        Me.m_lstBackend.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_lstBackend.Font = New Font("Consolas", 8.5F)
-        Me.m_lstBackend.TextAlign = ContentAlignment.MiddleLeft
-        Me.m_lstBackend.AutoSize = False
-        Me.m_lstBackend.Padding = New Padding(12, 0, 0, 0)
-        Me.m_lstBackend.Dock = DockStyle.Left
-        '
-        'm_lstStep
-        '
-        Me.m_lstStep = New Label()
-        Me.m_lstStep.Width = 260
-        Me.m_lstStep.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_lstStep.Font = New Font("Consolas", 8.5F)
-        Me.m_lstStep.TextAlign = ContentAlignment.MiddleLeft
-        Me.m_lstStep.AutoSize = False
-        Me.m_lstStep.Padding = New Padding(12, 0, 0, 0)
-        Me.m_lstStep.Dock = DockStyle.Left
-        '
-        'm_lstRender
-        '
-        Me.m_lstRender = New Label()
-        Me.m_lstRender.Width = 280
-        Me.m_lstRender.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_lstRender.Font = New Font("Consolas", 8.5F)
-        Me.m_lstRender.TextAlign = ContentAlignment.MiddleLeft
-        Me.m_lstRender.AutoSize = False
-        Me.m_lstRender.Padding = New Padding(12, 0, 0, 0)
-        Me.m_lstRender.Dock = DockStyle.Left
-        '
-        'm_lstMemory
-        '
-        Me.m_lstMemory = New Label()
-        Me.m_lstMemory.Width = 320
-        Me.m_lstMemory.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_lstMemory.Font = New Font("Consolas", 8.5F)
-        Me.m_lstMemory.TextAlign = ContentAlignment.MiddleLeft
-        Me.m_lstMemory.AutoSize = False
-        Me.m_lstMemory.Padding = New Padding(12, 0, 0, 0)
-        Me.m_lstMemory.Dock = DockStyle.Fill
-        '
-        'm_toolbar
-        '
-        Me.m_toolbar = New Panel()
-        Me.m_toolbar.Dock = DockStyle.Top
-        Me.m_toolbar.Height = 52
-        Me.m_toolbar.BackColor = Color.FromArgb(19, 26, 34)
-        Me.m_toolbar.Padding = New Padding(12, 0, 12, 0)
-        '
-        'm_flow
-        '
-        Me.m_flow = New FlowLayoutPanel()
-        Me.m_flow.Dock = DockStyle.Fill
-        Me.m_flow.BackColor = Color.FromArgb(19, 26, 34)
-        Me.m_flow.FlowDirection = FlowDirection.LeftToRight
-        Me.m_flow.WrapContents = False
-        Me.m_flow.Padding = New Padding(0, 11, 0, 0)
-        '
-        'm_btnRun
-        '
-        Me.m_btnRun = New Button()
-        Me.m_btnRun.Text = "▶  开始"
-        Me.m_btnRun.Width = 108
-        Me.m_btnRun.Height = 28
-        Me.m_btnRun.FlatStyle = FlatStyle.Flat
-        Me.m_btnRun.BackColor = Color.FromArgb(27, 36, 48)
-        Me.m_btnRun.ForeColor = Color.FromArgb(230, 237, 243)
-        Me.m_btnRun.Font = New Font("Segoe UI", 9.0F, FontStyle.Bold)
-        Me.m_btnRun.Cursor = Cursors.Hand
-        Me.m_btnRun.Margin = New Padding(0)
-        Me.m_btnRun.FlatAppearance.BorderSize = 1
-        Me.m_btnRun.FlatAppearance.BorderColor = Color.FromArgb(45, 212, 191)
-        Me.m_btnRun.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 41, 59)
-        Me.m_btnRun.FlatAppearance.MouseDownBackColor = Color.FromArgb(45, 212, 191)
-        '
-        'm_btnStep
-        '
-        Me.m_btnStep = New Button()
-        Me.m_btnStep.Text = "单步"
-        Me.m_btnStep.Width = 78
-        Me.m_btnStep.Height = 28
-        Me.m_btnStep.FlatStyle = FlatStyle.Flat
-        Me.m_btnStep.BackColor = Color.FromArgb(27, 36, 48)
-        Me.m_btnStep.ForeColor = Color.FromArgb(230, 237, 243)
-        Me.m_btnStep.Font = New Font("Segoe UI", 9.0F, FontStyle.Bold)
-        Me.m_btnStep.Cursor = Cursors.Hand
-        Me.m_btnStep.Margin = New Padding(0)
-        Me.m_btnStep.FlatAppearance.BorderSize = 1
-        Me.m_btnStep.FlatAppearance.BorderColor = Color.FromArgb(45, 212, 191)
-        Me.m_btnStep.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 41, 59)
-        Me.m_btnStep.FlatAppearance.MouseDownBackColor = Color.FromArgb(45, 212, 191)
-        '
-        'm_btnReset
-        '
-        Me.m_btnReset = New Button()
-        Me.m_btnReset.Text = "重置"
-        Me.m_btnReset.Width = 78
-        Me.m_btnReset.Height = 28
-        Me.m_btnReset.FlatStyle = FlatStyle.Flat
-        Me.m_btnReset.BackColor = Color.FromArgb(27, 36, 48)
-        Me.m_btnReset.ForeColor = Color.FromArgb(230, 237, 243)
-        Me.m_btnReset.Font = New Font("Segoe UI", 9.0F, FontStyle.Bold)
-        Me.m_btnReset.Cursor = Cursors.Hand
-        Me.m_btnReset.Margin = New Padding(0)
-        Me.m_btnReset.FlatAppearance.BorderSize = 1
-        Me.m_btnReset.FlatAppearance.BorderColor = Color.FromArgb(45, 212, 191)
-        Me.m_btnReset.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 41, 59)
-        Me.m_btnReset.FlatAppearance.MouseDownBackColor = Color.FromArgb(45, 212, 191)
-        '
-        'm_btnFit
-        '
-        Me.m_btnFit = New Button()
-        Me.m_btnFit.Text = "视角复位"
-        Me.m_btnFit.Width = 96
-        Me.m_btnFit.Height = 28
-        Me.m_btnFit.FlatStyle = FlatStyle.Flat
-        Me.m_btnFit.BackColor = Color.FromArgb(27, 36, 48)
-        Me.m_btnFit.ForeColor = Color.FromArgb(230, 237, 243)
-        Me.m_btnFit.Font = New Font("Segoe UI", 9.0F, FontStyle.Bold)
-        Me.m_btnFit.Cursor = Cursors.Hand
-        Me.m_btnFit.Margin = New Padding(0)
-        Me.m_btnFit.FlatAppearance.BorderSize = 1
-        Me.m_btnFit.FlatAppearance.BorderColor = Color.FromArgb(45, 212, 191)
-        Me.m_btnFit.FlatAppearance.MouseOverBackColor = Color.FromArgb(30, 41, 59)
-        Me.m_btnFit.FlatAppearance.MouseDownBackColor = Color.FromArgb(45, 212, 191)
-        '
-        'm_paletteBox
-        '
-        Me.m_paletteBox = New ComboBox()
-        Me.m_paletteBox.DropDownStyle = ComboBoxStyle.DropDownList
-        Me.m_paletteBox.Width = 118
-        Me.m_paletteBox.Height = 26
-        Me.m_paletteBox.BackColor = Color.FromArgb(27, 36, 48)
-        Me.m_paletteBox.ForeColor = Color.FromArgb(230, 237, 243)
-        Me.m_paletteBox.Font = New Font("Segoe UI", 9.0F)
-        Me.m_paletteBox.FlatStyle = FlatStyle.Flat
-        Me.m_paletteBox.Margin = New Padding(0)
-        '
-        'm_sizeBar
-        '
-        Me.m_sizeBar = New TrackBar()
-        Me.m_sizeBar.Minimum = 1
-        Me.m_sizeBar.Maximum = 6
-        Me.m_sizeBar.Value = 2
-        Me.m_sizeBar.Width = 96
-        Me.m_sizeBar.Height = 28
-        Me.m_sizeBar.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_gap1
-        '
-        Me.m_gap1 = New Panel()
-        Me.m_gap1.Width = 8
-        Me.m_gap1.Height = 1
-        Me.m_gap1.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_gap2
-        '
-        Me.m_gap2 = New Panel()
-        Me.m_gap2.Width = 8
-        Me.m_gap2.Height = 1
-        Me.m_gap2.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_gap3
-        '
-        Me.m_gap3 = New Panel()
-        Me.m_gap3.Width = 8
-        Me.m_gap3.Height = 1
-        Me.m_gap3.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_gap4
-        '
-        Me.m_gap4 = New Panel()
-        Me.m_gap4.Width = 20
-        Me.m_gap4.Height = 1
-        Me.m_gap4.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_gap5
-        '
-        Me.m_gap5 = New Panel()
-        Me.m_gap5.Width = 14
-        Me.m_gap5.Height = 1
-        Me.m_gap5.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_lblPalette
-        '
-        Me.m_lblPalette = New Label()
-        Me.m_lblPalette.Text = "色表"
-        Me.m_lblPalette.AutoSize = True
-        Me.m_lblPalette.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_lblPalette.Font = New Font("Segoe UI", 9.0F)
-        Me.m_lblPalette.Margin = New Padding(0, 5, 0, 0)
-        Me.m_lblPalette.Padding = New Padding(0)
-        '
-        'm_gap6
-        '
-        Me.m_gap6 = New Panel()
-        Me.m_gap6.Width = 14
-        Me.m_gap6.Height = 1
-        Me.m_gap6.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_lblPointSize
-        '
-        Me.m_lblPointSize = New Label()
-        Me.m_lblPointSize.Text = "点大小"
-        Me.m_lblPointSize.AutoSize = True
-        Me.m_lblPointSize.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_lblPointSize.Font = New Font("Segoe UI", 9.0F)
-        Me.m_lblPointSize.Margin = New Padding(0, 5, 0, 0)
-        Me.m_lblPointSize.Padding = New Padding(0)
-        '
-        'm_flow content
-        '
-        Me.m_flow.Controls.Add(Me.m_btnRun)
-        Me.m_flow.Controls.Add(Me.m_gap1)
-        Me.m_flow.Controls.Add(Me.m_btnStep)
-        Me.m_flow.Controls.Add(Me.m_gap2)
-        Me.m_flow.Controls.Add(Me.m_btnReset)
-        Me.m_flow.Controls.Add(Me.m_gap3)
-        Me.m_flow.Controls.Add(Me.m_btnFit)
-        Me.m_flow.Controls.Add(Me.m_gap4)
-        Me.m_flow.Controls.Add(Me.m_gap5)
-        Me.m_flow.Controls.Add(Me.m_lblPalette)
-        Me.m_flow.Controls.Add(Me.m_paletteBox)
-        Me.m_flow.Controls.Add(Me.m_gap6)
-        Me.m_flow.Controls.Add(Me.m_lblPointSize)
-        Me.m_flow.Controls.Add(Me.m_sizeBar)
-        Me.m_toolbar.Controls.Add(Me.m_flow)
-        '
-        'm_loading
-        '
-        Me.m_loading = New Panel()
-        Me.m_loading.BackColor = Color.FromArgb(11, 15, 20)
-        Me.m_loading.Dock = DockStyle.Fill
-        '
-        'm_loadingText
-        '
-        Me.m_loadingText = New Label()
-        Me.m_loadingText.Text = "正在生成液体盒子 …"
-        Me.m_loadingText.AutoSize = False
-        Me.m_loadingText.Width = 520
-        Me.m_loadingText.Height = 24
-        Me.m_loadingText.ForeColor = Color.FromArgb(230, 237, 243)
-        Me.m_loadingText.Font = New Font("Segoe UI", 12.0F, FontStyle.Bold)
-        Me.m_loadingText.TextAlign = ContentAlignment.MiddleCenter
-        Me.m_loadingText.Location = New Point(20, 8)
-        '
-        'm_loadingPct
-        '
-        Me.m_loadingPct = New Label()
-        Me.m_loadingPct.Text = "0%"
-        Me.m_loadingPct.AutoSize = False
-        Me.m_loadingPct.Width = 520
-        Me.m_loadingPct.Height = 20
-        Me.m_loadingPct.ForeColor = Color.FromArgb(45, 212, 191)
-        Me.m_loadingPct.Font = New Font("Segoe UI", 9.5F)
-        Me.m_loadingPct.TextAlign = ContentAlignment.MiddleCenter
-        Me.m_loadingPct.Location = New Point(20, 66)
-        '
-        'm_loadingBar
-        '
-        Me.m_loadingBar = New Panel()
-        Me.m_loadingBar.Width = 420
-        Me.m_loadingBar.Height = 8
-        Me.m_loadingBar.BackColor = Color.FromArgb(27, 36, 48)
-        Me.m_loadingBar.Location = New Point(70, 48)
-        '
-        'm_loadingStack
-        '
-        Me.m_loadingStack = New Panel()
-        Me.m_loadingStack.Width = 560
-        Me.m_loadingStack.Height = 120
-        Me.m_loadingStack.Controls.Add(Me.m_loadingPct)
-        Me.m_loadingStack.Controls.Add(Me.m_loadingBar)
-        Me.m_loadingStack.Controls.Add(Me.m_loadingText)
-        Me.m_loading.Controls.Add(Me.m_loadingStack)
-        '
-        'm_legend children
-        '
-        Me.m_legend.Controls.Add(Me.m_legendName)
-        Me.m_legend.Controls.Add(Me.m_legendMax)
-        Me.m_legend.Controls.Add(Me.m_legendMin)
-        Me.m_legend.Controls.Add(Me.m_legendBar)
-        '
-        'm_stage children
-        '
-        Me.m_stage.Controls.Add(Me.m_canvas)
-        Me.m_stage.Controls.Add(Me.m_hud)
-        Me.m_stage.Controls.Add(Me.m_legend)
-        Me.m_legend.BringToFront()
-        Me.m_hud.BringToFront()
-        '
-        'm_body children
-        '
-        Me.m_body.Controls.Add(Me.m_stage)
-        Me.m_body.Controls.Add(Me.m_params)
-        '
-        'm_status children
-        '
-        Me.m_status.Controls.Add(Me.m_lstMemory)
-        Me.m_status.Controls.Add(Me.m_lstRender)
-        Me.m_status.Controls.Add(Me.m_lstStep)
-        Me.m_status.Controls.Add(Me.m_lstBackend)
-        '
-        'm_lblParamsTitle
-        '
-        Me.m_lblParamsTitle = New Label()
-        Me.m_lblParamsTitle.Text = "物理参数"
-        Me.m_lblParamsTitle.Dock = DockStyle.Top
-        Me.m_lblParamsTitle.Height = 26
-        Me.m_lblParamsTitle.ForeColor = Color.FromArgb(230, 237, 243)
-        Me.m_lblParamsTitle.Font = New Font("Segoe UI", 11.0F, FontStyle.Bold)
-        Me.m_params.Controls.Add(Me.m_lblParamsTitle)
-        '
-        'm_gravityHost
-        '
-        Me.m_gravityHost = New Panel()
-        Me.m_gravityHost.Dock = DockStyle.Top
-        Me.m_gravityHost.Height = 52
-        Me.m_gravityHost.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_gravityBar
-        '
-        Me.m_gravityBar = New TrackBar()
-        '
-        'm_gravityRead
-        '
-        Me.m_gravityRead = New Label()
-        Me.m_gravityRead.Dock = DockStyle.Right
-        Me.m_gravityRead.Width = 58
-        Me.m_gravityRead.Height = 18
-        Me.m_gravityRead.ForeColor = Color.FromArgb(45, 212, 191)
-        Me.m_gravityRead.Font = New Font("Segoe UI", 8.5F, FontStyle.Bold)
-        Me.m_gravityRead.TextAlign = ContentAlignment.MiddleRight
-        '
-        'm_gravityName
-        '
-        Me.m_gravityName = New Label()
-        Me.m_gravityName.Dock = DockStyle.Top
-        Me.m_gravityName.Height = 18
-        Me.m_gravityName.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_gravityName.Font = New Font("Segoe UI", 8.5F)
-        Me.m_gravityName.Text = "重力 (m/s²)"
-        '
-        Me.m_gravityHost.Controls.Add(Me.m_gravityBar)
-        Me.m_gravityHost.Controls.Add(Me.m_gravityRead)
-        Me.m_gravityHost.Controls.Add(Me.m_gravityName)
-        Me.m_params.Controls.Add(Me.m_gravityHost)
-        Me.m_gravityBar.Minimum = 0
-        Me.m_gravityBar.Maximum = 300
-        Me.m_gravityBar.Value = 98
-        Me.m_gravityBar.Dock = DockStyle.Top
-        Me.m_gravityBar.Height = 30
-        Me.m_gravityBar.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_viscosityHost
-        '
-        Me.m_viscosityHost = New Panel()
-        Me.m_viscosityHost.Dock = DockStyle.Top
-        Me.m_viscosityHost.Height = 52
-        Me.m_viscosityHost.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_viscosityBar
-        '
-        Me.m_viscosityBar = New TrackBar()
-        '
-        'm_viscosityRead
-        '
-        Me.m_viscosityRead = New Label()
-        Me.m_viscosityRead.Dock = DockStyle.Right
-        Me.m_viscosityRead.Width = 58
-        Me.m_viscosityRead.Height = 18
-        Me.m_viscosityRead.ForeColor = Color.FromArgb(45, 212, 191)
-        Me.m_viscosityRead.Font = New Font("Segoe UI", 8.5F, FontStyle.Bold)
-        Me.m_viscosityRead.TextAlign = ContentAlignment.MiddleRight
-        '
-        'm_viscosityName
-        '
-        Me.m_viscosityName = New Label()
-        Me.m_viscosityName.Dock = DockStyle.Top
-        Me.m_viscosityName.Height = 18
-        Me.m_viscosityName.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_viscosityName.Font = New Font("Segoe UI", 8.5F)
-        Me.m_viscosityName.Text = "粘性强度"
-        '
-        Me.m_viscosityHost.Controls.Add(Me.m_viscosityBar)
-        Me.m_viscosityHost.Controls.Add(Me.m_viscosityRead)
-        Me.m_viscosityHost.Controls.Add(Me.m_viscosityName)
-        Me.m_params.Controls.Add(Me.m_viscosityHost)
-        Me.m_viscosityBar.Minimum = 0
-        Me.m_viscosityBar.Maximum = 100
-        Me.m_viscosityBar.Value = 30
-        Me.m_viscosityBar.Dock = DockStyle.Top
-        Me.m_viscosityBar.Height = 30
-        Me.m_viscosityBar.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_dampingHost
-        '
-        Me.m_dampingHost = New Panel()
-        Me.m_dampingHost.Dock = DockStyle.Top
-        Me.m_dampingHost.Height = 52
-        Me.m_dampingHost.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_dampingBar
-        '
-        Me.m_dampingBar = New TrackBar()
-        '
-        'm_dampingRead
-        '
-        Me.m_dampingRead = New Label()
-        Me.m_dampingRead.Dock = DockStyle.Right
-        Me.m_dampingRead.Width = 58
-        Me.m_dampingRead.Height = 18
-        Me.m_dampingRead.ForeColor = Color.FromArgb(45, 212, 191)
-        Me.m_dampingRead.Font = New Font("Segoe UI", 8.5F, FontStyle.Bold)
-        Me.m_dampingRead.TextAlign = ContentAlignment.MiddleRight
-        '
-        'm_dampingName
-        '
-        Me.m_dampingName = New Label()
-        Me.m_dampingName.Dock = DockStyle.Top
-        Me.m_dampingName.Height = 18
-        Me.m_dampingName.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_dampingName.Font = New Font("Segoe UI", 8.5F)
-        Me.m_dampingName.Text = "碰撞阻尼"
-        '
-        Me.m_dampingHost.Controls.Add(Me.m_dampingBar)
-        Me.m_dampingHost.Controls.Add(Me.m_dampingRead)
-        Me.m_dampingHost.Controls.Add(Me.m_dampingName)
-        Me.m_params.Controls.Add(Me.m_dampingHost)
-        Me.m_dampingBar.Minimum = 0
-        Me.m_dampingBar.Maximum = 100
-        Me.m_dampingBar.Value = 40
-        Me.m_dampingBar.Dock = DockStyle.Top
-        Me.m_dampingBar.Height = 30
-        Me.m_dampingBar.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_soundHost
-        '
-        Me.m_soundHost = New Panel()
-        Me.m_soundHost.Dock = DockStyle.Top
-        Me.m_soundHost.Height = 52
-        Me.m_soundHost.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_soundBar
-        '
-        Me.m_soundBar = New TrackBar()
-        '
-        'm_soundRead
-        '
-        Me.m_soundRead = New Label()
-        Me.m_soundRead.Dock = DockStyle.Right
-        Me.m_soundRead.Width = 58
-        Me.m_soundRead.Height = 18
-        Me.m_soundRead.ForeColor = Color.FromArgb(45, 212, 191)
-        Me.m_soundRead.Font = New Font("Segoe UI", 8.5F, FontStyle.Bold)
-        Me.m_soundRead.TextAlign = ContentAlignment.MiddleRight
-        '
-        'm_soundName
-        '
-        Me.m_soundName = New Label()
-        Me.m_soundName.Dock = DockStyle.Top
-        Me.m_soundName.Height = 18
-        Me.m_soundName.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_soundName.Font = New Font("Segoe UI", 8.5F)
-        Me.m_soundName.Text = "声速因子"
-        '
-        Me.m_soundHost.Controls.Add(Me.m_soundBar)
-        Me.m_soundHost.Controls.Add(Me.m_soundRead)
-        Me.m_soundHost.Controls.Add(Me.m_soundName)
-        Me.m_params.Controls.Add(Me.m_soundHost)
-        Me.m_soundBar.Minimum = 10
-        Me.m_soundBar.Maximum = 100
-        Me.m_soundBar.Value = 30
-        Me.m_soundBar.Dock = DockStyle.Top
-        Me.m_soundBar.Height = 30
-        Me.m_soundBar.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_shakeHost
-        '
-        Me.m_shakeHost = New Panel()
-        Me.m_shakeHost.Dock = DockStyle.Top
-        Me.m_shakeHost.Height = 52
-        Me.m_shakeHost.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_shakeBar
-        '
-        Me.m_shakeBar = New TrackBar()
-        '
-        'm_shakeRead
-        '
-        Me.m_shakeRead = New Label()
-        Me.m_shakeRead.Dock = DockStyle.Right
-        Me.m_shakeRead.Width = 58
-        Me.m_shakeRead.Height = 18
-        Me.m_shakeRead.ForeColor = Color.FromArgb(45, 212, 191)
-        Me.m_shakeRead.Font = New Font("Segoe UI", 8.5F, FontStyle.Bold)
-        Me.m_shakeRead.TextAlign = ContentAlignment.MiddleRight
-        '
-        'm_shakeName
-        '
-        Me.m_shakeName = New Label()
-        Me.m_shakeName.Dock = DockStyle.Top
-        Me.m_shakeName.Height = 18
-        Me.m_shakeName.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_shakeName.Font = New Font("Segoe UI", 8.5F)
-        Me.m_shakeName.Text = "晃动强度"
-        '
-        Me.m_shakeHost.Controls.Add(Me.m_shakeBar)
-        Me.m_shakeHost.Controls.Add(Me.m_shakeRead)
-        Me.m_shakeHost.Controls.Add(Me.m_shakeName)
-        Me.m_params.Controls.Add(Me.m_shakeHost)
-        Me.m_shakeBar.Minimum = 0
-        Me.m_shakeBar.Maximum = 300
-        Me.m_shakeBar.Value = 100
-        Me.m_shakeBar.Dock = DockStyle.Top
-        Me.m_shakeBar.Height = 30
-        Me.m_shakeBar.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_tiltHost
-        '
-        Me.m_tiltHost = New Panel()
-        Me.m_tiltHost.Dock = DockStyle.Top
-        Me.m_tiltHost.Height = 52
-        Me.m_tiltHost.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_tiltBar
-        '
-        Me.m_tiltBar = New TrackBar()
-        '
-        'm_tiltRead
-        '
-        Me.m_tiltRead = New Label()
-        Me.m_tiltRead.Dock = DockStyle.Right
-        Me.m_tiltRead.Width = 58
-        Me.m_tiltRead.Height = 18
-        Me.m_tiltRead.ForeColor = Color.FromArgb(45, 212, 191)
-        Me.m_tiltRead.Font = New Font("Segoe UI", 8.5F, FontStyle.Bold)
-        Me.m_tiltRead.TextAlign = ContentAlignment.MiddleRight
-        '
-        'm_tiltName
-        '
-        Me.m_tiltName = New Label()
-        Me.m_tiltName.Dock = DockStyle.Top
-        Me.m_tiltName.Height = 18
-        Me.m_tiltName.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_tiltName.Font = New Font("Segoe UI", 8.5F)
-        Me.m_tiltName.Text = "最大倾角 (°)"
-        '
-        Me.m_tiltHost.Controls.Add(Me.m_tiltBar)
-        Me.m_tiltHost.Controls.Add(Me.m_tiltRead)
-        Me.m_tiltHost.Controls.Add(Me.m_tiltName)
-        Me.m_params.Controls.Add(Me.m_tiltHost)
-        Me.m_tiltBar.Minimum = 3
-        Me.m_tiltBar.Maximum = 60
-        Me.m_tiltBar.Value = 26
-        Me.m_tiltBar.Dock = DockStyle.Top
-        Me.m_tiltBar.Height = 30
-        Me.m_tiltBar.BackColor = Color.FromArgb(19, 26, 34)
-        '
-        'm_lblParamsHint
-        '
-        Me.m_lblParamsHint = New Label()
-        Me.m_lblParamsHint.Dock = DockStyle.Top
-        Me.m_lblParamsHint.Height = 78
-        Me.m_lblParamsHint.ForeColor = Color.FromArgb(139, 152, 165)
-        Me.m_lblParamsHint.Font = New Font("Segoe UI", 8.0F)
-        Me.m_lblParamsHint.Text = "左键拖拽 = 晃动盒子（惯性 + 倾斜）" & vbCrLf &
-                                 "右键拖拽 = 环绕视角" & vbCrLf &
-                                 "滚轮 = 缩放" & vbCrLf &
-                                 "物理在后台线程推进，画面始终显示最新一帧。"
-        Me.m_params.Controls.Add(Me.m_lblParamsHint)
-        '
-        'm_gapParams
-        '
-        Me.m_gapParams = New Panel()
-        Me.m_gapParams.Dock = DockStyle.Top
-        Me.m_gapParams.Height = 14
-        Me.m_params.Controls.Add(Me.m_gapParams)
-        '
-        'Form1 final assembly
-        '
-        Me.Controls.Add(Me.m_body)
-        Me.Controls.Add(Me.m_status)
-        Me.Controls.Add(Me.m_toolbar)
-        Me.Controls.Add(Me.m_loading)
-        Me.m_loading.BringToFront()
-        Me.ResumeLayout(False)
+        m_body = New Panel()
+        m_stage = New Panel()
+        m_canvas = New FluidSceneCanvas()
+        m_hud = New Label()
+        m_legend = New Panel()
+        m_legendName = New Label()
+        m_legendMax = New Label()
+        m_legendMin = New Label()
+        m_legendBar = New Panel()
+        m_params = New Panel()
+        m_lblParamsTitle = New Label()
+        m_gravityHost = New Panel()
+        m_gravityBar = New TrackBar()
+        m_gravityRead = New Label()
+        m_gravityName = New Label()
+        m_viscosityHost = New Panel()
+        m_viscosityBar = New TrackBar()
+        m_viscosityRead = New Label()
+        m_viscosityName = New Label()
+        m_dampingHost = New Panel()
+        m_dampingBar = New TrackBar()
+        m_dampingRead = New Label()
+        m_dampingName = New Label()
+        m_soundHost = New Panel()
+        m_soundBar = New TrackBar()
+        m_soundRead = New Label()
+        m_soundName = New Label()
+        m_shakeHost = New Panel()
+        m_shakeBar = New TrackBar()
+        m_shakeRead = New Label()
+        m_shakeName = New Label()
+        m_tiltHost = New Panel()
+        m_tiltBar = New TrackBar()
+        m_tiltRead = New Label()
+        m_tiltName = New Label()
+        m_lblParamsHint = New Label()
+        m_gapParams = New Panel()
+        m_status = New Panel()
+        m_lstMemory = New Label()
+        m_lstRender = New Label()
+        m_lstStep = New Label()
+        m_lstBackend = New Label()
+        m_toolbar = New Panel()
+        m_flow = New FlowLayoutPanel()
+        m_btnRun = New Button()
+        m_gap1 = New Panel()
+        m_btnStep = New Button()
+        m_gap2 = New Panel()
+        m_btnReset = New Button()
+        m_gap3 = New Panel()
+        m_btnFit = New Button()
+        m_gap4 = New Panel()
+        m_gap5 = New Panel()
+        m_lblPalette = New Label()
+        m_paletteBox = New ComboBox()
+        m_gap6 = New Panel()
+        m_lblPointSize = New Label()
+        m_sizeBar = New TrackBar()
+        m_loading = New Panel()
+        m_loadingStack = New Panel()
+        m_loadingPct = New Label()
+        m_loadingBar = New Panel()
+        m_loadingText = New Label()
+        m_body.SuspendLayout()
+        m_stage.SuspendLayout()
+        m_legend.SuspendLayout()
+        m_params.SuspendLayout()
+        m_gravityHost.SuspendLayout()
+        CType(m_gravityBar, System.ComponentModel.ISupportInitialize).BeginInit()
+        m_viscosityHost.SuspendLayout()
+        CType(m_viscosityBar, System.ComponentModel.ISupportInitialize).BeginInit()
+        m_dampingHost.SuspendLayout()
+        CType(m_dampingBar, System.ComponentModel.ISupportInitialize).BeginInit()
+        m_soundHost.SuspendLayout()
+        CType(m_soundBar, System.ComponentModel.ISupportInitialize).BeginInit()
+        m_shakeHost.SuspendLayout()
+        CType(m_shakeBar, System.ComponentModel.ISupportInitialize).BeginInit()
+        m_tiltHost.SuspendLayout()
+        CType(m_tiltBar, System.ComponentModel.ISupportInitialize).BeginInit()
+        m_status.SuspendLayout()
+        m_toolbar.SuspendLayout()
+        m_flow.SuspendLayout()
+        CType(m_sizeBar, System.ComponentModel.ISupportInitialize).BeginInit()
+        m_loading.SuspendLayout()
+        m_loadingStack.SuspendLayout()
+        SuspendLayout()
+        ' 
+        ' m_body
+        ' 
+        m_body.BackColor = Color.FromArgb(CByte(11), CByte(15), CByte(20))
+        m_body.Controls.Add(m_stage)
+        m_body.Controls.Add(m_params)
+        m_body.Dock = DockStyle.Fill
+        m_body.Location = New Point(0, 52)
+        m_body.Name = "m_body"
+        m_body.Size = New Size(1440, 818)
+        m_body.TabIndex = 0
+        ' 
+        ' m_stage
+        ' 
+        m_stage.BackColor = Color.FromArgb(CByte(11), CByte(15), CByte(20))
+        m_stage.Controls.Add(m_canvas)
+        m_stage.Controls.Add(m_hud)
+        m_stage.Controls.Add(m_legend)
+        m_stage.Dock = DockStyle.Fill
+        m_stage.Location = New Point(0, 0)
+        m_stage.Name = "m_stage"
+        m_stage.Size = New Size(1168, 818)
+        m_stage.TabIndex = 0
+        ' 
+        ' m_canvas
+        ' 
+        m_canvas.AutoClear = False
+        m_canvas.BackColor = Color.FromArgb(CByte(11), CByte(15), CByte(20))
+        m_canvas.Dock = DockStyle.Fill
+        m_canvas.Location = New Point(0, 0)
+        m_canvas.Margin = New Padding(0)
+        m_canvas.Name = "m_canvas"
+        m_canvas.Size = New Size(1168, 818)
+        m_canvas.TabIndex = 0
+        ' 
+        ' m_hud
+        ' 
+        m_hud.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_hud.Font = New Font("Segoe UI", 8.5F)
+        m_hud.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_hud.Location = New Point(0, 0)
+        m_hud.Name = "m_hud"
+        m_hud.Padding = New Padding(8, 0, 0, 0)
+        m_hud.Size = New Size(360, 22)
+        m_hud.TabIndex = 1
+        m_hud.TextAlign = ContentAlignment.MiddleLeft
+        ' 
+        ' m_legend
+        ' 
+        m_legend.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_legend.Controls.Add(m_legendName)
+        m_legend.Controls.Add(m_legendMax)
+        m_legend.Controls.Add(m_legendMin)
+        m_legend.Controls.Add(m_legendBar)
+        m_legend.Location = New Point(0, 0)
+        m_legend.Name = "m_legend"
+        m_legend.Padding = New Padding(12, 10, 12, 8)
+        m_legend.Size = New Size(236, 96)
+        m_legend.TabIndex = 2
+        ' 
+        ' m_legendName
+        ' 
+        m_legendName.Dock = DockStyle.Bottom
+        m_legendName.Font = New Font("Segoe UI", 8.5F)
+        m_legendName.ForeColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_legendName.Location = New Point(12, 70)
+        m_legendName.Name = "m_legendName"
+        m_legendName.Size = New Size(212, 18)
+        m_legendName.TabIndex = 0
+        m_legendName.Text = "Jet"
+        ' 
+        ' m_legendMax
+        ' 
+        m_legendMax.Dock = DockStyle.Top
+        m_legendMax.Font = New Font("Segoe UI", 8.5F, FontStyle.Bold)
+        m_legendMax.ForeColor = Color.FromArgb(CByte(230), CByte(237), CByte(243))
+        m_legendMax.Location = New Point(12, 44)
+        m_legendMax.Name = "m_legendMax"
+        m_legendMax.Size = New Size(212, 18)
+        m_legendMax.TabIndex = 1
+        m_legendMax.Text = "0.00 m/s"
+        m_legendMax.TextAlign = ContentAlignment.TopRight
+        ' 
+        ' m_legendMin
+        ' 
+        m_legendMin.Dock = DockStyle.Top
+        m_legendMin.Font = New Font("Segoe UI", 8.5F)
+        m_legendMin.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_legendMin.Location = New Point(12, 26)
+        m_legendMin.Name = "m_legendMin"
+        m_legendMin.Size = New Size(212, 18)
+        m_legendMin.TabIndex = 2
+        m_legendMin.Text = "0.00 m/s"
+        ' 
+        ' m_legendBar
+        ' 
+        m_legendBar.Dock = DockStyle.Top
+        m_legendBar.Location = New Point(12, 10)
+        m_legendBar.Name = "m_legendBar"
+        m_legendBar.Size = New Size(212, 16)
+        m_legendBar.TabIndex = 3
+        ' 
+        ' m_params
+        ' 
+        m_params.AutoScroll = True
+        m_params.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_params.Controls.Add(m_lblParamsTitle)
+        m_params.Controls.Add(m_gravityHost)
+        m_params.Controls.Add(m_viscosityHost)
+        m_params.Controls.Add(m_dampingHost)
+        m_params.Controls.Add(m_soundHost)
+        m_params.Controls.Add(m_shakeHost)
+        m_params.Controls.Add(m_tiltHost)
+        m_params.Controls.Add(m_lblParamsHint)
+        m_params.Controls.Add(m_gapParams)
+        m_params.Dock = DockStyle.Right
+        m_params.Location = New Point(1168, 0)
+        m_params.Name = "m_params"
+        m_params.Padding = New Padding(14, 12, 14, 12)
+        m_params.Size = New Size(272, 818)
+        m_params.TabIndex = 1
+        ' 
+        ' m_lblParamsTitle
+        ' 
+        m_lblParamsTitle.Dock = DockStyle.Top
+        m_lblParamsTitle.Font = New Font("Segoe UI", 11F, FontStyle.Bold)
+        m_lblParamsTitle.ForeColor = Color.FromArgb(CByte(230), CByte(237), CByte(243))
+        m_lblParamsTitle.Location = New Point(14, 416)
+        m_lblParamsTitle.Name = "m_lblParamsTitle"
+        m_lblParamsTitle.Size = New Size(244, 26)
+        m_lblParamsTitle.TabIndex = 0
+        m_lblParamsTitle.Text = "物理参数"
+        ' 
+        ' m_gravityHost
+        ' 
+        m_gravityHost.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_gravityHost.Controls.Add(m_gravityBar)
+        m_gravityHost.Controls.Add(m_gravityRead)
+        m_gravityHost.Controls.Add(m_gravityName)
+        m_gravityHost.Dock = DockStyle.Top
+        m_gravityHost.Location = New Point(14, 364)
+        m_gravityHost.Name = "m_gravityHost"
+        m_gravityHost.Size = New Size(244, 52)
+        m_gravityHost.TabIndex = 1
+        ' 
+        ' m_gravityBar
+        ' 
+        m_gravityBar.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_gravityBar.Dock = DockStyle.Top
+        m_gravityBar.Location = New Point(0, 18)
+        m_gravityBar.Maximum = 300
+        m_gravityBar.Name = "m_gravityBar"
+        m_gravityBar.Size = New Size(186, 45)
+        m_gravityBar.TabIndex = 0
+        m_gravityBar.Value = 98
+        ' 
+        ' m_gravityRead
+        ' 
+        m_gravityRead.Dock = DockStyle.Right
+        m_gravityRead.Font = New Font("Segoe UI", 8.5F, FontStyle.Bold)
+        m_gravityRead.ForeColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_gravityRead.Location = New Point(186, 18)
+        m_gravityRead.Name = "m_gravityRead"
+        m_gravityRead.Size = New Size(58, 34)
+        m_gravityRead.TabIndex = 1
+        m_gravityRead.TextAlign = ContentAlignment.MiddleRight
+        ' 
+        ' m_gravityName
+        ' 
+        m_gravityName.Dock = DockStyle.Top
+        m_gravityName.Font = New Font("Segoe UI", 8.5F)
+        m_gravityName.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_gravityName.Location = New Point(0, 0)
+        m_gravityName.Name = "m_gravityName"
+        m_gravityName.Size = New Size(244, 18)
+        m_gravityName.TabIndex = 2
+        m_gravityName.Text = "重力 (m/s²)"
+        ' 
+        ' m_viscosityHost
+        ' 
+        m_viscosityHost.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_viscosityHost.Controls.Add(m_viscosityBar)
+        m_viscosityHost.Controls.Add(m_viscosityRead)
+        m_viscosityHost.Controls.Add(m_viscosityName)
+        m_viscosityHost.Dock = DockStyle.Top
+        m_viscosityHost.Location = New Point(14, 312)
+        m_viscosityHost.Name = "m_viscosityHost"
+        m_viscosityHost.Size = New Size(244, 52)
+        m_viscosityHost.TabIndex = 2
+        ' 
+        ' m_viscosityBar
+        ' 
+        m_viscosityBar.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_viscosityBar.Dock = DockStyle.Top
+        m_viscosityBar.Location = New Point(0, 18)
+        m_viscosityBar.Maximum = 100
+        m_viscosityBar.Name = "m_viscosityBar"
+        m_viscosityBar.Size = New Size(186, 45)
+        m_viscosityBar.TabIndex = 0
+        m_viscosityBar.Value = 30
+        ' 
+        ' m_viscosityRead
+        ' 
+        m_viscosityRead.Dock = DockStyle.Right
+        m_viscosityRead.Font = New Font("Segoe UI", 8.5F, FontStyle.Bold)
+        m_viscosityRead.ForeColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_viscosityRead.Location = New Point(186, 18)
+        m_viscosityRead.Name = "m_viscosityRead"
+        m_viscosityRead.Size = New Size(58, 34)
+        m_viscosityRead.TabIndex = 1
+        m_viscosityRead.TextAlign = ContentAlignment.MiddleRight
+        ' 
+        ' m_viscosityName
+        ' 
+        m_viscosityName.Dock = DockStyle.Top
+        m_viscosityName.Font = New Font("Segoe UI", 8.5F)
+        m_viscosityName.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_viscosityName.Location = New Point(0, 0)
+        m_viscosityName.Name = "m_viscosityName"
+        m_viscosityName.Size = New Size(244, 18)
+        m_viscosityName.TabIndex = 2
+        m_viscosityName.Text = "粘性强度"
+        ' 
+        ' m_dampingHost
+        ' 
+        m_dampingHost.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_dampingHost.Controls.Add(m_dampingBar)
+        m_dampingHost.Controls.Add(m_dampingRead)
+        m_dampingHost.Controls.Add(m_dampingName)
+        m_dampingHost.Dock = DockStyle.Top
+        m_dampingHost.Location = New Point(14, 260)
+        m_dampingHost.Name = "m_dampingHost"
+        m_dampingHost.Size = New Size(244, 52)
+        m_dampingHost.TabIndex = 3
+        ' 
+        ' m_dampingBar
+        ' 
+        m_dampingBar.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_dampingBar.Dock = DockStyle.Top
+        m_dampingBar.Location = New Point(0, 18)
+        m_dampingBar.Maximum = 100
+        m_dampingBar.Name = "m_dampingBar"
+        m_dampingBar.Size = New Size(186, 45)
+        m_dampingBar.TabIndex = 0
+        m_dampingBar.Value = 40
+        ' 
+        ' m_dampingRead
+        ' 
+        m_dampingRead.Dock = DockStyle.Right
+        m_dampingRead.Font = New Font("Segoe UI", 8.5F, FontStyle.Bold)
+        m_dampingRead.ForeColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_dampingRead.Location = New Point(186, 18)
+        m_dampingRead.Name = "m_dampingRead"
+        m_dampingRead.Size = New Size(58, 34)
+        m_dampingRead.TabIndex = 1
+        m_dampingRead.TextAlign = ContentAlignment.MiddleRight
+        ' 
+        ' m_dampingName
+        ' 
+        m_dampingName.Dock = DockStyle.Top
+        m_dampingName.Font = New Font("Segoe UI", 8.5F)
+        m_dampingName.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_dampingName.Location = New Point(0, 0)
+        m_dampingName.Name = "m_dampingName"
+        m_dampingName.Size = New Size(244, 18)
+        m_dampingName.TabIndex = 2
+        m_dampingName.Text = "碰撞阻尼"
+        ' 
+        ' m_soundHost
+        ' 
+        m_soundHost.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_soundHost.Controls.Add(m_soundBar)
+        m_soundHost.Controls.Add(m_soundRead)
+        m_soundHost.Controls.Add(m_soundName)
+        m_soundHost.Dock = DockStyle.Top
+        m_soundHost.Location = New Point(14, 208)
+        m_soundHost.Name = "m_soundHost"
+        m_soundHost.Size = New Size(244, 52)
+        m_soundHost.TabIndex = 4
+        ' 
+        ' m_soundBar
+        ' 
+        m_soundBar.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_soundBar.Dock = DockStyle.Top
+        m_soundBar.Location = New Point(0, 18)
+        m_soundBar.Maximum = 100
+        m_soundBar.Minimum = 10
+        m_soundBar.Name = "m_soundBar"
+        m_soundBar.Size = New Size(186, 45)
+        m_soundBar.TabIndex = 0
+        m_soundBar.Value = 30
+        ' 
+        ' m_soundRead
+        ' 
+        m_soundRead.Dock = DockStyle.Right
+        m_soundRead.Font = New Font("Segoe UI", 8.5F, FontStyle.Bold)
+        m_soundRead.ForeColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_soundRead.Location = New Point(186, 18)
+        m_soundRead.Name = "m_soundRead"
+        m_soundRead.Size = New Size(58, 34)
+        m_soundRead.TabIndex = 1
+        m_soundRead.TextAlign = ContentAlignment.MiddleRight
+        ' 
+        ' m_soundName
+        ' 
+        m_soundName.Dock = DockStyle.Top
+        m_soundName.Font = New Font("Segoe UI", 8.5F)
+        m_soundName.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_soundName.Location = New Point(0, 0)
+        m_soundName.Name = "m_soundName"
+        m_soundName.Size = New Size(244, 18)
+        m_soundName.TabIndex = 2
+        m_soundName.Text = "声速因子"
+        ' 
+        ' m_shakeHost
+        ' 
+        m_shakeHost.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_shakeHost.Controls.Add(m_shakeBar)
+        m_shakeHost.Controls.Add(m_shakeRead)
+        m_shakeHost.Controls.Add(m_shakeName)
+        m_shakeHost.Dock = DockStyle.Top
+        m_shakeHost.Location = New Point(14, 156)
+        m_shakeHost.Name = "m_shakeHost"
+        m_shakeHost.Size = New Size(244, 52)
+        m_shakeHost.TabIndex = 5
+        ' 
+        ' m_shakeBar
+        ' 
+        m_shakeBar.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_shakeBar.Dock = DockStyle.Top
+        m_shakeBar.Location = New Point(0, 18)
+        m_shakeBar.Maximum = 300
+        m_shakeBar.Name = "m_shakeBar"
+        m_shakeBar.Size = New Size(186, 45)
+        m_shakeBar.TabIndex = 0
+        m_shakeBar.Value = 100
+        ' 
+        ' m_shakeRead
+        ' 
+        m_shakeRead.Dock = DockStyle.Right
+        m_shakeRead.Font = New Font("Segoe UI", 8.5F, FontStyle.Bold)
+        m_shakeRead.ForeColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_shakeRead.Location = New Point(186, 18)
+        m_shakeRead.Name = "m_shakeRead"
+        m_shakeRead.Size = New Size(58, 34)
+        m_shakeRead.TabIndex = 1
+        m_shakeRead.TextAlign = ContentAlignment.MiddleRight
+        ' 
+        ' m_shakeName
+        ' 
+        m_shakeName.Dock = DockStyle.Top
+        m_shakeName.Font = New Font("Segoe UI", 8.5F)
+        m_shakeName.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_shakeName.Location = New Point(0, 0)
+        m_shakeName.Name = "m_shakeName"
+        m_shakeName.Size = New Size(244, 18)
+        m_shakeName.TabIndex = 2
+        m_shakeName.Text = "晃动强度"
+        ' 
+        ' m_tiltHost
+        ' 
+        m_tiltHost.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_tiltHost.Controls.Add(m_tiltBar)
+        m_tiltHost.Controls.Add(m_tiltRead)
+        m_tiltHost.Controls.Add(m_tiltName)
+        m_tiltHost.Dock = DockStyle.Top
+        m_tiltHost.Location = New Point(14, 104)
+        m_tiltHost.Name = "m_tiltHost"
+        m_tiltHost.Size = New Size(244, 52)
+        m_tiltHost.TabIndex = 6
+        ' 
+        ' m_tiltBar
+        ' 
+        m_tiltBar.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_tiltBar.Dock = DockStyle.Top
+        m_tiltBar.Location = New Point(0, 18)
+        m_tiltBar.Maximum = 60
+        m_tiltBar.Minimum = 3
+        m_tiltBar.Name = "m_tiltBar"
+        m_tiltBar.Size = New Size(186, 45)
+        m_tiltBar.TabIndex = 0
+        m_tiltBar.Value = 26
+        ' 
+        ' m_tiltRead
+        ' 
+        m_tiltRead.Dock = DockStyle.Right
+        m_tiltRead.Font = New Font("Segoe UI", 8.5F, FontStyle.Bold)
+        m_tiltRead.ForeColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_tiltRead.Location = New Point(186, 18)
+        m_tiltRead.Name = "m_tiltRead"
+        m_tiltRead.Size = New Size(58, 34)
+        m_tiltRead.TabIndex = 1
+        m_tiltRead.TextAlign = ContentAlignment.MiddleRight
+        ' 
+        ' m_tiltName
+        ' 
+        m_tiltName.Dock = DockStyle.Top
+        m_tiltName.Font = New Font("Segoe UI", 8.5F)
+        m_tiltName.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_tiltName.Location = New Point(0, 0)
+        m_tiltName.Name = "m_tiltName"
+        m_tiltName.Size = New Size(244, 18)
+        m_tiltName.TabIndex = 2
+        m_tiltName.Text = "最大倾角 (°)"
+        ' 
+        ' m_lblParamsHint
+        ' 
+        m_lblParamsHint.Dock = DockStyle.Top
+        m_lblParamsHint.Font = New Font("Segoe UI", 8F)
+        m_lblParamsHint.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_lblParamsHint.Location = New Point(14, 26)
+        m_lblParamsHint.Name = "m_lblParamsHint"
+        m_lblParamsHint.Size = New Size(244, 78)
+        m_lblParamsHint.TabIndex = 7
+        m_lblParamsHint.Text = "左键拖拽 = 晃动盒子（惯性 + 倾斜）" & vbCrLf & "右键拖拽 = 环绕视角" & vbCrLf & "滚轮 = 缩放" & vbCrLf & "物理在后台线程推进，画面始终显示最新一帧。"
+        ' 
+        ' m_gapParams
+        ' 
+        m_gapParams.Dock = DockStyle.Top
+        m_gapParams.Location = New Point(14, 12)
+        m_gapParams.Name = "m_gapParams"
+        m_gapParams.Size = New Size(244, 14)
+        m_gapParams.TabIndex = 8
+        ' 
+        ' m_status
+        ' 
+        m_status.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_status.Controls.Add(m_lstMemory)
+        m_status.Controls.Add(m_lstRender)
+        m_status.Controls.Add(m_lstStep)
+        m_status.Controls.Add(m_lstBackend)
+        m_status.Dock = DockStyle.Bottom
+        m_status.Location = New Point(0, 870)
+        m_status.Name = "m_status"
+        m_status.Size = New Size(1440, 30)
+        m_status.TabIndex = 1
+        ' 
+        ' m_lstMemory
+        ' 
+        m_lstMemory.Dock = DockStyle.Fill
+        m_lstMemory.Font = New Font("Consolas", 8.5F)
+        m_lstMemory.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_lstMemory.Location = New Point(840, 0)
+        m_lstMemory.Name = "m_lstMemory"
+        m_lstMemory.Padding = New Padding(12, 0, 0, 0)
+        m_lstMemory.Size = New Size(600, 30)
+        m_lstMemory.TabIndex = 0
+        m_lstMemory.TextAlign = ContentAlignment.MiddleLeft
+        ' 
+        ' m_lstRender
+        ' 
+        m_lstRender.Dock = DockStyle.Left
+        m_lstRender.Font = New Font("Consolas", 8.5F)
+        m_lstRender.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_lstRender.Location = New Point(560, 0)
+        m_lstRender.Name = "m_lstRender"
+        m_lstRender.Padding = New Padding(12, 0, 0, 0)
+        m_lstRender.Size = New Size(280, 30)
+        m_lstRender.TabIndex = 1
+        m_lstRender.TextAlign = ContentAlignment.MiddleLeft
+        ' 
+        ' m_lstStep
+        ' 
+        m_lstStep.Dock = DockStyle.Left
+        m_lstStep.Font = New Font("Consolas", 8.5F)
+        m_lstStep.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_lstStep.Location = New Point(300, 0)
+        m_lstStep.Name = "m_lstStep"
+        m_lstStep.Padding = New Padding(12, 0, 0, 0)
+        m_lstStep.Size = New Size(260, 30)
+        m_lstStep.TabIndex = 2
+        m_lstStep.TextAlign = ContentAlignment.MiddleLeft
+        ' 
+        ' m_lstBackend
+        ' 
+        m_lstBackend.Dock = DockStyle.Left
+        m_lstBackend.Font = New Font("Consolas", 8.5F)
+        m_lstBackend.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_lstBackend.Location = New Point(0, 0)
+        m_lstBackend.Name = "m_lstBackend"
+        m_lstBackend.Padding = New Padding(12, 0, 0, 0)
+        m_lstBackend.Size = New Size(300, 30)
+        m_lstBackend.TabIndex = 3
+        m_lstBackend.TextAlign = ContentAlignment.MiddleLeft
+        ' 
+        ' m_toolbar
+        ' 
+        m_toolbar.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_toolbar.Controls.Add(m_flow)
+        m_toolbar.Dock = DockStyle.Top
+        m_toolbar.Location = New Point(0, 0)
+        m_toolbar.Name = "m_toolbar"
+        m_toolbar.Padding = New Padding(12, 0, 12, 0)
+        m_toolbar.Size = New Size(1440, 52)
+        m_toolbar.TabIndex = 2
+        ' 
+        ' m_flow
+        ' 
+        m_flow.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_flow.Controls.Add(m_btnRun)
+        m_flow.Controls.Add(m_gap1)
+        m_flow.Controls.Add(m_btnStep)
+        m_flow.Controls.Add(m_gap2)
+        m_flow.Controls.Add(m_btnReset)
+        m_flow.Controls.Add(m_gap3)
+        m_flow.Controls.Add(m_btnFit)
+        m_flow.Controls.Add(m_gap4)
+        m_flow.Controls.Add(m_gap5)
+        m_flow.Controls.Add(m_lblPalette)
+        m_flow.Controls.Add(m_paletteBox)
+        m_flow.Controls.Add(m_gap6)
+        m_flow.Controls.Add(m_lblPointSize)
+        m_flow.Controls.Add(m_sizeBar)
+        m_flow.Dock = DockStyle.Fill
+        m_flow.Location = New Point(12, 0)
+        m_flow.Name = "m_flow"
+        m_flow.Padding = New Padding(0, 11, 0, 0)
+        m_flow.Size = New Size(1416, 52)
+        m_flow.TabIndex = 0
+        m_flow.WrapContents = False
+        ' 
+        ' m_btnRun
+        ' 
+        m_btnRun.BackColor = Color.FromArgb(CByte(27), CByte(36), CByte(48))
+        m_btnRun.Cursor = Cursors.Hand
+        m_btnRun.FlatAppearance.BorderColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_btnRun.FlatAppearance.MouseDownBackColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_btnRun.FlatAppearance.MouseOverBackColor = Color.FromArgb(CByte(30), CByte(41), CByte(59))
+        m_btnRun.FlatStyle = FlatStyle.Flat
+        m_btnRun.Font = New Font("Segoe UI", 9F, FontStyle.Bold)
+        m_btnRun.ForeColor = Color.FromArgb(CByte(230), CByte(237), CByte(243))
+        m_btnRun.Location = New Point(0, 11)
+        m_btnRun.Margin = New Padding(0)
+        m_btnRun.Name = "m_btnRun"
+        m_btnRun.Size = New Size(108, 28)
+        m_btnRun.TabIndex = 0
+        m_btnRun.Text = "▶  开始"
+        m_btnRun.UseVisualStyleBackColor = False
+        ' 
+        ' m_gap1
+        ' 
+        m_gap1.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_gap1.Location = New Point(111, 14)
+        m_gap1.Name = "m_gap1"
+        m_gap1.Size = New Size(8, 1)
+        m_gap1.TabIndex = 1
+        ' 
+        ' m_btnStep
+        ' 
+        m_btnStep.BackColor = Color.FromArgb(CByte(27), CByte(36), CByte(48))
+        m_btnStep.Cursor = Cursors.Hand
+        m_btnStep.FlatAppearance.BorderColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_btnStep.FlatAppearance.MouseDownBackColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_btnStep.FlatAppearance.MouseOverBackColor = Color.FromArgb(CByte(30), CByte(41), CByte(59))
+        m_btnStep.FlatStyle = FlatStyle.Flat
+        m_btnStep.Font = New Font("Segoe UI", 9F, FontStyle.Bold)
+        m_btnStep.ForeColor = Color.FromArgb(CByte(230), CByte(237), CByte(243))
+        m_btnStep.Location = New Point(122, 11)
+        m_btnStep.Margin = New Padding(0)
+        m_btnStep.Name = "m_btnStep"
+        m_btnStep.Size = New Size(78, 28)
+        m_btnStep.TabIndex = 2
+        m_btnStep.Text = "单步"
+        m_btnStep.UseVisualStyleBackColor = False
+        ' 
+        ' m_gap2
+        ' 
+        m_gap2.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_gap2.Location = New Point(203, 14)
+        m_gap2.Name = "m_gap2"
+        m_gap2.Size = New Size(8, 1)
+        m_gap2.TabIndex = 3
+        ' 
+        ' m_btnReset
+        ' 
+        m_btnReset.BackColor = Color.FromArgb(CByte(27), CByte(36), CByte(48))
+        m_btnReset.Cursor = Cursors.Hand
+        m_btnReset.FlatAppearance.BorderColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_btnReset.FlatAppearance.MouseDownBackColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_btnReset.FlatAppearance.MouseOverBackColor = Color.FromArgb(CByte(30), CByte(41), CByte(59))
+        m_btnReset.FlatStyle = FlatStyle.Flat
+        m_btnReset.Font = New Font("Segoe UI", 9F, FontStyle.Bold)
+        m_btnReset.ForeColor = Color.FromArgb(CByte(230), CByte(237), CByte(243))
+        m_btnReset.Location = New Point(214, 11)
+        m_btnReset.Margin = New Padding(0)
+        m_btnReset.Name = "m_btnReset"
+        m_btnReset.Size = New Size(78, 28)
+        m_btnReset.TabIndex = 4
+        m_btnReset.Text = "重置"
+        m_btnReset.UseVisualStyleBackColor = False
+        ' 
+        ' m_gap3
+        ' 
+        m_gap3.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_gap3.Location = New Point(295, 14)
+        m_gap3.Name = "m_gap3"
+        m_gap3.Size = New Size(8, 1)
+        m_gap3.TabIndex = 5
+        ' 
+        ' m_btnFit
+        ' 
+        m_btnFit.BackColor = Color.FromArgb(CByte(27), CByte(36), CByte(48))
+        m_btnFit.Cursor = Cursors.Hand
+        m_btnFit.FlatAppearance.BorderColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_btnFit.FlatAppearance.MouseDownBackColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_btnFit.FlatAppearance.MouseOverBackColor = Color.FromArgb(CByte(30), CByte(41), CByte(59))
+        m_btnFit.FlatStyle = FlatStyle.Flat
+        m_btnFit.Font = New Font("Segoe UI", 9F, FontStyle.Bold)
+        m_btnFit.ForeColor = Color.FromArgb(CByte(230), CByte(237), CByte(243))
+        m_btnFit.Location = New Point(306, 11)
+        m_btnFit.Margin = New Padding(0)
+        m_btnFit.Name = "m_btnFit"
+        m_btnFit.Size = New Size(96, 28)
+        m_btnFit.TabIndex = 6
+        m_btnFit.Text = "视角复位"
+        m_btnFit.UseVisualStyleBackColor = False
+        ' 
+        ' m_gap4
+        ' 
+        m_gap4.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_gap4.Location = New Point(405, 14)
+        m_gap4.Name = "m_gap4"
+        m_gap4.Size = New Size(20, 1)
+        m_gap4.TabIndex = 7
+        ' 
+        ' m_gap5
+        ' 
+        m_gap5.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_gap5.Location = New Point(431, 14)
+        m_gap5.Name = "m_gap5"
+        m_gap5.Size = New Size(14, 1)
+        m_gap5.TabIndex = 8
+        ' 
+        ' m_lblPalette
+        ' 
+        m_lblPalette.AutoSize = True
+        m_lblPalette.Font = New Font("Segoe UI", 9F)
+        m_lblPalette.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_lblPalette.Location = New Point(448, 16)
+        m_lblPalette.Margin = New Padding(0, 5, 0, 0)
+        m_lblPalette.Name = "m_lblPalette"
+        m_lblPalette.Size = New Size(33, 15)
+        m_lblPalette.TabIndex = 9
+        m_lblPalette.Text = "色表"
+        ' 
+        ' m_paletteBox
+        ' 
+        m_paletteBox.BackColor = Color.FromArgb(CByte(27), CByte(36), CByte(48))
+        m_paletteBox.DropDownStyle = ComboBoxStyle.DropDownList
+        m_paletteBox.FlatStyle = FlatStyle.Flat
+        m_paletteBox.Font = New Font("Segoe UI", 9F)
+        m_paletteBox.ForeColor = Color.FromArgb(CByte(230), CByte(237), CByte(243))
+        m_paletteBox.Location = New Point(481, 11)
+        m_paletteBox.Margin = New Padding(0)
+        m_paletteBox.Name = "m_paletteBox"
+        m_paletteBox.Size = New Size(118, 23)
+        m_paletteBox.TabIndex = 10
+        ' 
+        ' m_gap6
+        ' 
+        m_gap6.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_gap6.Location = New Point(602, 14)
+        m_gap6.Name = "m_gap6"
+        m_gap6.Size = New Size(14, 1)
+        m_gap6.TabIndex = 11
+        ' 
+        ' m_lblPointSize
+        ' 
+        m_lblPointSize.AutoSize = True
+        m_lblPointSize.Font = New Font("Segoe UI", 9F)
+        m_lblPointSize.ForeColor = Color.FromArgb(CByte(139), CByte(152), CByte(165))
+        m_lblPointSize.Location = New Point(619, 16)
+        m_lblPointSize.Margin = New Padding(0, 5, 0, 0)
+        m_lblPointSize.Name = "m_lblPointSize"
+        m_lblPointSize.Size = New Size(46, 15)
+        m_lblPointSize.TabIndex = 12
+        m_lblPointSize.Text = "点大小"
+        ' 
+        ' m_sizeBar
+        ' 
+        m_sizeBar.BackColor = Color.FromArgb(CByte(19), CByte(26), CByte(34))
+        m_sizeBar.Location = New Point(668, 14)
+        m_sizeBar.Maximum = 6
+        m_sizeBar.Minimum = 1
+        m_sizeBar.Name = "m_sizeBar"
+        m_sizeBar.Size = New Size(96, 45)
+        m_sizeBar.TabIndex = 13
+        m_sizeBar.Value = 2
+        ' 
+        ' m_loading
+        ' 
+        m_loading.BackColor = Color.FromArgb(CByte(11), CByte(15), CByte(20))
+        m_loading.Controls.Add(m_loadingStack)
+        m_loading.Dock = DockStyle.Fill
+        m_loading.Location = New Point(0, 0)
+        m_loading.Name = "m_loading"
+        m_loading.Size = New Size(1440, 900)
+        m_loading.TabIndex = 3
+        ' 
+        ' m_loadingStack
+        ' 
+        m_loadingStack.Controls.Add(m_loadingPct)
+        m_loadingStack.Controls.Add(m_loadingBar)
+        m_loadingStack.Controls.Add(m_loadingText)
+        m_loadingStack.Location = New Point(0, 0)
+        m_loadingStack.Name = "m_loadingStack"
+        m_loadingStack.Size = New Size(560, 120)
+        m_loadingStack.TabIndex = 0
+        ' 
+        ' m_loadingPct
+        ' 
+        m_loadingPct.Font = New Font("Segoe UI", 9.5F)
+        m_loadingPct.ForeColor = Color.FromArgb(CByte(45), CByte(212), CByte(191))
+        m_loadingPct.Location = New Point(20, 66)
+        m_loadingPct.Name = "m_loadingPct"
+        m_loadingPct.Size = New Size(520, 20)
+        m_loadingPct.TabIndex = 0
+        m_loadingPct.Text = "0%"
+        m_loadingPct.TextAlign = ContentAlignment.MiddleCenter
+        ' 
+        ' m_loadingBar
+        ' 
+        m_loadingBar.BackColor = Color.FromArgb(CByte(27), CByte(36), CByte(48))
+        m_loadingBar.Location = New Point(70, 48)
+        m_loadingBar.Name = "m_loadingBar"
+        m_loadingBar.Size = New Size(420, 8)
+        m_loadingBar.TabIndex = 1
+        ' 
+        ' m_loadingText
+        ' 
+        m_loadingText.Font = New Font("Segoe UI", 12F, FontStyle.Bold)
+        m_loadingText.ForeColor = Color.FromArgb(CByte(230), CByte(237), CByte(243))
+        m_loadingText.Location = New Point(20, 8)
+        m_loadingText.Name = "m_loadingText"
+        m_loadingText.Size = New Size(520, 24)
+        m_loadingText.TabIndex = 2
+        m_loadingText.Text = "正在生成液体盒子 …"
+        m_loadingText.TextAlign = ContentAlignment.MiddleCenter
+        ' 
+        ' Form1
+        ' 
+        AutoScaleDimensions = New SizeF(7F, 15F)
+        AutoScaleMode = AutoScaleMode.Font
+        BackColor = Color.FromArgb(CByte(11), CByte(15), CByte(20))
+        ClientSize = New Size(1440, 900)
+        Controls.Add(m_body)
+        Controls.Add(m_status)
+        Controls.Add(m_toolbar)
+        Controls.Add(m_loading)
+        Font = New Font("Segoe UI", 9F)
+        ForeColor = Color.FromArgb(CByte(230), CByte(237), CByte(243))
+        MinimumSize = New Size(1024, 640)
+        Name = "Form1"
+        StartPosition = FormStartPosition.CenterScreen
+        Text = "Fluid Box · 3D SPH 液体盒子模拟器"
+        WindowState = FormWindowState.Maximized
+        m_body.ResumeLayout(False)
+        m_stage.ResumeLayout(False)
+        m_legend.ResumeLayout(False)
+        m_params.ResumeLayout(False)
+        m_gravityHost.ResumeLayout(False)
+        m_gravityHost.PerformLayout()
+        CType(m_gravityBar, System.ComponentModel.ISupportInitialize).EndInit()
+        m_viscosityHost.ResumeLayout(False)
+        m_viscosityHost.PerformLayout()
+        CType(m_viscosityBar, System.ComponentModel.ISupportInitialize).EndInit()
+        m_dampingHost.ResumeLayout(False)
+        m_dampingHost.PerformLayout()
+        CType(m_dampingBar, System.ComponentModel.ISupportInitialize).EndInit()
+        m_soundHost.ResumeLayout(False)
+        m_soundHost.PerformLayout()
+        CType(m_soundBar, System.ComponentModel.ISupportInitialize).EndInit()
+        m_shakeHost.ResumeLayout(False)
+        m_shakeHost.PerformLayout()
+        CType(m_shakeBar, System.ComponentModel.ISupportInitialize).EndInit()
+        m_tiltHost.ResumeLayout(False)
+        m_tiltHost.PerformLayout()
+        CType(m_tiltBar, System.ComponentModel.ISupportInitialize).EndInit()
+        m_status.ResumeLayout(False)
+        m_toolbar.ResumeLayout(False)
+        m_flow.ResumeLayout(False)
+        m_flow.PerformLayout()
+        CType(m_sizeBar, System.ComponentModel.ISupportInitialize).EndInit()
+        m_loading.ResumeLayout(False)
+        m_loadingStack.ResumeLayout(False)
+        ResumeLayout(False)
     End Sub
 
 End Class
