@@ -52,8 +52,6 @@ Public Class Form1
     Private m_btnStep As Button
     Private m_btnReset As Button
     Private m_btnFit As Button
-    Private m_countBox As ComboBox
-    Private m_budgetBox As ComboBox
     Private m_paletteBox As ComboBox
     Private m_sizeBar As TrackBar
 
@@ -68,8 +66,8 @@ Public Class Form1
     Private m_frames As Integer = 0
     Private m_fps As Double = 0
     Private m_fpsClock As Stopwatch = Stopwatch.StartNew()
-    Private m_particleCount As Integer = 100_000
-    Private m_renderBudget As Integer = 100_000
+    Private m_particleCount As Integer = 200_000
+    Private m_renderBudget As Integer = 200_000
     Private m_adaptive As Boolean = False
     Private m_clock As Timer
     Private m_statusClock As Stopwatch = Stopwatch.StartNew()
@@ -179,13 +177,8 @@ Public Class Form1
         AddHandler m_btnReset.Click, AddressOf OnResetClick
         AddHandler m_btnFit.Click, AddressOf OnFitClick
 
-        m_countBox = MakeCombo("粒子数", New String() {"100 万", "200 万", "500 万", "1000 万"}, 3)
-        m_budgetBox = MakeCombo("渲染点数", New String() {"50 万", "100 万", "200 万", "500 万", "1000 万"}, 2)
-        m_paletteBox = MakeCombo("色表", New String() {
-            "Jet", "viridis", "turbo", "inferno", "magma", "plasma", "Hot", "Cool", "Seismic", "Icefire"}, 0)
+        m_paletteBox = MakeCombo("色表", Enums(Of ScalerPalette), 0)
 
-        AddHandler m_countBox.SelectedIndexChanged, AddressOf OnCountChanged
-        AddHandler m_budgetBox.SelectedIndexChanged, AddressOf OnBudgetChanged
         AddHandler m_paletteBox.SelectedIndexChanged, AddressOf OnPaletteChanged
 
         m_sizeBar = New TrackBar With {
@@ -315,11 +308,7 @@ Public Class Form1
         Call flow.Controls.Add(MakeGap(8))
         Call flow.Controls.Add(m_btnFit)
         Call flow.Controls.Add(MakeGap(20))
-        Call flow.Controls.Add(MakeCaption("粒子数"))
-        Call flow.Controls.Add(m_countBox)
-        Call flow.Controls.Add(MakeGap(14))
-        Call flow.Controls.Add(MakeCaption("渲染点数"))
-        Call flow.Controls.Add(m_budgetBox)
+
         Call flow.Controls.Add(MakeGap(14))
         Call flow.Controls.Add(MakeCaption("色表"))
         Call flow.Controls.Add(m_paletteBox)
@@ -366,7 +355,7 @@ Public Class Form1
         Return btn
     End Function
 
-    Private Function MakeCombo(caption As String, items As String(), selected As Integer) As ComboBox
+    Private Function MakeCombo(Of T)(caption As String, items As T(), selected As Integer) As ComboBox
         Dim box As New ComboBox With {
             .DropDownStyle = ComboBoxStyle.DropDownList,
             .Width = If(items.Length > 4, 118, 96),
@@ -675,18 +664,7 @@ Public Class Form1
     End Sub
 
     Private Function CurrentPalette() As ScalerPalette
-        Select Case m_paletteBox.SelectedItem.ToString()
-            Case "viridis" : Return ScalerPalette.viridis
-            Case "turbo" : Return ScalerPalette.turbo
-            Case "inferno" : Return ScalerPalette.inferno
-            Case "magma" : Return ScalerPalette.magma
-            Case "plasma" : Return ScalerPalette.plasma
-            Case "Hot" : Return ScalerPalette.Hot
-            Case "Cool" : Return ScalerPalette.Cool
-            Case "Seismic" : Return ScalerPalette.Seismic
-            Case "Icefire" : Return ScalerPalette.Icefire
-            Case Else : Return ScalerPalette.Jet
-        End Select
+        Return DirectCast(m_paletteBox.SelectedItem, ScalerPalette)
     End Function
 
     ' /********************************************************************************/
@@ -882,32 +860,6 @@ Public Class Form1
         If m_canvas Is Nothing Then Return
 
         Call m_canvas.FitView()
-    End Sub
-
-    Private Sub OnCountChanged(sender As Object, e As EventArgs)
-        Select Case m_countBox.SelectedItem.ToString()
-            Case "100 万" : m_particleCount = 1_000_000
-            Case "200 万" : m_particleCount = 2_000_000
-            Case "500 万" : m_particleCount = 5_000_000
-            Case Else : m_particleCount = 10_000_000
-        End Select
-    End Sub
-
-    Private Sub OnBudgetChanged(sender As Object, e As EventArgs)
-        Select Case m_budgetBox.SelectedItem.ToString()
-            Case "50 万" : m_renderBudget = 500_000
-            Case "100 万" : m_renderBudget = 1_000_000
-            Case "200 万" : m_renderBudget = 2_000_000
-            Case "500 万" : m_renderBudget = 5_000_000
-            Case Else : m_renderBudget = 10_000_000
-        End Select
-
-        If Not m_ready OrElse m_mapper Is Nothing Then Return
-
-        If m_packer IsNot Nothing Then Call m_packer.Resize(m_renderBudget)
-
-        Call m_canvas.SetHostBudget(m_renderBudget)
-        Call m_canvas.InvalidateFrame()
     End Sub
 
     Private Sub OnPaletteChanged(sender As Object, e As EventArgs)
