@@ -336,7 +336,15 @@ Namespace Rendering
                 Return
             End If
 
-            Dim frame As Double = m_uploadMs + m_drawMs
+            ' a change of the budget reallocates the buffers of the packer, so
+            ' it must not happen on every single frame
+            If m_adaptClock.ElapsedMilliseconds < 400 Then Return
+
+            m_adaptClock.Restart()
+
+            ' the paint of this frame has not happened yet, so the last one is
+            ' the freshest measurement there is
+            Dim frame As Double = UploadMs + m_drawMs
 
             If frame > FrameBudgetMs AndAlso RenderBudget > MinBudget Then
                 Dim next1 As Integer = CInt(RenderBudget * 0.8)
@@ -377,6 +385,7 @@ Namespace Rendering
 
         Private m_hostBudget As Integer = 2_000_000
         Private m_budgetAdapted As Boolean = False
+        Private m_adaptClock As Stopwatch = Stopwatch.StartNew()
 
         ''' <summary>
         ''' measure the whole paint of one frame: the upload of the instance

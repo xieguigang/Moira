@@ -83,15 +83,23 @@ Namespace Rendering
         ''' <summary>
         ''' give every buffer room for <paramref name="budget"/> points
         ''' </summary>
+        ''' <remarks>
+        ''' The adaptive mode of the canvas changes the budget in small steps,
+        ''' and every step must not reallocate three buffers of millions of
+        ''' floats. The buffers therefore keep their size and are only rebuilt
+        ''' when the new budget does not fit into them any more, or when it has
+        ''' dropped far enough that the memory is worth giving back.
+        ''' </remarks>
         Public Sub Resize(budget As Integer)
             If budget < 1 Then budget = 1
 
-            Dim size As Integer = budget * SpeedHeatMapper.FloatsPerPoint
-
             SyncLock m_lock
-                If m_data(0) IsNot Nothing AndAlso m_data(0).Length = size Then
+                If m_capacity > 0 AndAlso budget <= m_capacity AndAlso budget >= m_capacity \ 2 Then
+                    m_budget = budget
                     Return
                 End If
+
+                Dim size As Integer = budget * SpeedHeatMapper.FloatsPerPoint
 
                 For i As Integer = 0 To Slots - 1
                     m_data(i) = New Single(size - 1) {}
@@ -99,10 +107,14 @@ Namespace Rendering
                     m_busy(i) = False
                 Next
 
-                m_front = -1
+                m_capacity = budget
                 m_budget = budget
+                m_front = -1
             End SyncLock
         End Sub
+
+        ''' <summary>how many points the buffers of the packer can hold</summary>
+        Private m_capacity As Integer = 0
 
         ''' <summary>
         ''' ask the packer for a cloud of the current state
@@ -235,13 +247,25 @@ Namespace Rendering
                 If slot < 0 Then Continue While
 
                 Dim watch = Stopwatch.StartNew()
+                Dim produced As Integer = 0
 
-                Call m_mapper.SetTransform(m_work, ox, oy, oz)
-                Call m_mapper.BuildInto(state, count, budget, m_data(slot))
+                Try
+                    Call m_mapper.SetTransform(m_work, ox, oy, oz)
+                    Call m_mapper.BuildInto(state, count, budget, m_data(slot))
+
+                    produced = m_mapper.Count
+                Catch ex As Exception
+                    ' an exception of a background thread terminates the whole
+                    ' process without any dialog, so it has to be written down
+                    produced = 0
+
+                    Try
+                        Call IO.File.WriteAllText("fluidbox-packer.log", ex.ToString())
+                    Catch
+                    End Try
+                End Try
 
                 watch.Stop()
-
-                Dim produced As Integer = m_mapper.Count
 
                 SyncLock m_lock
                     m_produced(slot) = produced

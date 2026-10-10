@@ -637,7 +637,7 @@ Public Class Form1
         m_packer = New InstancePacker(mapper)
         Call m_packer.Resize(m_renderBudget)
 
-        m_canvas.RenderBudget = m_renderBudget
+        Call m_canvas.SetHostBudget(m_renderBudget)
         Call m_canvas.Attach(sim, mapper)
         Call m_canvas.AttachPacker(m_packer)
         Call m_packer.Start()
@@ -660,6 +660,18 @@ Public Class Form1
         End If
 
         Call UpdateStatus()
+    End Sub
+
+    ''' <summary>
+    ''' append one line to the trace log, it is only written when --bench is
+    ''' given and exists to find out where a run stops
+    ''' </summary>
+    Private Shared Sub Trace(message As String)
+        Try
+            Call IO.File.AppendAllText("fluidbox-trace.log",
+                                       $"{DateTime.Now:HH:mm:ss.fff} {message}" & vbCrLf)
+        Catch
+        End Try
     End Sub
 
     Private Function CurrentPalette() As ScalerPalette
@@ -727,11 +739,8 @@ Public Class Form1
 
         m_benchTicks += 1
 
-        If m_benchTicks = 1 Then
-            Try
-                Call IO.File.WriteAllText("fluidbox-bench.log", "benchmark started")
-            Catch
-            End Try
+        If m_benchTicks = 1 OrElse (m_benchTicks Mod 40) = 0 Then
+            Call Trace($"tick {m_benchTicks} drawn={m_canvas.DrawnPoints} budget={m_canvas.RenderBudget} draw={m_canvas.DrawMs:F1} skipped={m_canvas.FrameSkipped}")
         End If
 
         If Not m_canvas.FrameSkipped Then
@@ -810,8 +819,8 @@ Public Class Form1
             m_hud.Text &= "  ·  帧已跳过（画面无变化）"
         End If
 
-        If m_adaptive Then
-            m_hud.Text &= "  ·  自适应"
+        If m_canvas.BudgetAdapted Then
+            m_hud.Text &= $"  ·  自适应 {m_canvas.RenderBudget.ToString("N0")} 点"
         End If
 
         If fail <> "" Then
@@ -895,7 +904,7 @@ Public Class Form1
 
         If m_packer IsNot Nothing Then Call m_packer.Resize(m_renderBudget)
 
-        m_canvas.RenderBudget = m_renderBudget
+        Call m_canvas.SetHostBudget(m_renderBudget)
         Call m_canvas.InvalidateFrame()
     End Sub
 
