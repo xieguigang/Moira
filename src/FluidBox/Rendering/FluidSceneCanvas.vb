@@ -285,7 +285,7 @@ Namespace Rendering
 
                 ' the tilt of the box changes while the user is dragging it, so
                 ' the world transform of the cloud has to follow it
-                Call m_packer.Request(state, n, m_shake.Rotation, m_half, m_half, m_half)
+                Call m_packer.Request(state, n, m_shake.Rotation, m_hx, m_hy, m_hz)
 
                 m_lastStep = steps
                 m_cloudTiltX = m_shake.TiltX
