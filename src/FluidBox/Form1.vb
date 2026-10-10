@@ -103,6 +103,17 @@ Public Class Form1
     Private WithEvents m_lblParamsHint As Label
     Private WithEvents m_gapParams As Panel
 
+    ' the three inputs of the box size, they are read when the simulation is
+    ' rebuilt by the reset button or at the start up
+    Private WithEvents m_boxSizeHost As Panel
+    Private WithEvents m_lblBoxSize As Label
+    Private WithEvents m_lblBoxW As Label
+    Private WithEvents m_lblBoxH As Label
+    Private WithEvents m_lblBoxD As Label
+    Private WithEvents m_boxWidthInput As NumericUpDown
+    Private WithEvents m_boxHeightInput As NumericUpDown
+    Private WithEvents m_boxDepthInput As NumericUpDown
+
     Private m_progress As Double = 0
     Private m_ready As Boolean = False
     Private m_frameClock As Stopwatch = Stopwatch.StartNew()
@@ -269,6 +280,9 @@ Public Class Form1
         ' a winforms control may only be touched by the thread that created it
         Dim count As Integer = m_particleCount
         Dim palette As ScalerPalette = CurrentPalette()
+        Dim boxW As Single = ReadBoxSize(m_boxWidthInput)
+        Dim boxH As Single = ReadBoxSize(m_boxHeightInput)
+        Dim boxD As Single = ReadBoxSize(m_boxDepthInput)
 
         Call Task.Run(
             Sub()
@@ -277,7 +291,9 @@ Public Class Form1
                         .Palette = palette
                     }
                     Dim sim As New FluidBoxSim(
-                        boxSize:=100.0F,
+                        width:=boxW,
+                        height:=boxH,
+                        depth:=boxD,
                         fillFraction:=2.0F / 3.0F,
                         particleCount:=count,
                         enableGpu:=True,
@@ -355,6 +371,19 @@ Public Class Form1
 
     Private Function CurrentPalette() As ScalerPalette
         Return DirectCast(m_paletteBox.SelectedItem, ScalerPalette)
+    End Function
+
+    ''' <summary>
+    ''' read one of the three box size inputs, the range of the input control
+    ''' already clamps the value, this is only the belt over the braces
+    ''' </summary>
+    Private Function ReadBoxSize(input As NumericUpDown) As Single
+        Dim v As Single = CSng(input.Value)
+
+        If v < 40.0F Then v = 40.0F
+        If v > 400.0F Then v = 400.0F
+
+        Return v
     End Function
 
     ' /********************************************************************************/

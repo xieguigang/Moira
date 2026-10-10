@@ -63,6 +63,14 @@ Partial Class Form1
         m_tiltName = New Label()
         m_lblParamsHint = New Label()
         m_gapParams = New Panel()
+        m_boxSizeHost = New Panel()
+        m_lblBoxSize = New Label()
+        m_lblBoxW = New Label()
+        m_lblBoxH = New Label()
+        m_lblBoxD = New Label()
+        m_boxWidthInput = New NumericUpDown()
+        m_boxHeightInput = New NumericUpDown()
+        m_boxDepthInput = New NumericUpDown()
         m_status = New Panel()
         m_lstMemory = New Label()
         m_lstRender = New Label()
@@ -229,6 +237,8 @@ Partial Class Form1
         m_params.Controls.Add(m_tiltHost)
         m_params.Controls.Add(m_lblParamsHint)
         m_params.Controls.Add(m_gapParams)
+        m_params.Controls.Add(m_boxSizeHost)
+        m_params.Controls.Add(m_lblBoxSize)
         m_params.Dock = DockStyle.Right
         m_params.Location = New Point(1168, 0)
         m_params.Name = "m_params"
@@ -535,14 +545,103 @@ Partial Class Form1
         m_lblParamsHint.Size = New Size(244, 78)
         m_lblParamsHint.TabIndex = 7
         m_lblParamsHint.Text = "左键拖拽 = 晃动盒子（惯性 + 倾斜）" & vbCrLf & "右键拖拽 = 环绕视角" & vbCrLf & "滚轮 = 缩放" & vbCrLf & "物理在后台线程推进，画面始终显示最新一帧。"
-        ' 
+        '
         ' m_gapParams
-        ' 
+        '
         m_gapParams.Dock = DockStyle.Top
         m_gapParams.Location = New Point(14, 12)
         m_gapParams.Name = "m_gapParams"
         m_gapParams.Size = New Size(244, 14)
         m_gapParams.TabIndex = 8
+        '
+        ' m_lblBoxSize
+        '
+        m_lblBoxSize.Dock = DockStyle.Top
+        m_lblBoxSize.Font = New Font("Microsoft YaHei UI", 8.5F, FontStyle.Bold)
+        m_lblBoxSize.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
+        m_lblBoxSize.Location = New Point(14, 12)
+        m_lblBoxSize.Name = "m_lblBoxSize"
+        m_lblBoxSize.Size = New Size(244, 24)
+        m_lblBoxSize.TabIndex = 9
+        m_lblBoxSize.Text = "盒子尺寸 宽×高×深（点重置生效）"
+        '
+        ' m_boxSizeHost
+        '
+        m_boxSizeHost.BackColor = Color.White
+        m_boxSizeHost.Controls.Add(m_boxWidthInput)
+        m_boxSizeHost.Controls.Add(m_boxHeightInput)
+        m_boxSizeHost.Controls.Add(m_boxDepthInput)
+        m_boxSizeHost.Controls.Add(m_lblBoxW)
+        m_boxSizeHost.Controls.Add(m_lblBoxH)
+        m_boxSizeHost.Controls.Add(m_lblBoxD)
+        m_boxSizeHost.Dock = DockStyle.Top
+        m_boxSizeHost.Location = New Point(14, 36)
+        m_boxSizeHost.Name = "m_boxSizeHost"
+        m_boxSizeHost.Size = New Size(244, 104)
+        m_boxSizeHost.TabIndex = 10
+        '
+        ' m_lblBoxW
+        '
+        m_lblBoxW.Location = New Point(8, 11)
+        m_lblBoxW.Name = "m_lblBoxW"
+        m_lblBoxW.Size = New Size(40, 20)
+        m_lblBoxW.TabIndex = 0
+        m_lblBoxW.Text = "宽"
+        m_lblBoxW.TextAlign = ContentAlignment.MiddleLeft
+        '
+        ' m_lblBoxH
+        '
+        m_lblBoxH.Location = New Point(8, 43)
+        m_lblBoxH.Name = "m_lblBoxH"
+        m_lblBoxH.Size = New Size(40, 20)
+        m_lblBoxH.TabIndex = 1
+        m_lblBoxH.Text = "高"
+        m_lblBoxH.TextAlign = ContentAlignment.MiddleLeft
+        '
+        ' m_lblBoxD
+        '
+        m_lblBoxD.Location = New Point(8, 75)
+        m_lblBoxD.Name = "m_lblBoxD"
+        m_lblBoxD.Size = New Size(40, 20)
+        m_lblBoxD.TabIndex = 2
+        m_lblBoxD.Text = "深"
+        m_lblBoxD.TextAlign = ContentAlignment.MiddleLeft
+        '
+        ' m_boxWidthInput
+        '
+        m_boxWidthInput.Font = New Font("Microsoft YaHei UI", 9.0F)
+        m_boxWidthInput.Increment = New Decimal(New Integer() {10, 0, 0, 0})
+        m_boxWidthInput.Location = New Point(56, 8)
+        m_boxWidthInput.Maximum = New Decimal(New Integer() {400, 0, 0, 0})
+        m_boxWidthInput.Minimum = New Decimal(New Integer() {40, 0, 0, 0})
+        m_boxWidthInput.Name = "m_boxWidthInput"
+        m_boxWidthInput.Size = New Size(110, 25)
+        m_boxWidthInput.TabIndex = 3
+        m_boxWidthInput.Value = New Decimal(New Integer() {160, 0, 0, 0})
+        '
+        ' m_boxHeightInput
+        '
+        m_boxHeightInput.Font = New Font("Microsoft YaHei UI", 9.0F)
+        m_boxHeightInput.Increment = New Decimal(New Integer() {10, 0, 0, 0})
+        m_boxHeightInput.Location = New Point(56, 40)
+        m_boxHeightInput.Maximum = New Decimal(New Integer() {400, 0, 0, 0})
+        m_boxHeightInput.Minimum = New Decimal(New Integer() {40, 0, 0, 0})
+        m_boxHeightInput.Name = "m_boxHeightInput"
+        m_boxHeightInput.Size = New Size(110, 25)
+        m_boxHeightInput.TabIndex = 4
+        m_boxHeightInput.Value = New Decimal(New Integer() {100, 0, 0, 0})
+        '
+        ' m_boxDepthInput
+        '
+        m_boxDepthInput.Font = New Font("Microsoft YaHei UI", 9.0F)
+        m_boxDepthInput.Increment = New Decimal(New Integer() {10, 0, 0, 0})
+        m_boxDepthInput.Location = New Point(56, 72)
+        m_boxDepthInput.Maximum = New Decimal(New Integer() {400, 0, 0, 0})
+        m_boxDepthInput.Minimum = New Decimal(New Integer() {40, 0, 0, 0})
+        m_boxDepthInput.Name = "m_boxDepthInput"
+        m_boxDepthInput.Size = New Size(110, 25)
+        m_boxDepthInput.TabIndex = 5
+        m_boxDepthInput.Value = New Decimal(New Integer() {120, 0, 0, 0})
         ' 
         ' m_status
         ' 
