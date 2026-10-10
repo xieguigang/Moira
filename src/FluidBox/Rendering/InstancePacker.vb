@@ -100,7 +100,6 @@ Namespace Rendering
                 Next
 
                 m_front = -1
-                m_taken = -1
                 m_budget = budget
             End SyncLock
         End Sub
