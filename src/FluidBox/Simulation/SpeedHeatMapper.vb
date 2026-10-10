@@ -268,17 +268,17 @@ Namespace Simulation
                     Dim o As Integer = k * FloatsPerPoint
 
                     If rotate Then
-                        inst(o) = x * r0 + y * r1 + z * r2
-                        inst(o + 1) = x * r3 + y * r4 + z * r5
-                        inst(o + 2) = x * r6 + y * r7 + z * r8
+                        target(o) = x * r0 + y * r1 + z * r2
+                        target(o + 1) = x * r3 + y * r4 + z * r5
+                        target(o + 2) = x * r6 + y * r7 + z * r8
                     Else
-                        inst(o) = x
-                        inst(o + 1) = y
-                        inst(o + 2) = z
+                        target(o) = x
+                        target(o + 1) = y
+                        target(o + 2) = z
                     End If
 
                     Dim sx As Single = vx(i), sy As Single = vy(i), sz As Single = vz(i)
-                    Dim speed As Single = CSng(std.Sqrt(sx * sx + sy * sy + sz * sz))
+                    Dim speed As Single = MathF.Sqrt(sx * sx + sy * sy + sz * sz)
                     Dim t As Single = (speed - lo) * inv
 
                     If t < 0.0F Then t = 0.0F
@@ -286,11 +286,11 @@ Namespace Simulation
 
                     ' the x of the normal slot is the per point size factor of
                     ' the palette mode of the point shader
-                    inst(o + 3) = 1.0F
-                    inst(o + 4) = 0.0F
-                    inst(o + 5) = 0.0F
-                    inst(o + 6) = t
-                    inst(o + 7) = 0.0F
+                    target(o + 3) = 1.0F
+                    target(o + 4) = 0.0F
+                    target(o + 5) = 0.0F
+                    target(o + 6) = t
+                    target(o + 7) = 0.0F
                 End Sub)
 
             m_count = drawnCount
@@ -311,7 +311,7 @@ Namespace Simulation
 
             While i < count
                 Dim sx As Single = vx(i), sy As Single = vy(i), sz As Single = vz(i)
-                Dim speed As Single = CSng(std.Sqrt(sx * sx + sy * sy + sz * sz))
+                Dim speed As Single = MathF.Sqrt(sx * sx + sy * sy + sz * sz)
 
                 If speed < lo Then lo = speed
                 If speed > hi Then hi = speed
