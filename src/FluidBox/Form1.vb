@@ -72,6 +72,17 @@ Public Class Form1
     Private m_renderBudget As Integer = 100_000
     Private m_adaptive As Boolean = False
 
+    ' the built in frame benchmark: FluidBox.exe --bench 20 writes the frame
+    ' times of the first twenty seconds into fluidbox-bench.log and exits
+    Private m_bench As Boolean = False
+    Private m_benchSeconds As Double = 0
+    Private m_benchClock As Stopwatch = Nothing
+    Private m_benchTicks As Long = 0
+    Private m_benchWork As Double = 0
+    Private m_benchWorkFrames As Long = 0
+    Private m_benchMaxDraw As Double = 0
+    Private m_gpuLogged As Boolean = False
+
     Private Shared Function UiFont(size As Single, Optional bold As Boolean = False) As Font
         If s_fontName Is Nothing Then
             s_fontName = "Segoe UI"
@@ -113,6 +124,9 @@ Public Class Form1
                 m_particleCount = CInt(args(i + 1))
             ElseIf args(i) = "--budget" AndAlso i + 1 < args.Count Then
                 m_renderBudget = CInt(args(i + 1))
+            ElseIf args(i) = "--bench" AndAlso i + 1 < args.Count Then
+                m_bench = True
+                m_benchSeconds = CDbl(args(i + 1))
             End If
         Next
 
@@ -622,6 +636,8 @@ Public Class Form1
         m_ready = True
         m_loading.Visible = False
 
+        If m_bench Then m_benchClock = Stopwatch.StartNew()
+
         ' the first cloud is packed by the worker, the idle loop picks it up
         Call m_canvas.InvalidateFrame()
         Call m_sim.Start()
@@ -670,6 +686,55 @@ Public Class Form1
         End If
 
         Call UpdateStatus()
+        Call BenchSample()
+    End Sub
+
+    ''' <summary>
+    ''' collect the frame times of the benchmark run and write them out when the
+    ''' requested time is over
+    ''' </summary>
+    Private Sub BenchSample()
+        If Not m_bench OrElse Not m_ready Then Return
+
+        m_benchTicks += 1
+
+        If Not m_canvas.FrameSkipped Then
+            m_benchWork += m_canvas.PackMs + m_canvas.UploadMs + m_canvas.DrawMs
+            m_benchWorkFrames += 1
+
+            If m_canvas.DrawMs > m_benchMaxDraw Then
+                m_benchMaxDraw = m_canvas.DrawMs
+            End If
+        End If
+
+        If m_benchClock.Elapsed.TotalSeconds < m_benchSeconds Then Return
+
+        Dim elapsed As Double = m_benchClock.Elapsed.TotalSeconds
+        Dim work As Double = If(m_benchWorkFrames > 0, m_benchWork / m_benchWorkFrames, 0)
+        Dim log As New System.Text.StringBuilder()
+
+        Call log.AppendLine("FluidBox frame benchmark")
+        Call log.AppendLine($"particles    : {m_sim.ParticleCount}")
+        Call log.AppendLine($"render budget: {m_renderBudget}")
+        Call log.AppendLine($"backend      : {m_sim.BackendName} (gpu={m_sim.IsGpuEnabled})")
+        Call log.AppendLine($"gpu pipeline : {m_canvas.IsGpuActive} {m_canvas.GpuFailure}")
+        Call log.AppendLine($"seconds      : {elapsed:F1}")
+        Call log.AppendLine($"loop rate    : {m_benchTicks / elapsed:F1} /s")
+        Call log.AppendLine($"updated      : {m_benchWorkFrames}")
+        Call log.AppendLine($"skipped      : {m_benchTicks - m_benchWorkFrames}")
+        Call log.AppendLine($"work per upd : {work:F2} ms")
+        Call log.AppendLine($"pack         : {m_canvas.PackMs:F2} ms")
+        Call log.AppendLine($"upload       : {m_canvas.UploadMs:F2} ms")
+        Call log.AppendLine($"draw max     : {m_benchMaxDraw:F2} ms")
+        Call log.AppendLine($"physics      : {m_sim.LastStepMs:F0} ms / {m_sim.LastSubSteps} substeps")
+
+        Try
+            Call IO.File.WriteAllText("fluidbox-bench.log", log.ToString())
+        Catch
+        End Try
+
+        m_bench = False
+        Call Close()
     End Sub
 
     Private Sub UpdateStatus()
@@ -709,7 +774,19 @@ Public Class Form1
             m_hud.Text &= "  ·  自适应"
         End If
 
-        If fail <> "" Then m_hud.Text &= "  ·  " & fail
+        If fail <> "" Then
+            m_hud.Text &= "  ·  " & fail
+
+            If Not m_gpuLogged Then
+                m_gpuLogged = True
+
+                Try
+                    Call IO.File.WriteAllText("fluidbox-gpu.log",
+                                              fail & vbCrLf & vbCrLf & m_canvas.RendererDescription)
+                Catch
+                End Try
+            End If
+        End If
 
         If m_sim.LastError <> "" Then
             m_hud.Text &= "  ·  " & m_sim.LastError

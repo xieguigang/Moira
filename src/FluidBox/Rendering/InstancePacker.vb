@@ -167,7 +167,8 @@ Namespace Rendering
             m_running = True
             m_worker = New Thread(AddressOf WorkerLoop) With {
                 .IsBackground = True,
-                .Name = "fluid-box-packer"
+                .Name = "fluid-box-packer",
+                .Priority = ThreadPriority.BelowNormal
             }
             Call m_worker.Start()
         End Sub

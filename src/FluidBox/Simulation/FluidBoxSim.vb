@@ -335,7 +335,8 @@ Namespace Simulation
             m_running = True
             m_worker = New Thread(AddressOf WorkerLoop) With {
                 .IsBackground = True,
-                .Name = "fluid-box-solver"
+                .Name = "fluid-box-solver",
+                .Priority = ThreadPriority.BelowNormal
             }
             Call m_worker.Start()
         End Sub
