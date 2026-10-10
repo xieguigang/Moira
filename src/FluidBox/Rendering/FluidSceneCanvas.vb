@@ -88,6 +88,7 @@ Namespace Rendering
         Private m_backend As Direct3D11SceneRenderer
         Private m_drawn As Integer = 0
         Private m_uploadMs As Double = 0
+        Private m_half As Single = 50.0F
         Private m_shaking As Boolean = False
         Private m_orbiting As Boolean = False
         Private m_tiltX As Single = Single.MinValue
@@ -103,6 +104,7 @@ Namespace Rendering
             m_backend = TryCast(Renderer, Direct3D11SceneRenderer)
 
             BoxSize = sim.BoxSize
+            m_half = sim.BoxSize / 2.0F
 
             BackgroundColor = Color.FromArgb(11, 15, 20)
             RenderMode = SceneRenderMode.PointCloud
@@ -121,6 +123,7 @@ Namespace Rendering
             ColorScheme = mapper.SchemeName()
 
             Call UploadBoxLines(True)
+            Call FitView()
         End Sub
 
         ''' <summary>
@@ -146,6 +149,9 @@ Namespace Rendering
 
             If state IsNot Nothing AndAlso state.Count > 0 Then n = state.Count
 
+            ' the tilt of the box changes while the user is dragging it, so the
+            ' world transform of the cloud has to be refreshed every frame
+            Call m_mapper.SetTransform(m_shake.Rotation, m_half, m_half, m_half)
             Call m_mapper.Build(state, n, RenderBudget)
 
             If m_backend IsNot Nothing Then

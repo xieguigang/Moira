@@ -120,6 +120,11 @@ Public Class Form1
         m_renderBudget = std.Min(m_renderBudget, m_particleCount)
     End Sub
 
+    Protected Overrides Sub OnShown(e As EventArgs)
+        Call MyBase.OnShown(e)
+        Call RelayoutOverlay()
+    End Sub
+
     Private Sub BuildShell()
         BackColor = Back0
         ForeColor = Text0
@@ -226,7 +231,11 @@ Public Class Form1
         Call m_stage.Controls.Add(m_canvas)
         Call m_stage.Controls.Add(m_hud)
         Call m_stage.Controls.Add(m_legend)
+
+        ' the canvas is the first child and therefore the front most one in the
+        ' z order of winforms, the overlays have to be pulled to the front
         Call m_legend.BringToFront()
+        Call m_hud.BringToFront()
 
         ' ---- the status bar ----
         m_status = New Panel With {.Dock = DockStyle.Bottom, .Height = 30, .BackColor = Back1}
