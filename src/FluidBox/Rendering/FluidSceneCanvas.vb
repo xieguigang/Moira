@@ -34,6 +34,28 @@ Namespace Rendering
         <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
         Public Property RenderBudget As Integer = 2_000_000
 
+        ''' <summary>
+        ''' when true the canvas lowers the number of drawn points on its own to
+        ''' keep one frame inside of the budget
+        ''' </summary>
+        <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+        Public Property AdaptiveBudget As Boolean = True
+
+        ''' <summary>the frame budget of the adaptive mode in milliseconds</summary>
+        <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+        Public Property FrameBudgetMs As Double = 14.0
+
+        ''' <summary>the smallest budget the adaptive mode falls back to</summary>
+        <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+        Public Property MinBudget As Integer = 200_000
+
+        ''' <summary>has the adaptive mode changed the budget of the host?</summary>
+        Public ReadOnly Property BudgetAdapted As Boolean
+            Get
+                Return m_budgetAdapted
+            End Get
+        End Property
+
         ''' <summary>the edge length of the container</summary>
         <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
         Public Property BoxSize As Single = 100.0F
@@ -166,6 +188,7 @@ Namespace Rendering
 
             BoxSize = sim.BoxSize
             m_half = sim.BoxSize / 2.0F
+            m_hostBudget = RenderBudget
 
             BackgroundColor = Color.FromArgb(11, 15, 20)
             RenderMode = SceneRenderMode.PointCloud
@@ -282,6 +305,8 @@ Namespace Rendering
             m_packMs = m_packer.PackMs
             m_skipped = False
 
+            Call AdaptBudget()
+
             If m_backend IsNot Nothing Then
                 Call m_backend.EnsureInstanceCapacity(RenderBudget)
                 Call m_backend.UploadInstances(data, count)
@@ -294,6 +319,64 @@ Namespace Rendering
 
             Return True
         End Function
+
+        ''' <summary>
+        ''' keep one frame inside of <see cref="FrameBudgetMs"/> by lowering the
+        ''' number of drawn points, and give the points back when there is room
+        ''' again
+        ''' </summary>
+        ''' <remarks>
+        ''' The host sets the budget it wants, the adaptive mode only lowers it
+        ''' when the measured frame really is too slow and never raises it above
+        ''' the value of the host.
+        ''' </remarks>
+        Private Sub AdaptBudget()
+            If Not AdaptiveBudget Then
+                m_budgetAdapted = False
+                Return
+            End If
+
+            Dim frame As Double = m_uploadMs + m_drawMs
+
+            If frame > FrameBudgetMs AndAlso RenderBudget > MinBudget Then
+                Dim next1 As Integer = CInt(RenderBudget * 0.8)
+
+                If next1 < MinBudget Then next1 = MinBudget
+
+                RenderBudget = next1
+                m_budgetAdapted = True
+                m_dirty = True
+
+                If m_packer IsNot Nothing Then Call m_packer.Resize(RenderBudget)
+            ElseIf frame < FrameBudgetMs * 0.5 AndAlso m_budgetAdapted Then
+                Dim next1 As Integer = CInt(RenderBudget * 1.1)
+
+                If next1 >= m_hostBudget Then
+                    RenderBudget = m_hostBudget
+                    m_budgetAdapted = False
+                Else
+                    RenderBudget = next1
+                End If
+
+                m_dirty = True
+
+                If m_packer IsNot Nothing Then Call m_packer.Resize(RenderBudget)
+            End If
+        End Sub
+
+        ''' <summary>
+        ''' the budget that the host has asked for, the adaptive mode never
+        ''' goes above it
+        ''' </summary>
+        Public Sub SetHostBudget(budget As Integer)
+            m_hostBudget = If(budget < MinBudget, MinBudget, budget)
+            RenderBudget = m_hostBudget
+            m_budgetAdapted = False
+            m_dirty = True
+        End Sub
+
+        Private m_hostBudget As Integer = 2_000_000
+        Private m_budgetAdapted As Boolean = False
 
         ''' <summary>
         ''' measure the whole paint of one frame: the upload of the instance
