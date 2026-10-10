@@ -467,25 +467,38 @@ Namespace Rendering
             m_tiltY = m_shake.TiltY
             m_lineClock.Restart()
 
-            Call UpdateConnections(BuildBoxEdges(m_shake.Rotation, BoxSize / 2.0F))
+            ' the wire frame of the box plus the ground grid, both in the box
+            ' local frame and rotated by the same tilt
+            Dim lines As New List(Of LineSegment)(36)
+
+            Call lines.AddRange(BuildBoxEdges(m_shake.Rotation, m_hx, m_hy, m_hz))
+            Call lines.AddRange(BuildGroundGrid(m_shake.Rotation, m_hx, m_hy, m_hz))
+
+            Call UpdateConnections(lines)
         End Sub
+
+        ''' <summary>the transform of the box local frame into the scene frame</summary>
+        Private Shared Function Transform(r As Single(),
+                                          x As Single, y As Single, z As Single) As Point3D
+            Return New Point3D(
+                x * r(0) + y * r(1) + z * r(2),
+                x * r(3) + y * r(4) + z * r(5),
+                x * r(6) + y * r(7) + z * r(8))
+        End Function
 
         ''' <summary>
         ''' the eight corners of the container rotated by the tilt of the box
         ''' </summary>
-        Private Function BuildBoxEdges(r As Single(), half As Single) As List(Of LineSegment)
+        Private Function BuildBoxEdges(r As Single(),
+                                       hx As Single, hy As Single, hz As Single) As List(Of LineSegment)
+
             Dim corners(7) As Point3D
-            Dim sx As Single() = {-half, half, half, -half, -half, half, half, -half}
-            Dim sy As Single() = {-half, -half, half, half, -half, -half, half, half}
-            Dim sz As Single() = {-half, -half, -half, -half, half, half, half, half}
+            Dim sx As Single() = {-hx, hx, hx, -hx, -hx, hx, hx, -hx}
+            Dim sy As Single() = {-hy, -hy, hy, hy, -hy, -hy, hy, hy}
+            Dim sz As Single() = {-hz, -hz, -hz, -hz, hz, hz, hz, hz}
 
             For i As Integer = 0 To 7
-                Dim x As Single = sx(i), y As Single = sy(i), z As Single = sz(i)
-
-                corners(i) = New Point3D(
-                    x * r(0) + y * r(1) + z * r(2),
-                    x * r(3) + y * r(4) + z * r(5),
-                    x * r(6) + y * r(7) + z * r(8))
+                corners(i) = Transform(r, sx(i), sy(i), sz(i))
             Next
 
             Dim edges As Integer() = {0, 1, 1, 2, 2, 3, 3, 0,
@@ -495,6 +508,39 @@ Namespace Rendering
 
             For i As Integer = 0 To 23 Step 2
                 lines.Add(New LineSegment(corners(edges(i)), corners(edges(i + 1)), BoxColor))
+            Next
+
+            Return lines
+        End Function
+
+        ''' <summary>
+        ''' the grid that marks the ground under the box: parallel lines on the
+        ''' plane of the bottom wall, a bit wider than the footprint of the box
+        ''' </summary>
+        ''' <remarks>
+        ''' The grid lives in the box local frame on the z = -hz plane (the z
+        ''' axis of the solver is the axis of the gravity) and is rotated by
+        ''' the very same tilt as the wire frame, so it follows the shake and
+        ''' always shows where the box rests on the ground.
+        ''' </summary>
+        Private Function BuildGroundGrid(r As Single(),
+                                         hx As Single, hy As Single, hz As Single) As List(Of LineSegment)
+
+            Const cells As Integer = 10
+
+            ' a square footprint that is wider than the box itself
+            Dim ext As Single = std.Max(hx, hy) * 1.5F
+            Dim z As Single = -hz
+            Dim ink As Color = Color.FromArgb(70, 120, 135, 150)
+            Dim lines As New List(Of LineSegment)(2 * cells + 2)
+
+            For i As Integer = 0 To cells
+                Dim t As Single = 2.0F * ext * i / cells - ext
+
+                ' a line that runs along x at y = t
+                lines.Add(New LineSegment(Transform(r, t, -ext, z), Transform(r, t, ext, z), ink))
+                ' a line that runs along y at x = t
+                lines.Add(New LineSegment(Transform(r, -ext, t, z), Transform(r, ext, t, z), ink))
             Next
 
             Return lines

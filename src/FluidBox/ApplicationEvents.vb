@@ -41,7 +41,9 @@ Namespace My
             Try
                 Dim watch = Diagnostics.Stopwatch.StartNew()
                 Dim sim As New FluidBoxSim(
-                    boxSize:=100.0F,
+                    width:=160.0F,
+                    height:=100.0F,
+                    depth:=120.0F,
                     fillFraction:=2.0F / 3.0F,
                     particleCount:=particles,
                     enableGpu:=True,
@@ -51,6 +53,7 @@ Namespace My
 
                 watch.Stop()
 
+                Call log.AppendLine($"box         : {sim.BoxWidth:F1} x {sim.BoxHeight:F1} x {sim.BoxDepth:F1}")
                 Call log.AppendLine($"particles    : {sim.ParticleCount}")
                 Call log.AppendLine($"spacing      : {sim.Spacing:F6}")
                 Call log.AppendLine($"smoothing h  : {sim.SmoothingRadius:F6}")
@@ -68,7 +71,7 @@ Namespace My
                 Dim mapper As New SpeedHeatMapper()
                 Call mapper.EnsureCapacity(std.Min(sim.ParticleCount, 200_000))
                 Call mapper.SetTransform(New Single() {1, 0, 0, 0, 1, 0, 0, 0, 1},
-                                         sim.BoxSize / 2.0F, sim.BoxSize / 2.0F, sim.BoxSize / 2.0F)
+                                         sim.BoxWidth / 2.0F, sim.BoxDepth / 2.0F, sim.BoxHeight / 2.0F)
                 Call mapper.Build(sim.ReadSnapshot(), sim.ParticleCount, std.Min(sim.ParticleCount, 200_000))
 
                 Call log.AppendLine($"mapped       : {mapper.Count} points, stride={mapper.Stride}")
