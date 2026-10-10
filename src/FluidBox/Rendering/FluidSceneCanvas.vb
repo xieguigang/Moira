@@ -1,10 +1,8 @@
 Imports System.ComponentModel
-Imports System.Diagnostics
-Imports System.Drawing
+Imports FluidBox.Simulation
 Imports Microsoft.VisualBasic.Drawing.DirectX
 Imports Microsoft.VisualBasic.Drawing.DirectX.Scene3D
 Imports Microsoft.VisualBasic.Imaging.Drawing3D
-Imports FluidBox.Simulation
 Imports std = System.Math
 
 Namespace Rendering
@@ -178,6 +176,8 @@ Namespace Rendering
         Private m_dirty As Boolean = True
         Private m_skipped As Boolean = False
 
+        Public Shared ReadOnly Property DefaultBackground As Color = Color.FromArgb(237, 250, 254)
+
         ''' <summary>
         ''' configure the canvas for the given simulation
         ''' </summary>
@@ -190,7 +190,7 @@ Namespace Rendering
             m_half = sim.BoxSize / 2.0F
             m_hostBudget = RenderBudget
 
-            BackgroundColor = Color.FromArgb(11, 15, 20)
+            BackgroundColor = DefaultBackground
             RenderMode = SceneRenderMode.PointCloud
             PointShape = ScenePointShape.Square
             PointSize = 2

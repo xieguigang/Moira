@@ -11,7 +11,7 @@ Imports std = System.Math
 Public Class Form1
 
     ' ---- the palette of the shell, see the design guide of the app ----
-    Private Shared ReadOnly Back0 As Color = Color.FromArgb(11, 15, 20)
+    Private Shared ReadOnly Back0 As Color = FluidSceneCanvas.DefaultBackground
     Private Shared ReadOnly Back1 As Color = Color.FromArgb(19, 26, 34)
     Private Shared ReadOnly Back2 As Color = Color.FromArgb(27, 36, 48)
     Private Shared ReadOnly Accent As Color = Color.FromArgb(45, 212, 191)

@@ -139,7 +139,9 @@ Partial Class Form1
         ' m_canvas
         ' 
         m_canvas.AutoClear = False
-        m_canvas.BackColor = Color.FromArgb(CByte(11), CByte(15), CByte(20))
+        m_canvas.BackColor = Color.White
+        m_canvas.BackgroundColor = Color.FromArgb(CByte(237), CByte(250), CByte(254))
+        m_canvas.BackgroundGridColor = Color.Black
         m_canvas.Dock = DockStyle.Fill
         m_canvas.Location = New Point(0, 0)
         m_canvas.Margin = New Padding(0)
@@ -266,8 +268,8 @@ Partial Class Form1
         m_gravityBar.Name = "m_gravityBar"
         m_gravityBar.Size = New Size(186, 45)
         m_gravityBar.TabIndex = 0
-        m_gravityBar.Value = 98
         m_gravityBar.TickStyle = TickStyle.None
+        m_gravityBar.Value = 98
         ' 
         ' m_gravityRead
         ' 
@@ -312,8 +314,8 @@ Partial Class Form1
         m_viscosityBar.Name = "m_viscosityBar"
         m_viscosityBar.Size = New Size(186, 45)
         m_viscosityBar.TabIndex = 0
-        m_viscosityBar.Value = 30
         m_viscosityBar.TickStyle = TickStyle.None
+        m_viscosityBar.Value = 30
         ' 
         ' m_viscosityRead
         ' 
@@ -358,8 +360,8 @@ Partial Class Form1
         m_dampingBar.Name = "m_dampingBar"
         m_dampingBar.Size = New Size(186, 45)
         m_dampingBar.TabIndex = 0
-        m_dampingBar.Value = 40
         m_dampingBar.TickStyle = TickStyle.None
+        m_dampingBar.Value = 40
         ' 
         ' m_dampingRead
         ' 
@@ -405,8 +407,8 @@ Partial Class Form1
         m_soundBar.Name = "m_soundBar"
         m_soundBar.Size = New Size(186, 45)
         m_soundBar.TabIndex = 0
-        m_soundBar.Value = 30
         m_soundBar.TickStyle = TickStyle.None
+        m_soundBar.Value = 30
         ' 
         ' m_soundRead
         ' 
@@ -451,8 +453,8 @@ Partial Class Form1
         m_shakeBar.Name = "m_shakeBar"
         m_shakeBar.Size = New Size(186, 45)
         m_shakeBar.TabIndex = 0
-        m_shakeBar.Value = 100
         m_shakeBar.TickStyle = TickStyle.None
+        m_shakeBar.Value = 100
         ' 
         ' m_shakeRead
         ' 
@@ -498,8 +500,8 @@ Partial Class Form1
         m_tiltBar.Name = "m_tiltBar"
         m_tiltBar.Size = New Size(186, 45)
         m_tiltBar.TabIndex = 0
-        m_tiltBar.Value = 26
         m_tiltBar.TickStyle = TickStyle.None
+        m_tiltBar.Value = 26
         ' 
         ' m_tiltRead
         ' 
@@ -751,7 +753,7 @@ Partial Class Form1
         m_lblPalette.Location = New Point(448, 16)
         m_lblPalette.Margin = New Padding(0, 5, 0, 0)
         m_lblPalette.Name = "m_lblPalette"
-        m_lblPalette.Size = New Size(33, 15)
+        m_lblPalette.Size = New Size(32, 17)
         m_lblPalette.TabIndex = 9
         m_lblPalette.Text = "色表"
         ' 
@@ -762,16 +764,16 @@ Partial Class Form1
         m_paletteBox.FlatStyle = FlatStyle.Flat
         m_paletteBox.Font = New Font("Microsoft YaHei UI", 9F)
         m_paletteBox.ForeColor = Color.FromArgb(CByte(30), CByte(41), CByte(59))
-        m_paletteBox.Location = New Point(481, 11)
+        m_paletteBox.Location = New Point(480, 11)
         m_paletteBox.Margin = New Padding(0)
         m_paletteBox.Name = "m_paletteBox"
-        m_paletteBox.Size = New Size(118, 23)
+        m_paletteBox.Size = New Size(118, 25)
         m_paletteBox.TabIndex = 10
         ' 
         ' m_gap6
         ' 
         m_gap6.BackColor = Color.White
-        m_gap6.Location = New Point(602, 14)
+        m_gap6.Location = New Point(601, 14)
         m_gap6.Name = "m_gap6"
         m_gap6.Size = New Size(14, 1)
         m_gap6.TabIndex = 11
@@ -781,24 +783,24 @@ Partial Class Form1
         m_lblPointSize.AutoSize = True
         m_lblPointSize.Font = New Font("Microsoft YaHei UI", 9F)
         m_lblPointSize.ForeColor = Color.FromArgb(CByte(71), CByte(85), CByte(105))
-        m_lblPointSize.Location = New Point(619, 16)
+        m_lblPointSize.Location = New Point(618, 16)
         m_lblPointSize.Margin = New Padding(0, 5, 0, 0)
         m_lblPointSize.Name = "m_lblPointSize"
-        m_lblPointSize.Size = New Size(46, 15)
+        m_lblPointSize.Size = New Size(44, 17)
         m_lblPointSize.TabIndex = 12
         m_lblPointSize.Text = "点大小"
         ' 
         ' m_sizeBar
         ' 
         m_sizeBar.BackColor = Color.White
-        m_sizeBar.Location = New Point(668, 14)
+        m_sizeBar.Location = New Point(665, 14)
         m_sizeBar.Maximum = 6
         m_sizeBar.Minimum = 1
         m_sizeBar.Name = "m_sizeBar"
         m_sizeBar.Size = New Size(96, 45)
         m_sizeBar.TabIndex = 13
-        m_sizeBar.Value = 2
         m_sizeBar.TickStyle = TickStyle.None
+        m_sizeBar.Value = 2
         ' 
         ' m_loading
         ' 
@@ -852,7 +854,7 @@ Partial Class Form1
         ' 
         ' Form1
         ' 
-        AutoScaleDimensions = New SizeF(7F, 15F)
+        AutoScaleDimensions = New SizeF(7F, 17F)
         AutoScaleMode = AutoScaleMode.Font
         BackColor = Color.White
         ClientSize = New Size(1440, 900)
