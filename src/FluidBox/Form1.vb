@@ -748,6 +748,8 @@ Public Class Form1
             m_benchDrawSum += m_canvas.DrawMs
             m_benchWorkFrames += 1
 
+            Call Trace($"frame {m_benchWorkFrames} pack={m_canvas.PackMs:F1} up={m_canvas.UploadMs:F1} draw={m_canvas.DrawMs:F1} budget={m_canvas.RenderBudget} pts={m_canvas.DrawnPoints}")
+
             If m_canvas.DrawMs > m_benchMaxDraw Then
                 m_benchMaxDraw = m_canvas.DrawMs
             End If

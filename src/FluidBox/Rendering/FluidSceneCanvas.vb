@@ -338,7 +338,7 @@ Namespace Rendering
 
             ' a change of the budget reallocates the buffers of the packer, so
             ' it must not happen on every single frame
-            If m_adaptClock.ElapsedMilliseconds < 400 Then Return
+            If m_adaptClock.ElapsedMilliseconds < 250 Then Return
 
             m_adaptClock.Restart()
 
@@ -347,7 +347,7 @@ Namespace Rendering
             Dim frame As Double = UploadMs + m_drawMs
 
             If frame > FrameBudgetMs AndAlso RenderBudget > MinBudget Then
-                Dim next1 As Integer = CInt(RenderBudget * 0.8)
+                Dim next1 As Integer = CInt(RenderBudget * 0.75)
 
                 If next1 < MinBudget Then next1 = MinBudget
 
@@ -357,7 +357,7 @@ Namespace Rendering
 
                 If m_packer IsNot Nothing Then Call m_packer.Resize(RenderBudget)
             ElseIf frame < FrameBudgetMs * 0.5 AndAlso m_budgetAdapted Then
-                Dim next1 As Integer = CInt(RenderBudget * 1.1)
+                Dim next1 As Integer = CInt(RenderBudget * 1.15)
 
                 If next1 >= m_hostBudget Then
                     RenderBudget = m_hostBudget
