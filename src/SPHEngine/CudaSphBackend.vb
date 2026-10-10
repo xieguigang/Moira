@@ -26,9 +26,9 @@
 ' /********************************************************************************/
 
 Imports System.IO
-Imports ILCudaRuntime = Microsoft.VisualBasic.Computing.ILCuda.Runtime
-Imports ILCudaKernels = Microsoft.VisualBasic.Computing.ILCuda.Kernels
 Imports Microsoft.VisualBasic.Imaging.Physics
+Imports ILCudaKernels = Microsoft.VisualBasic.Computing.ILCuda.Kernels
+Imports ILCudaRuntime = Microsoft.VisualBasic.Computing.ILCuda.Runtime
 
 ''' <summary>
 ''' The CUDA implementation of <see cref="ISphCompute3D"/>.

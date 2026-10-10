@@ -22,8 +22,8 @@
 '
 ' /********************************************************************************/
 
-Imports std = System.Math
 Imports Microsoft.VisualBasic.Imaging.Physics
+Imports std = System.Math
 
 Module Program
 

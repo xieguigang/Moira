@@ -20,11 +20,11 @@
 '
 ' /********************************************************************************/
 
-Imports std = System.Math
 Imports Microsoft.VisualBasic.Imaging.Physics
 Imports Moira.CFDEngine
 Imports Moira.CFDEngine.Snapshot
 Imports Moira.CFDEngine.Snapshot.JSON
+Imports std = System.Math
 
 ''' <summary>
 ''' A stirred fermentation tank simulated with the optimized 3D SPH solver.
@@ -253,10 +253,10 @@ Public Class FermenterTankSPH
     ''' <summary>
     ''' fill the broth volume with a slightly jittered regular particle lattice.
     ''' </summary>
-    ''' <summary>
+    ''' <remarks>
     ''' 沉降补偿：初始点阵按此系数略微超高填充，
     ''' 补偿"规则点阵 → 无序排布"的密实化，使液位稳定在 FillFraction
-    ''' </summary>
+    ''' </remarks>>
     Private Const SettlingBoost As Double = 1.05
 
     Private Sub FillLiquid(engine As FluidEngine3D, seed As Integer)

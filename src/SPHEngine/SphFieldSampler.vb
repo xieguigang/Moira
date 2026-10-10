@@ -25,10 +25,10 @@
 '
 ' /********************************************************************************/
 
-Imports std = System.Math
-Imports par = System.Threading.Tasks.Parallel
 Imports Microsoft.VisualBasic.Imaging.Physics
 Imports Moira.CFDEngine
+Imports par = System.Threading.Tasks.Parallel
+Imports std = System.Math
 
 ''' <summary>
 ''' Samples a 3D SPH particle state onto the regular voxel grid of a
