@@ -1,12 +1,7 @@
-﻿Imports System.Drawing
-Imports System.Drawing.Drawing2D
-Imports System.Threading.Tasks
-Imports System.Windows.Forms
-Imports System.Diagnostics
-Imports System.Linq
-Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
+﻿Imports System.Drawing.Drawing2D
 Imports FluidBox.Rendering
 Imports FluidBox.Simulation
+Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
 Imports std = System.Math
 
 ''' <summary>
@@ -104,7 +99,7 @@ Public Class Form1
     Private m_particleCount As Integer = 200_000
     Private m_renderBudget As Integer = 200_000
     Private m_adaptive As Boolean = False
-    Private m_clock As Timer
+    Private WithEvents m_clock As Timer
     Private m_statusClock As Stopwatch = Stopwatch.StartNew()
 
     ' the built in frame benchmark: FluidBox.exe --bench 20 writes the frame
@@ -156,7 +151,6 @@ Public Class Form1
         ' the loop then stalls at a few ticks per second. A timer posts a
         ' message of its own and keeps the loop at a steady rate.
         m_clock = New Timer() With {.Interval = 8}
-        AddHandler m_clock.Tick, AddressOf OnIdleTick
         Call m_clock.Start()
     End Sub
 
@@ -354,7 +348,7 @@ Public Class Form1
     '  the animation loop
     ' /********************************************************************************/
 
-    Private Sub OnIdleTick(sender As Object, e As EventArgs)
+    Private Sub OnIdleTick(sender As Object, e As EventArgs) Handles m_clock.Tick
         If Not m_ready OrElse m_canvas Is Nothing Then Return
 
         Dim elapsed As Long = m_frameClock.ElapsedMilliseconds
