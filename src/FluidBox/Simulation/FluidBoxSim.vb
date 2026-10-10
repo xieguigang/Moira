@@ -14,7 +14,7 @@ Namespace Simulation
     ''' </summary>
     ''' <remarks>
     ''' <list type="bullet">
-    ''' <item>The particles live in the box local space [0, BoxSize]^3 and the
+    ''' <item>The particles live in the box local space [0, size]^3 and the
     ''' container itself never moves: a shake is injected as the inertial
     ''' acceleration of the moving reference frame
     ''' (<see cref="FluidEngine3D.DisturbAccel"/>) plus a rotation of the
@@ -28,8 +28,15 @@ Namespace Simulation
     Public Class FluidBoxSim
         Implements IDisposable
 
-        ''' <summary>the edge length of the cubic container (world units)</summary>
-        Public ReadOnly Property BoxSize As Single
+        ''' <summary>the size of the container along x (world units)</summary>
+        Public ReadOnly Property BoxWidth As Single
+        ''' <summary>the size of the container along y (world units)</summary>
+        Public ReadOnly Property BoxDepth As Single
+        ''' <summary>
+        ''' the size of the container along z, the axis of the gravity
+        ''' (world units)
+        ''' </summary>
+        Public ReadOnly Property BoxHeight As Single
         ''' <summary>the height of the liquid block at rest</summary>
         Public ReadOnly Property LiquidHeight As Single
         ''' <summary>how many particles have actually been created</summary>
@@ -120,34 +127,42 @@ Namespace Simulation
         ''' create the box, fill it with particles and (when possible) move the
         ''' solver onto the cuda device
         ''' </summary>
-        ''' <param name="boxSize">the edge length of the cubic container</param>
+        ''' <param name="width">the size of the container along x</param>
+        ''' <param name="height">the size of the container along z, the axis of the gravity</param>
+        ''' <param name="depth">the size of the container along y</param>
         ''' <param name="fillFraction">the height of the liquid as a fraction of the box height</param>
         ''' <param name="particleCount">the wanted number of particles, the lattice is fitted to it</param>
         ''' <param name="enableGpu">try the cuda backend first</param>
         ''' <param name="progress">reports (message, fraction) while the box is being built</param>
-        Sub New(boxSize As Single,
+        Sub New(width As Single,
+                height As Single,
+                depth As Single,
                 fillFraction As Single,
                 particleCount As Integer,
                 Optional enableGpu As Boolean = True,
                 Optional progress As Action(Of String, Double) = Nothing)
 
-            If boxSize <= 0 Then boxSize = 100.0F
+            If width <= 0 Then width = 100.0F
+            If height <= 0 Then height = 100.0F
+            If depth <= 0 Then depth = 100.0F
             If fillFraction <= 0 OrElse fillFraction > 1 Then fillFraction = 2.0F / 3.0F
             If particleCount < 1000 Then particleCount = 1000
 
-            _BoxSize = boxSize
-            _LiquidHeight = boxSize * fillFraction
+            _BoxWidth = width
+            _BoxDepth = depth
+            _BoxHeight = height
+            _LiquidHeight = height * fillFraction
 
             ' ---- fit a regular lattice of n particles into the liquid block ----
-            Dim liquidVolume As Double = CDbl(boxSize) * boxSize * CDbl(_LiquidHeight)
+            Dim liquidVolume As Double = CDbl(width) * depth * CDbl(_LiquidHeight)
             Dim want As Double = (liquidVolume / particleCount) ^ (1.0 / 3.0)
-            Dim nx As Integer = std.Max(1, CInt(std.Floor(boxSize / want)))
-            Dim ny As Integer = nx
+            Dim nx As Integer = std.Max(1, CInt(std.Floor(width / want)))
+            Dim ny As Integer = std.Max(1, CInt(std.Floor(depth / want)))
             Dim nz As Integer = std.Max(1, CInt(std.Round(particleCount / CDbl(nx * ny))))
 
             Dim n As Integer = nx * ny * nz
-            Dim sx As Single = CSng(boxSize / nx)
-            Dim sy As Single = CSng(boxSize / ny)
+            Dim sx As Single = CSng(width / nx)
+            Dim sy As Single = CSng(depth / ny)
             Dim sz As Single = CSng(_LiquidHeight / nz)
 
             _ParticleCount = n
@@ -159,7 +174,9 @@ Namespace Simulation
             End If
 
             ' ---- the container and the solver ----
-            Dim boundary As New BoxBoundary3D(boxSize, boxSize, boxSize)
+            ' the z axis of the solver is the axis of the gravity, the liquid
+            ' block sits on the z = 0 wall and grows along +z up to LiquidHeight
+            Dim boundary As New BoxBoundary3D(width, depth, height)
             Dim engine As New FluidEngine3D(boundary, _SmoothingRadius)
 
             _Engine = engine
@@ -203,6 +220,19 @@ Namespace Simulation
             If progress IsNot Nothing Then
                 Call progress("准备第一帧", 0.9)
             End If
+        End Sub
+
+        ''' <summary>
+        ''' a cubic container: all three edges have the same length
+        ''' </summary>
+        Sub New(boxSize As Single,
+                fillFraction As Single,
+                particleCount As Integer,
+                Optional enableGpu As Boolean = True,
+                Optional progress As Action(Of String, Double) = Nothing)
+
+            Call Me.New(boxSize, boxSize, boxSize,
+                        fillFraction, particleCount, enableGpu, progress)
         End Sub
 
         ''' <summary>

@@ -54,9 +54,17 @@ Namespace Rendering
             End Get
         End Property
 
-        ''' <summary>the edge length of the container</summary>
+        ''' <summary>the size of the container along x</summary>
         <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
-        Public Property BoxSize As Single = 100.0F
+        Public Property BoxWidth As Single = 100.0F
+        ''' <summary>the size of the container along y</summary>
+        <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+        Public Property BoxDepth As Single = 100.0F
+        ''' <summary>
+        ''' the size of the container along z, the axis of the gravity
+        ''' </summary>
+        <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+        Public Property BoxHeight As Single = 100.0F
 
         ''' <summary>the color of the wire frame of the container</summary>
         <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
@@ -157,7 +165,9 @@ Namespace Rendering
         Private m_drawn As Integer = 0
         Private m_packMs As Double = 0
         Private m_drawMs As Double = 0
-        Private m_half As Single = 50.0F
+        Private m_hx As Single = 50.0F
+        Private m_hy As Single = 50.0F
+        Private m_hz As Single = 50.0F
         Private m_shaking As Boolean = False
         Private m_orbiting As Boolean = False
 
@@ -186,8 +196,12 @@ Namespace Rendering
             m_mapper = mapper
             m_backend = TryCast(Renderer, Direct3D11SceneRenderer)
 
-            BoxSize = sim.BoxSize
-            m_half = sim.BoxSize / 2.0F
+            BoxWidth = sim.BoxWidth
+            BoxDepth = sim.BoxDepth
+            BoxHeight = sim.BoxHeight
+            m_hx = BoxWidth / 2.0F
+            m_hy = BoxDepth / 2.0F
+            m_hz = BoxHeight / 2.0F
             m_hostBudget = RenderBudget
 
             BackgroundColor = DefaultBackground
