@@ -25,8 +25,28 @@ Namespace Rendering
     '''
     ''' Both effects push the liquid into the same direction: dragging the box
     ''' to the right makes the liquid lag behind on the left hand side.
+    '''
+    ''' <para>
+    ''' The solver is z up: the floor of the container is the plane z = 0 and
+    ''' the gravity pulls towards -z. The scene of the canvas is y up instead
+    ''' (its screen up axis is -y, +z points away from the viewer), so the box
+    ''' is drawn through the fixed basis change <see cref="RenderBasis"/>, which
+    ''' turns the z axis of the box into the up axis of the screen. Without it
+    ''' the liquid would fall towards the viewer instead of downwards.
+    ''' </para>
     ''' </remarks>
     Public Class BoxShakeController
+
+        ''' <summary>
+        ''' the row major 3x3 matrix that maps the solver space onto the scene
+        ''' space: <c>scene = (x, -z, y)</c>. The up axis of the box (+z) becomes
+        ''' the up axis of the screen (-y of the scene).
+        ''' </summary>
+        Public Shared ReadOnly RenderBasis As Single() = New Single(8) {
+            1, 0, 0,
+            0, 0, -1,
+            0, 1, 0
+        }
 
         ''' <summary>how many radians of tilt one pixel of drag produces</summary>
         Public Property TiltPerPixel As Single = 0.0022F
@@ -252,22 +272,32 @@ Namespace Rendering
             Return v
         End Function
 
+        ''' <summary>
+        ''' R = RenderBasis * Ry(tiltY) * Rx(tiltX), row major
+        ''' </summary>
+        ''' <remarks>
+        ''' <c>Ry(tiltY) * Rx(tiltX)</c> is the tilt of the box inside of the
+        ''' solver space. It is premultiplied by <see cref="RenderBasis"/> so
+        ''' that the whole cloud and the wire frame of the box are handed to the
+        ''' canvas in the scene space, where the z axis of the box points up on
+        ''' the screen. The gravity itself stays in the solver space, see
+        ''' <see cref="GravityDirection"/>.
+        ''' </remarks>
         Private Sub UpdateRotation()
             Dim sa As Single = CSng(std.Sin(m_tiltX))
             Dim ca As Single = CSng(std.Cos(m_tiltX))
             Dim sb As Single = CSng(std.Sin(m_tiltY))
             Dim cb As Single = CSng(std.Cos(m_tiltY))
 
-            ' R = Ry(tiltY) * Rx(tiltX), row major
             m_rotation(0) = cb
             m_rotation(1) = sb * sa
             m_rotation(2) = sb * ca
-            m_rotation(3) = 0
-            m_rotation(4) = ca
-            m_rotation(5) = -sa
-            m_rotation(6) = -sb
-            m_rotation(7) = cb * sa
-            m_rotation(8) = cb * ca
+            m_rotation(3) = sb
+            m_rotation(4) = -cb * sa
+            m_rotation(5) = -cb * ca
+            m_rotation(6) = 0
+            m_rotation(7) = ca
+            m_rotation(8) = -sa
         End Sub
     End Class
 End Namespace
