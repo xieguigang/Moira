@@ -3,6 +3,10 @@ Imports FluidBox.Simulation
 Imports Microsoft.VisualBasic.Drawing.DirectX
 Imports Microsoft.VisualBasic.Drawing.DirectX.Scene3D
 Imports Microsoft.VisualBasic.Imaging.Drawing3D
+Imports Font = Microsoft.VisualBasic.Imaging.Font
+Imports IGraphics = Microsoft.VisualBasic.Imaging.IGraphics
+Imports Pen = Microsoft.VisualBasic.Imaging.Pen
+Imports SolidBrush = Microsoft.VisualBasic.Imaging.SolidBrush
 Imports std = System.Math
 
 Namespace Rendering
@@ -69,6 +73,14 @@ Namespace Rendering
         ''' <summary>the color of the wire frame of the container</summary>
         <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
         Public Property BoxColor As Color = Color.FromArgb(150, 120, 220, 235)
+
+        ''' <summary>the width in pixels of the overlay wire frame of the box</summary>
+        <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+        Public Property BoxLineWidth As Single = 2.5F
+
+        ''' <summary>draw the xyz axis gizmo in the lower left corner</summary>
+        <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+        Public Property ShowAxes As Boolean = True
 
         ''' <summary>the controller of the shake of the box</summary>
         Public ReadOnly Property Shake As BoxShakeController
@@ -148,7 +160,7 @@ Namespace Rendering
         ''' </summary>
         Private Const CloudTiltEpsilon As Single = 0.0008F
         ''' <summary>
-        ''' the smallest change of the tilt that refreshes the wire frame, about
+        ''' the smallest change of the tilt that refreshes the ground grid, about
         ''' 0.4 degrees: every refresh raises Scene.Version and therefore drops
         ''' the whole cached geometry of the pipeline
         ''' </summary>
@@ -187,6 +199,16 @@ Namespace Rendering
         Private m_skipped As Boolean = False
 
         Public Shared ReadOnly Property DefaultBackground As Color = Color.FromArgb(237, 250, 254)
+
+        ''' <summary>the font of the labels of the axis gizmo, created once</summary>
+        Private ReadOnly m_axisFont As New Font("Consolas", 9, FontStyle.Bold)
+
+        Public Sub New()
+            ' the overlay is drawn after the scene handler of the base class:
+            ' the base class subscribed its own handler first, so the handlers
+            ' run in that order and the overlay lands on top of the frame
+            AddHandler Render, AddressOf OnOverlay
+        End Sub
 
         ''' <summary>
         ''' configure the canvas for the given simulation
@@ -438,7 +460,7 @@ Namespace Rendering
         End Sub
 
         ''' <summary>
-        ''' the twelve edges of the container, rotated by the current tilt and
+        ''' the ground grid of the container, rotated by the current tilt and
         ''' centered on the origin of the scene
         ''' </summary>
         ''' <remarks>
@@ -467,14 +489,11 @@ Namespace Rendering
             m_tiltY = m_shake.TiltY
             m_lineClock.Restart()
 
-            ' the wire frame of the box plus the ground grid, both in the box
-            ' local frame and rotated by the same tilt
-            Dim lines As New List(Of LineSegment)(64)
-
-            Call lines.AddRange(BuildBoxEdges(m_shake.Rotation, m_hx, m_hy, m_hz))
-            Call lines.AddRange(BuildGroundGrid(m_shake.Rotation, m_hx, m_hy, m_hz))
-
-            Call UpdateConnections(lines)
+            ' the ground grid in the box local frame, rotated by the tilt of
+            ' the box: the wire frame of the box itself is drawn by the screen
+            ' space overlay (see OnOverlay) because the direct3d line list is
+            ' always one pixel wide
+            Call UpdateConnections(BuildGroundGrid(m_shake.Rotation, m_hx, m_hy, m_hz))
         End Sub
 
         ''' <summary>the transform of the box local frame into the scene frame</summary>
@@ -486,32 +505,128 @@ Namespace Rendering
                 x * r(6) + y * r(7) + z * r(8))
         End Function
 
+        ' /********************************************************************************/
+        '  the screen space overlay
+        ' /********************************************************************************/
+
         ''' <summary>
-        ''' the eight corners of the container rotated by the tilt of the box
+        ''' draw the wire frame of the box and the xyz axis gizmo on top of the
+        ''' frame that the scene back end has just rendered
         ''' </summary>
-        Private Function BuildBoxEdges(r As Single(),
-                                       hx As Single, hy As Single, hz As Single) As List(Of LineSegment)
+        ''' <remarks>
+        ''' The direct3d 11 pipeline submits its lines as a line list and the
+        ''' hardware draws those one pixel wide, there is no wide line
+        ''' primitive. The twelve edges of the box are therefore projected with
+        ''' the very same camera formulas of the back end
+        ''' (<see cref="TryProjectPoint"/>) and drawn as gdi lines of the width
+        ''' of <see cref="BoxLineWidth"/>. The overlay is always on top of the
+        ''' point cloud, which is invisible for a wire frame that surrounds the
+        ''' cloud anyway.
+        ''' </remarks>
+        Private Sub OnOverlay(sender As Object, e As DxRenderEventArgs)
+            Dim g As IGraphics = e.Graphics
 
-            Dim corners(7) As Point3D
-            Dim sx As Single() = {-hx, hx, hx, -hx, -hx, hx, hx, -hx}
-            Dim sy As Single() = {-hy, -hy, hy, hy, -hy, -hy, hy, hy}
-            Dim sz As Single() = {-hz, -hz, -hz, -hz, hz, hz, hz, hz}
+            If g Is Nothing Then Return
 
-            For i As Integer = 0 To 7
-                corners(i) = Transform(r, sx(i), sy(i), sz(i))
-            Next
+            Call DrawBoxWire(g)
 
+            If ShowAxes Then
+                Call DrawAxisGizmo(g, e.Size)
+            End If
+        End Sub
+
+        ''' <summary>
+        ''' the twelve edges of the container, rotated by the tilt of the box
+        ''' and projected onto the canvas
+        ''' </summary>
+        Private Sub DrawBoxWire(g As IGraphics)
+            Dim r As Single() = m_shake.Rotation
+            Dim sx As Single() = {-m_hx, m_hx, m_hx, -m_hx, -m_hx, m_hx, m_hx, -m_hx}
+            Dim sy As Single() = {-m_hy, -m_hy, m_hy, m_hy, -m_hy, -m_hy, m_hy, m_hy}
+            Dim sz As Single() = {-m_hz, -m_hz, -m_hz, -m_hz, m_hz, m_hz, m_hz, m_hz}
             Dim edges As Integer() = {0, 1, 1, 2, 2, 3, 3, 0,
                                       4, 5, 5, 6, 6, 7, 7, 4,
                                       0, 4, 1, 5, 2, 6, 3, 7}
-            Dim lines As New List(Of LineSegment)(12)
+            Dim screen(7) As PointF
 
-            For i As Integer = 0 To 23 Step 2
-                lines.Add(New LineSegment(corners(edges(i)), corners(edges(i + 1)), BoxColor))
+            For i As Integer = 0 To 7
+                If Not TryProjectPoint(Transform(r, sx(i), sy(i), sz(i)), screen(i)) Then
+                    ' a corner behind the camera: the whole wire frame would be
+                    ' nonsense, skip it
+                    Return
+                End If
             Next
 
-            Return lines
-        End Function
+            Using pen As New Pen(Color.FromArgb(200, BoxColor), BoxLineWidth)
+                For i As Integer = 0 To 23 Step 2
+                    Call g.DrawLine(pen, screen(edges(i)), screen(edges(i + 1)))
+                Next
+            End Using
+        End Sub
+
+        ''' <summary>
+        ''' the xyz orientation gizmo in the lower left corner: three fixed
+        ''' length lines that point along the world axes as the camera sees
+        ''' them, labelled with the name of the axis
+        ''' </summary>
+        ''' <remarks>
+        ''' The direction of each line is the screen space direction of the
+        ''' world axis: the origin and a unit step along the axis are projected
+        ''' and the difference of the two screen positions gives the direction.
+        ''' The gizmo shows the world frame, it only turns when the camera
+        ''' turns, never with the shake of the box.
+        ''' </remarks>
+        Private Sub DrawAxisGizmo(g As IGraphics, size As Size)
+            Const length As Single = 46.0F
+            Const margin As Single = 32.0F
+
+            ' the worst case tip of an axis is one length away from the anchor
+            ' in any direction, the margin keeps it inside of the canvas
+            Dim anchor As New PointF(margin + length / 2.0F,
+                                     size.Height - margin - length / 2.0F)
+            Dim origin As PointF
+
+            If Not TryProjectPoint(New Point3D(0, 0, 0), origin) Then Return
+
+            Dim axes As Point3D() = {
+                New Point3D(1, 0, 0),
+                New Point3D(0, 1, 0),
+                New Point3D(0, 0, 1)}
+            Dim names As String() = {"X", "Y", "Z"}
+            Dim colors As Color() = {
+                Color.FromArgb(235, 235, 87, 87),
+                Color.FromArgb(235, 92, 184, 92),
+                Color.FromArgb(235, 66, 133, 244)}
+
+            For i As Integer = 0 To 2
+                Dim tip As PointF
+
+                If Not TryProjectPoint(axes(i), tip) Then Continue For
+
+                Dim dx As Single = tip.X - origin.X
+                Dim dy As Single = tip.Y - origin.Y
+                Dim len As Single = CSng(std.Sqrt(dx * dx + dy * dy))
+
+                If len < 0.001F Then Continue For
+
+                dx /= len
+                dy /= len
+
+                Dim end1 As New PointF(anchor.X, anchor.Y)
+                Dim end2 As New PointF(anchor.X + dx * length,
+                                       anchor.Y + dy * length)
+
+                Using pen As New Pen(colors(i), 2.0F)
+                    Call g.DrawLine(pen, end1, end2)
+                End Using
+
+                Using brush As New SolidBrush(colors(i))
+                    Call g.DrawString(names(i), m_axisFont, brush,
+                                      end2.X + dx * 8.0F - 4.0F,
+                                      end2.Y + dy * 8.0F - 7.0F)
+                End Using
+            Next
+        End Sub
 
         ''' <summary>
         ''' the grid that marks the ground under the box: parallel lines on the
