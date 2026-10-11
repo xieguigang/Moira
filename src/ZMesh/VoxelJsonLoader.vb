@@ -114,12 +114,25 @@ Public Module WindTunnelVoxelJson
                                        Optional domainScale As Double = 2.0,
                                        Optional groundClearance As Integer = 0) As WindTunnelScene
 
-        Dim model = FromVoxelJson(filePath)
+        Dim model = FromVoxelFile(filePath)
         Dim domain = VoxelModelLoader.BuildDomain(model, domainScale, groundClearance)
 
         Return New WindTunnelScene(filePath, model.Width, VoxelizerKind.Standard,
                                    model, domain, domainScale, groundClearance)
 
+    End Function
+
+    ''' <summary>
+    ''' 按扩展名分派加载：*.zip → 二进制体素包（VoxelPackage 流式读取），
+    ''' 其余 → GridInfo JSON。
+    ''' </summary>
+    Public Function FromVoxelFile(filePath As String) As VoxelModel
+        If Path.GetExtension(filePath).ToLowerInvariant() = ".zip" Then
+            ' 二进制体素包：CFDEngine 流式读取，无 Integer() 中间数组
+            Return VoxelPackage.LoadVoxelModel(filePath)
+        Else
+            Return FromVoxelJson(filePath)
+        End If
     End Function
 
 End Module

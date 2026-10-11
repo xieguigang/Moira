@@ -6,6 +6,7 @@ Imports Microsoft.VisualBasic.Imaging.Drawing3D
 Imports Microsoft.VisualBasic.Imaging.Landscape.Data
 Imports Microsoft.VisualBasic.Imaging.Landscape.ThreeMF
 Imports Microsoft.VisualBasic.Imaging.Landscape.Voxelization
+Imports Moira.CFDEngine.Snapshot
 Imports Moira.CFDEngine.Snapshot.JSON
 ' 别名：项目根命名空间 Voxelizer 会遮蔽 Landscape 的 Voxelizer 模块名
 Imports LxVoxelizer = Microsoft.VisualBasic.Imaging.Landscape.Voxelization.Voxelizer
@@ -84,7 +85,8 @@ Module Program
         End If
 
         If outPath = "" Then
-            outPath = Path.ChangeExtension(modelPath, ".voxel.json")
+            ' 默认输出二进制体素包（zip）—— 高分辨率下不会有 JSON 序列化的内存问题
+            outPath = Path.ChangeExtension(modelPath, ".voxel.zip")
         End If
 
         Dim kind As VoxelizerKind
@@ -146,23 +148,22 @@ Module Program
             Return 1
         End If
 
-        Dim solidCount As Integer = lx.Shape.Count(Function(b) b)
-        Console.WriteLine($"  体素化完成: {lx.Width}x{lx.Height}x{lx.Depth}   " &
-                          $"solid = {solidCount}   ({sw.Elapsed.TotalSeconds:F1} s)")
+        Dim solidCount As Long = 0
+        Dim nTotal As Long = CLng(lx.Width) * lx.Height * lx.Depth
+        Dim plane As Integer = lx.Height * lx.Depth
 
-        ' ---- 3. 语义反转构建 GridInfo（Landscape True=固体 → Mask 0；流体 → Mask 1）----
-        sw.Restart()
-        Dim w = lx.Width, h = lx.Height, d = lx.Depth
-        Dim mask(w * h * d - 1) As Integer
-        Dim activeCount As Integer = 0
-
-        For idx As Integer = 0 To w * h * d - 1
+        ' 统计固体体素数（预扫描，供元数据 ActiveVoxels；纯 Boolean 扫描，代价 ~1s）
+        For idx As Integer = 0 To CInt(nTotal - 1)
             If Not lx.Shape(idx) Then
-                mask(idx) = 1
-                activeCount += 1
+                solidCount += 1L
             End If
         Next
 
+        Console.WriteLine($"  体素化完成: {lx.Width}x{lx.Height}x{lx.Depth}   " &
+                          $"solid = {solidCount}   ({sw.Elapsed.TotalSeconds:F1} s)")
+
+        Dim w = lx.Width, h = lx.Height, d = lx.Depth
+        Dim activeCount As Long = nTotal - solidCount
         Dim vs As Double = If(lx.VoxelSize > 0, lx.VoxelSize, 1.0)
         Dim grid As New GridInfo With {
             .Nx = w,
@@ -173,15 +174,57 @@ Module Program
             .Depth = d,
             .Origin = {lx.MinX, lx.MinY, lx.MinZ},
             .Spacing = {vs, vs, vs},
-            .TotalVoxels = w * h * d,
-            .ActiveVoxels = activeCount,
-            .Mask = mask,
+            .TotalVoxels = CInt(nTotal),
+            .ActiveVoxels = CInt(activeCount),
+            .Mask = Nothing,
             .IndexOrder = "i*ny*nz + j*nz + k"
         }
 
-        ' ---- 4. JSON 导出（紧凑输出，Mask 大数组不缩进）----
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outPath)))
-        File.WriteAllText(outPath, JsonSerializer.Serialize(grid, New JsonSerializerOptions With {.WriteIndented = False}))
+        sw.Restart()
+
+        ' ---- 3. 导出：默认二进制体素包（zip 流式）；*.json 为兼容旧格式 ----
+        If outPath.ToLowerInvariant.EndsWith(".zip") OrElse outPath.ToLowerInvariant.EndsWith(".voxel") Then
+            ' 二进制体素包：model.json 元数据 + model.vox 掩膜字节流（分块流式写入，
+            ' 全程无 Integer() 大数组，高分辨率不 OOM）
+            Using writer As New VoxelPackage.Writer(outPath)
+                Call writer.WriteMetadata(grid)
+                Call writer.OpenMask()
+
+                Dim chunk(VoxelPackage.DefaultChunkSize - 1) As Byte
+                Dim pending As Integer = 0
+
+                For idx As Integer = 0 To CInt(nTotal - 1)
+                    ' Landscape True=固体 → byte 0；流体 → byte 1
+                    chunk(pending) = If(lx.Shape(idx), CByte(0), CByte(1))
+                    pending += 1
+
+                    If pending = chunk.Length Then
+                        Call writer.WriteMaskChunk(chunk, pending)
+                        pending = 0
+                    End If
+                Next
+
+                If pending > 0 Then
+                    Call writer.WriteMaskChunk(chunk, pending)
+                End If
+            End Using
+        Else
+            ' 兼容旧路径：GridInfo JSON（Mask 为 Integer 大数组，仅低分辨率适用）
+            Console.WriteLine("  警告: json 输出在数亿体素时可能内存不足，推荐使用 .voxel.zip 输出")
+            Dim mask(CInt(nTotal - 1)) As Integer
+
+            For idx As Integer = 0 To CInt(nTotal - 1)
+                If Not lx.Shape(idx) Then
+                    mask(idx) = 1
+                End If
+            Next
+
+            grid.Mask = mask
+
+            Call File.WriteAllText(outPath, JsonSerializer.Serialize(
+                grid, New JsonSerializerOptions With {.WriteIndented = False}))
+        End If
+
         Console.WriteLine($"  导出完成: {outPath}   ({sw.Elapsed.TotalMilliseconds:F0} ms, " &
                           $"{New FileInfo(outPath).Length / 1024.0:F0} KB)")
 
@@ -191,12 +234,13 @@ Module Program
     End Function
 
     Private Sub ShowUsage()
-        Console.WriteLine("Voxelizer —— 独立体素化命令行工具（Landscape → GridInfo JSON）")
+        Console.WriteLine("Voxelizer —— 独立体素化命令行工具（Landscape → 体素模型包 / JSON）")
         Console.WriteLine()
         Console.WriteLine("用法: Voxelizer <model> [options]")
         Console.WriteLine()
         Console.WriteLine("  model                    3D 模型文件 (stl/obj/gltf/glb/dae/3ds/3mf)")
-        Console.WriteLine("  -o, --out <json>         输出 json 路径（默认 <model>.voxel.json）")
+        Console.WriteLine("  -o, --out <file>         输出路径：*.voxel.zip 二进制体素包（默认，推荐）；")
+        Console.WriteLine("                           *.json GridInfo JSON（兼容旧格式，高分辨率可能 OOM）")
         Console.WriteLine("  --resolution N           最长边体素分辨率（默认 48）")
         Console.WriteLine("  --voxel-size F           物理体素尺寸（physical/standard；设置后忽略 --resolution）")
         Console.WriteLine("  --voxelizer K            standard | sdf | physical | sdfraw（默认 standard）")
@@ -205,7 +249,7 @@ Module Program
         Console.WriteLine("  -h, --help               显示本帮助")
         Console.WriteLine()
         Console.WriteLine("示例:")
-        Console.WriteLine("  Voxelizer city.stl -o city.voxel.json --resolution 96")
+        Console.WriteLine("  Voxelizer city.stl -o city.voxel.zip --resolution 2048")
         Console.WriteLine("  Voxelizer city.stl --voxelizer physical --voxel-size 0.5")
     End Sub
 
