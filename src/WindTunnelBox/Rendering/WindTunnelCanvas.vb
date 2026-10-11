@@ -360,6 +360,10 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
                         Dim v As Double = ScalarAt(idx, dataRho, dataUx, dataUy, dataUz)
                         Dim tc As Double = (v - mn) / denom
 
+                        If tc.IsNaNImaginary Then
+                            tc = 0
+                        End If
+
                         If tc < 0.0R Then tc = 0.0R
                         If tc > 1.0R Then tc = 1.0R
 

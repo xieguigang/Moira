@@ -283,6 +283,10 @@ Public Class FormWindTunnel
             $"{msPerStep:F2} ms/step   {If(m_solver.UseGpu, "CUDA float32", "CPU float32")}"
     End Sub
 
+    Private Sub FormWindTunnel_Load(sender As Object, e As EventArgs) Handles Me.Load
+
+    End Sub
+
 #End Region
 
 End Class
