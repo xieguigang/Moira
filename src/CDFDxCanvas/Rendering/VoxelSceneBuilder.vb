@@ -23,6 +23,23 @@ Imports Moira.CDFDxCanvas.Data
 
 Namespace Rendering
 
+    '''
+    ''' 可视化类型（严格互斥：同一时刻只能开启一种）。
+    '''
+    '''   热图（体素模型热图点云）/ 矢量图 / 流线图 三者互斥，
+    '''   由单一状态源（画布的 Visualization 属性、选项的 Mode）表达，
+    '''   避免"互相置 False"式散落逻辑。不活动的固体模型本体不属于可视化类型，
+    '''   在三种模式下都常驻渲染。
+    '''
+    Public Enum VisualizationMode
+        ''' <summary>体素热图（默认）：物理场体素按标量值 LUT 着色。</summary>
+        Heatmap = 0
+        ''' <summary>矢量图：速度矢量线段（原"速度箭头"叠加层已并入本类型）。</summary>
+        Vectors = 1
+        ''' <summary>流线图：入口面种子 RK2 积分轨迹 + 沿线光点粒子动画。</summary>
+        Streamlines = 2
+    End Enum
+
     ''' <summary>
     ''' 视图状态快照（渲染参数的只读载体）。
     ''' </summary>
@@ -41,17 +58,37 @@ Namespace Rendering
         Public Property SectionAxis As CfdAxis
         Public Property SectionPosition As Integer
 
-        Public Property ShowArrows As Boolean
-        ''' <summary>箭头采样密度（2/3/4，步长）。</summary>
-        Public Property ArrowDensity As Integer
+        '''
+        ''' 可视化类型（热图 / 矢量图 / 流线图，严格互斥）。
+        '''
+        '''   热图模式才生成物理场体素点云；矢量图与流线图模式下
+        '''   只画对应的线段图层 + 常驻的固体模型本体。
+        '''
+        Public Property Mode As VisualizationMode = VisualizationMode.Heatmap
 
-        ''' <summary>是否显示矢量图（带箭头头部的线段矢量，FlowVectors）。</summary>
-        Public Property ShowVectors As Boolean
+        '''
+        ''' 是否显示不活动的三维体素模型本体（metadata 掩膜 mask = 0 的体素）。
+        '''
+        '''   三种可视化模式下都常驻显示，且不受显示阈值影响。
+        '''
+        Public Property ShowSolids As Boolean = True
+
+        '''
+        ''' 裁剪远端横截面时，是否把不活动的固体模型本体也一并裁剪隐藏。
+        '''
+        '''   False（默认）= 只裁剪活动的物理场体素，模型本体保持完整；
+        '''   True = 模型本体也按同一截面规则裁剪。
+        '''
+        Public Property ClipSolidModelWithSection As Boolean = False
+
+        '''
+        ''' 固体模型本体的点数上限（超出时按格点步长确定性抽稀，控制每帧传输量）。
+        '''
+        Public Property MaxSolidPoints As Integer = 250000
+
         ''' <summary>矢量图采样步长（每轴，格点）。</summary>
         Public Property VectorStride As Integer = 3
 
-        ''' <summary>是否显示流线图（入口面种子 RK 积分，StreamlineTracer）。</summary>
-        Public Property ShowPathlines As Boolean
         ''' <summary>流线种子层采样步长（j/k 方向，格点）。</summary>
         Public Property PathlineSeedStride As Integer = 4
 
@@ -103,9 +140,27 @@ Namespace Rendering
 
     Public Class VoxelSceneBuilder
 
+        ''' <summary>不活动的固体模型本体的渲染颜色（与 WindTunnelCanvas 一致的灰）。</summary>
+        Private Const SolidHtml As String = "#94A3B8"
+
         ' 可复用的可见性缓冲（按需扩容）
         Shared m_visibility As Boolean()
         Shared m_visibleList As Integer()
+        Shared m_solidList As Integer()
+
+        '''
+        ''' 固体模型本体的抽稀步长：点数超过预算时按格点步长降采样
+        ''' （与 WindTunnelCanvas 用 MaxPoints 反求 stride 的做法一致）。
+        '''
+        Private Shared Function SolidStride(count As Integer, budget As Integer) As Integer
+            If budget <= 0 OrElse count <= budget Then
+                Return 1
+            End If
+
+            Dim s As Integer = CInt(Math.Ceiling(Math.Pow(count / CDbl(budget), 1.0 / 3.0)))
+
+            Return Math.Max(1, s)
+        End Function
 
         ''' <summary>
         ''' 构建当前帧的点云与线段。
@@ -117,7 +172,11 @@ Namespace Rendering
             Dim nx = dataset.Nx, ny = dataset.Ny, nz = dataset.Nz
             Dim sp = dataset.Spacing, org = dataset.Origin
             Dim active = dataset.ActiveIndices
-            Dim centroid = dataset.FullCentroid
+            Dim solids = dataset.SolidIndices
+            Dim centroid = dataset.SceneCentroid
+
+            ' 热图模式才生成物理场体素点云（三种可视化类型互斥）
+            Dim heatmap As Boolean = (options.Mode = VisualizationMode.Heatmap)
 
             Dim values As Single() = FieldArray(frame, options.Field)
             Dim mn As Double = options.RangeMin
@@ -138,13 +197,15 @@ Namespace Rendering
                 eps = halfSpan * 0.1
             End If
 
-            ' ---- 第一遍：计算可见性 ----
-            Dim n As Integer = active.Length
+            ' ---- 第一遍：物理场体素可见性 ----
+            Dim n As Integer = If(active Is Nothing, 0, active.Length)
+            Dim cap As Integer = Math.Max(1, n * 2)
+
             If m_visibility Is Nothing OrElse m_visibility.Length < n Then
-                m_visibility = New Boolean(n * 2 - 1) {}
+                m_visibility = New Boolean(cap - 1) {}
             End If
             If m_visibleList Is Nothing OrElse m_visibleList.Length < n Then
-                m_visibleList = New Integer(n * 2 - 1) {}
+                m_visibleList = New Integer(cap - 1) {}
             End If
 
             Dim visibleCount As Integer = 0
@@ -169,15 +230,72 @@ Namespace Rendering
                 m_visibility(t) = visible
 
                 If visible Then
-                    Dim cx As Double, cy As Double, cz As Double
-                    Call VoxelCenter(dataset, idx, cx, cy, cz)
-                    sx += cx : sy += cy : sz += cz
+                    ' 只有热图模式才把物理场体素画进点云，
+                    ' 因此质心累加也只在热图模式下计入（矢量/流线模式以模型本体为锚）
+                    If heatmap Then
+                        Dim cx As Double, cy As Double, cz As Double
+                        Call VoxelCenter(dataset, idx, cx, cy, cz)
+                        sx += cx : sy += cy : sz += cz
+                    End If
+
                     m_visibleList(visibleCount) = t
                     visibleCount += 1
                 End If
             Next
 
-            If visibleCount = 0 Then
+            ' ---- 不活动的固体模型本体（三种模式下常驻，默认不被截面裁剪）----
+            Dim solidCount As Integer = 0
+            Dim solidIdx As Integer() = solids
+
+            If solidIdx Is Nothing Then
+                solidIdx = Array.Empty(Of Integer)()
+            End If
+
+            ' 注意：局部变量不能与 SolidStride 仅大小写不同（VB 大小写不敏感会遮蔽函数）
+            Dim solidStep As Integer = SolidStride(solidIdx.Length, options.MaxSolidPoints)
+
+            If options.ShowSolids AndAlso solidIdx.Length > 0 Then
+                Dim scap As Integer = Math.Max(1, solidIdx.Length)
+
+                If m_solidList Is Nothing OrElse m_solidList.Length < solidIdx.Length Then
+                    m_solidList = New Integer(scap - 1) {}
+                End If
+
+                ' 固体本体是否参与裁剪由 ClipSolidModelWithSection 决定
+                Dim clipSolid As Boolean = options.SectionEnabled AndAlso options.ClipSolidModelWithSection
+
+                For s As Integer = 0 To solidIdx.Length - 1
+                    Dim idx As Integer = solidIdx(s)
+
+                    If solidStep > 1 Then
+                        Dim si As Integer, sj As Integer, sk As Integer
+                        Call dataset.IdxToIJK(idx, si, sj, sk)
+
+                        If (si Mod solidStep) <> 0 OrElse
+                            (sj Mod solidStep) <> 0 OrElse
+                            (sk Mod solidStep) <> 0 Then
+
+                            Continue For
+                        End If
+                    End If
+
+                    If clipSolid AndAlso Not SectionVisible(dataset, options, cut, halfSpan, eps, idx) Then
+                        Continue For
+                    End If
+
+                    Dim cx As Double, cy As Double, cz As Double
+                    Call VoxelCenter(dataset, idx, cx, cy, cz)
+                    sx += cx : sy += cy : sz += cz
+
+                    m_solidList(solidCount) = idx
+                    solidCount += 1
+                Next
+            End If
+
+            Dim fluidCount As Integer = If(heatmap, visibleCount, 0)
+            Dim total As Integer = fluidCount + solidCount
+
+            If total = 0 Then
                 ' 全部被过滤（极端参数），退化为无点云
                 Return New VoxelSceneResult With {
                     .Points = New PointCloudPoint() {},
@@ -186,62 +304,73 @@ Namespace Rendering
                 }
             End If
 
-            ' ---- 质心补偿量：使传入点集的质心恒为 C_full ----
-            Dim fx As Double = sx / visibleCount
-            Dim fy As Double = sy / visibleCount
-            Dim fz As Double = sz / visibleCount
+            ' ---- 质心补偿量：使传入点集的质心恒为场景基准 ----
+            Dim fx As Double = sx / total
+            Dim fy As Double = sy / total
+            Dim fz As Double = sz / total
             Dim ox As Double = centroid(0) - fx
             Dim oy As Double = centroid(1) - fy
             Dim oz As Double = centroid(2) - fz
 
-            ' ---- 第二遍：填点云 ----
-            Dim points(visibleCount - 1) As PointCloudPoint
-            Dim pointMap(visibleCount - 1) As Integer
+            ' ---- 第二遍：填点云（物理场体素 + 固体模型本体）----
+            Dim points(total - 1) As PointCloudPoint
+            Dim pointMap(total - 1) As Integer
             Dim lut = options.Lut
             Dim lutN As Integer = lut.Length
+            Dim p As Integer = 0
 
-            For p As Integer = 0 To visibleCount - 1
-                Dim t As Integer = m_visibleList(p)
-                Dim idx As Integer = active(t)
+            If heatmap Then
+                For q As Integer = 0 To visibleCount - 1
+                    Dim t As Integer = m_visibleList(q)
+                    Dim idx As Integer = active(t)
+
+                    Dim cx As Double, cy As Double, cz As Double
+                    Call VoxelCenter(dataset, idx, cx, cy, cz)
+
+                    Dim v As Double = values(idx)
+                    Dim tc As Double = (v - mn) / denom
+
+                    If tc < 0.0 Then
+                        tc = 0.0
+                    ElseIf tc > 1.0 Then
+                        tc = 1.0
+                    End If
+
+                    Dim color As Color = lut(CInt(tc * (lutN - 1)))
+
+                    points(p) = New PointCloudPoint(cx + ox, cy + oy, cz + oz, tc, HtmlColor(color))
+                    pointMap(p) = idx
+                    p += 1
+                Next
+            End If
+
+            For q As Integer = 0 To solidCount - 1
+                Dim idx As Integer = m_solidList(q)
 
                 Dim cx As Double, cy As Double, cz As Double
                 Call VoxelCenter(dataset, idx, cx, cy, cz)
 
-                Dim v As Double = values(idx)
-                Dim tc As Double = (v - mn) / denom
-
-                If tc < 0.0 Then
-                    tc = 0.0
-                ElseIf tc > 1.0 Then
-                    tc = 1.0
-                End If
-
-                Dim color As Color = lut(CInt(tc * (lutN - 1)))
-
-                points(p) = New PointCloudPoint(cx + ox, cy + oy, cz + oz, tc, HtmlColor(color))
-                pointMap(p) = idx
+                ' 固体本体不是物理场体素：标量值 0，拾取映射 -1（不参与字段拾取）
+                points(p) = New PointCloudPoint(cx + ox, cy + oy, cz + oz, 0.0, SolidHtml)
+                pointMap(p) = -1
+                p += 1
             Next
 
-            ' ---- 线段：箭头 + 矢量图 + 流线 + 拾取高亮框 ----
+            ' ---- 线段：矢量图 / 流线图（互斥） + 拾取高亮框 ----
             Dim lines As New List(Of LineSegment)
-
-            If options.ShowArrows Then
-                Call BuildArrows(dataset, frame, options, mn, mx, ox, oy, oz, lines)
-            End If
-
-            If options.ShowVectors Then
-                Call lines.AddRange(BuildVectors(dataset, frame, options))
-            End If
-
             Dim pathlines As StreamlineSet = Nothing
 
-            If options.ShowPathlines Then
-                pathlines = If(options.CachedPathlines, BuildPathlines(dataset, frame, options))
+            Select Case options.Mode
+                Case VisualizationMode.Vectors
+                    Call lines.AddRange(BuildVectors(dataset, frame, options, ox, oy, oz))
 
-                If pathlines IsNot Nothing Then
-                    Call lines.AddRange(pathlines.BuildLines(options.Lut, 210, ox, oy, oz))
-                End If
-            End If
+                Case VisualizationMode.Streamlines
+                    pathlines = If(options.CachedPathlines, BuildPathlines(dataset, frame, options))
+
+                    If pathlines IsNot Nothing Then
+                        Call lines.AddRange(pathlines.BuildLines(options.Lut, 210, ox, oy, oz))
+                    End If
+            End Select
 
             If options.SelectedVoxel >= 0 Then
                 Dim t As Integer = IndexOfActive(active, options.SelectedVoxel)
@@ -261,91 +390,6 @@ Namespace Rendering
                 .LineOffsetZ = oz
             }
         End Function
-
-        ''' <summary>
-        ''' 速度矢量箭头（线段近似）：从体素中心沿速度方向画线段，
-        ''' 长度 = speed/speedMax * maxLen，maxLen = spacing * 1.7，
-        ''' 颜色按速度热图着色（与网页版行为一致）。
-        ''' </summary>
-        Private Shared Sub BuildArrows(dataset As CfdDataset, frame As VtiFrameData,
-                                       options As VoxelViewOptions,
-                                       mn As Double, mx As Double,
-                                       ox As Double, oy As Double, oz As Double,
-                                       lines As List(Of LineSegment))
-            If frame.U Is Nothing Then
-                ' 该数据集没有速度场，画不出箭头
-                Return
-            End If
-
-            Dim nx = dataset.Nx, ny = dataset.Ny, nz = dataset.Nz
-            Dim sp = dataset.Spacing, org = dataset.Origin
-            Dim stride As Integer = Math.Max(1, options.ArrowDensity)
-
-            ' 速度箭头固定按速度幅值着色与定长
-            Dim speedMax As Double = dataset.GetRange("speed").Item2
-            If speedMax <= 0 Then speedMax = 1.0
-
-            ' 箭头与点云使用同一套截面过滤规则（裁剪 / 切片）
-            Dim cut As Double = 0.0
-            Dim halfSpan As Double = 0.0
-            Dim eps As Double = 0.0
-
-            If options.SectionEnabled Then
-                cut = SliceCut(dataset, options.SectionAxis, options.SectionPosition)
-                halfSpan = AxisSpacing(dataset, options.SectionAxis) * 0.5
-                eps = halfSpan * 0.1
-            End If
-
-            Dim lut = options.Lut
-            Dim lutN As Integer = lut.Length
-            Dim maxLen As Double = sp(0) * 1.7
-            Dim arrowColor As Color
-
-            For i As Integer = 0 To nx - 1 Step stride
-                For j As Integer = 0 To ny - 1 Step stride
-                    For k As Integer = 0 To nz - 1 Step stride
-                        Dim idx As Integer = dataset.IJKToIdx(i, j, k)
-
-                        If Not frame.Mask(idx) Then
-                            Continue For
-                        End If
-
-                        ' 箭头同样受截面裁剪/切片约束
-                        If options.SectionEnabled AndAlso
-                            Not SectionVisible(dataset, options, cut, halfSpan, eps, idx) Then
-                            Continue For
-                        End If
-
-                        Dim uu As Double = frame.U(idx)
-                        Dim vv As Double = frame.V(idx)
-                        Dim ww As Double = frame.W(idx)
-                        Dim spd As Double = Math.Sqrt(uu * uu + vv * vv + ww * ww)
-
-                        If spd < 0.000000001 Then
-                            Continue For
-                        End If
-
-                        Dim cx As Double = org(0) + (i + 0.5) * sp(0)
-                        Dim cy As Double = org(1) + (j + 0.5) * sp(1)
-                        Dim cz As Double = org(2) + (k + 0.5) * sp(2)
-
-                        Dim len As Double = (spd / speedMax) * maxLen
-                        Dim tx As Double = cx + (uu / spd) * len
-                        Dim ty As Double = cy + (vv / spd) * len
-                        Dim tz As Double = cz + (ww / spd) * len
-
-                        Dim tc As Double = spd / speedMax
-                        If tc > 1.0 Then tc = 1.0
-                        arrowColor = lut(CInt(tc * (lutN - 1)))
-
-                        Call lines.Add(New LineSegment(
-                            New Point3D(cx + ox, cy + oy, cz + oz),
-                            New Point3D(tx + ox, ty + oy, tz + oz),
-                            Color.FromArgb(235, arrowColor)))
-                    Next
-                Next
-            Next
-        End Sub
 
         ''' <summary>选中体素的高亮线框盒（12 条棱，略大于体素）。</summary>
         Private Shared Sub BuildHighlight(dataset As CfdDataset, idx As Integer,
@@ -493,13 +537,15 @@ Namespace Rendering
         ''' </summary>
         Private Shared Function BuildVectors(dataset As CfdDataset,
                                              frame As VtiFrameData,
-                                             options As VoxelViewOptions) As LineSegment()
+                                             options As VoxelViewOptions,
+                                             ox As Double, oy As Double, oz As Double) As LineSegment()
             If frame.U Is Nothing Then
                 ' 该数据集没有速度场，画不出矢量
                 Return New LineSegment() {}
             End If
 
-            Dim field As New DatasetFlowField(dataset, frame)
+            ' 线段生成在质心补偿空间：与点云 / 固体模型本体对齐
+            Dim field As New DatasetFlowField(dataset, frame, ox, oy, oz)
             Dim options2 As New VectorArrowOptions With {
                 .Stride = options.VectorStride,
                 .Lut = options.Lut,
@@ -537,7 +583,9 @@ Namespace Rendering
                 Return Nothing
             End If
 
-            Dim field As New DatasetFlowField(dataset, frame)
+            ' 流线在原始世界坐标下追踪（始终完整，不受截面裁剪），
+            ' 绘制时才由 BuildLines 平移到质心补偿空间
+            Dim field As New DatasetFlowField(dataset, frame, 0.0, 0.0, 0.0)
             Dim opt As New StreamlineOptions With {
                 .SeedStride = Math.Max(1, options.PathlineSeedStride)
             }
@@ -563,10 +611,23 @@ Namespace Rendering
 
             ReadOnly m_ds As CfdDataset
             ReadOnly m_frame As VtiFrameData
+            ReadOnly m_ox As Double
+            ReadOnly m_oy As Double
+            ReadOnly m_oz As Double
 
-            Public Sub New(ds As CfdDataset, frame As VtiFrameData)
+            '''
+            ''' 构造流场只读视图。
+            '''
+            '''   ox/oy/oz = 质心补偿偏移，直接叠加到返回的原点上，
+            '''   使矢量线段与点云 / 固体模型本体落在同一坐标空间。
+            '''
+            Public Sub New(ds As CfdDataset, frame As VtiFrameData,
+                           ox As Double, oy As Double, oz As Double)
                 m_ds = ds
                 m_frame = frame
+                m_ox = ox
+                m_oy = oy
+                m_oz = oz
             End Sub
 
             Public ReadOnly Property Nx As Integer Implements IFlowFieldData.Nx
@@ -589,19 +650,19 @@ Namespace Rendering
 
             Public ReadOnly Property OriginX As Single Implements IFlowFieldData.OriginX
                 Get
-                    Return CSng(m_ds.Origin(0))
+                    Return CSng(m_ds.Origin(0) + m_ox)
                 End Get
             End Property
 
             Public ReadOnly Property OriginY As Single Implements IFlowFieldData.OriginY
                 Get
-                    Return CSng(m_ds.Origin(1))
+                    Return CSng(m_ds.Origin(1) + m_oy)
                 End Get
             End Property
 
             Public ReadOnly Property OriginZ As Single Implements IFlowFieldData.OriginZ
                 Get
-                    Return CSng(m_ds.Origin(2))
+                    Return CSng(m_ds.Origin(2) + m_oz)
                 End Get
             End Property
 

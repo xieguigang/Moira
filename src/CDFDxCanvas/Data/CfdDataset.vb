@@ -158,6 +158,51 @@ Namespace Data
             End Get
         End Property
 
+        '''
+        ''' 场景质心基准（世界坐标，常数）= 活动体素 ∪ 固体体素 的质心。
+        '''
+        '''   渲染层的点云会同时包含物理场体素与不活动的固体模型本体，
+        '''   因此质心补偿的基准必须同时覆盖这两部分，否则过滤/切换可视化类型时
+        '''   模型会在屏幕上漂移。渲染集合为空等退化情形下仍以该基准为准。
+        '''
+        Public ReadOnly Property SceneCentroid As Double()
+            Get
+                If m_sceneCentroid Is Nothing Then
+                    Dim sx As Double = 0.0, sy As Double = 0.0, sz As Double = 0.0
+                    Dim n As Integer = 0
+
+                    If m_active IsNot Nothing Then
+                        For Each idx As Integer In m_active
+                            Dim i, j, k As Integer
+                            Call IdxToIJK(idx, i, j, k)
+
+                            sx += Origin(0) + (i + 0.5) * Spacing(0)
+                            sy += Origin(1) + (j + 0.5) * Spacing(1)
+                            sz += Origin(2) + (k + 0.5) * Spacing(2)
+                            n += 1
+                        Next
+                    End If
+
+                    If m_solid IsNot Nothing Then
+                        For Each idx As Integer In m_solid
+                            Dim i, j, k As Integer
+                            Call IdxToIJK(idx, i, j, k)
+
+                            sx += Origin(0) + (i + 0.5) * Spacing(0)
+                            sy += Origin(1) + (j + 0.5) * Spacing(1)
+                            sz += Origin(2) + (k + 0.5) * Spacing(2)
+                            n += 1
+                        Next
+                    End If
+
+                    Dim d As Double = Math.Max(1, n)
+                    m_sceneCentroid = New Double() {sx / d, sy / d, sz / d}
+                End If
+
+                Return m_sceneCentroid
+            End Get
+        End Property
+
         Public Property Folder As String
 
         ''' <summary>帧数量。</summary>
@@ -218,19 +263,25 @@ Namespace Data
                 data.Spacing = meta.Grid.Spacing
             End If
 
-            ' ---- 活动体素索引表（引擎序，与 Mask 数组顺序一致）----
+            ' ---- 体素索引表（引擎序，与 Mask 数组顺序一致）----
+            '   mask = 1 → 活动的物理场体素（m_active）
+            '   mask = 0 → 不活动的固体模型本体（m_solid）
             Dim mask = meta.Grid.Mask
             Dim active As New List(Of Integer)(If(mask Is Nothing, 0, mask.Length))
+            Dim solid As New List(Of Integer)(If(mask Is Nothing, 0, mask.Length))
 
             If mask IsNot Nothing Then
                 For i As Integer = 0 To mask.Length - 1
                     If mask(i) <> 0 Then
                         active.Add(i)
+                    Else
+                        solid.Add(i)
                     End If
                 Next
             End If
 
             data.m_active = active.ToArray()
+            data.m_solid = solid.ToArray()
 
             ' ---- 帧列表：Frames 为空时扫描 *.vti 按文件名排序补齐 ----
             Dim dt As Double = If(meta.Simulation?.TimeStep, 0.0)

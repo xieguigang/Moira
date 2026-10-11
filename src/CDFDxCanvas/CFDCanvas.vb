@@ -45,12 +45,18 @@ Partial Public Class CFDCanvas
     Dim m_rangeMax As Double = 1.0
     Dim m_threshold As Double = 0.0
 
-    Dim m_showArrows As Boolean = False
-    Dim m_arrowDensity As Integer = 2
+    ''' <summary>
+    ''' 当前可视化类型（热图 / 矢量图 / 流线图，严格互斥的唯一状态源）。
+    ''' </summary>
+    Dim m_visualization As VisualizationMode = VisualizationMode.Heatmap
 
-    Dim m_showVectors As Boolean = False
+    ''' <summary>是否显示不活动的固体体素模型本体（三种可视化类型下都常驻）。</summary>
+    Dim m_showSolids As Boolean = True
+
+    ''' <summary>裁剪远端横截面时，是否把固体模型本体也一并裁剪（默认 False）。</summary>
+    Dim m_clipSolidModel As Boolean = False
+
     Dim m_vectorStride As Integer = 3
-    Dim m_showPathlines As Boolean = False
     Dim m_pathSeedStride As Integer = 4
     Dim m_pathlinesAnimate As Boolean = True
     Dim m_pathParticlesPerLine As Integer = 2
@@ -309,18 +315,26 @@ Partial Public Class CFDCanvas
         End Set
     End Property
 
-    ''' <summary>是否显示速度矢量箭头。</summary>
-    <Description("显示速度矢量箭头")>
-    Public Property ShowArrows As Boolean
+    '''
+    ''' 当前可视化类型：体素热图 / 矢量图 / 流线图（严格互斥，
+    ''' 同一时刻只有一种生效）。默认的体素热图以点云呈现物理场标量值。
+    '''
+    <Description("可视化类型（热图 / 矢量图 / 流线图，三者互斥）")>
+    Public Property Visualization As VisualizationMode
         Get
-            Return m_showArrows
+            Return m_visualization
         End Get
-        Set(value As Boolean)
-            If m_showArrows = value Then Return
-            m_showArrows = value
+        Set(value As VisualizationMode)
+            If m_visualization = value Then Return
 
-            If value AndAlso m_currentFrame IsNot Nothing AndAlso m_currentFrame.U Is Nothing Then
-                ' 该帧还没加载速度场：重新请求一次，数据集会把缺失字段并入缓存帧
+            Dim leavingStreamlines As Boolean = (m_visualization = VisualizationMode.Streamlines)
+            m_visualization = value
+
+            If value <> VisualizationMode.Heatmap AndAlso
+                m_currentFrame IsNot Nothing AndAlso m_currentFrame.U Is Nothing Then
+
+                ' 矢量图 / 流线图需要速度场：该帧还没加载时补请求一次，
+                ' 数据集会把缺失字段并入缓存帧
                 If Not m_velocityRequested Then
                     m_velocityRequested = True
                     Call ShowFrame(m_frameIndex)
@@ -328,47 +342,97 @@ Partial Public Class CFDCanvas
                 End If
             End If
 
+            If leavingStreamlines AndAlso value <> VisualizationMode.Streamlines Then
+                m_streamCache = Nothing
+                Call StopPathlineAnimation()
+            End If
+
             Call ScheduleRefresh()
         End Set
     End Property
 
-    ''' <summary>箭头采样密度（步长，2=高 3=中 4=低）。</summary>
+    '''
+    ''' 是否显示不活动的三维体素模型本体（metadata 掩膜 mask = 0 的固体体素，
+    ''' 如罐壁 / 挡板 / 车体）。热图、矢量图、流线图三种模式下都常驻显示。
+    '''
+    <Description("显示不活动的固体体素模型本体")>
+    Public Property ShowSolids As Boolean
+        Get
+            Return m_showSolids
+        End Get
+        Set(value As Boolean)
+            If m_showSolids = value Then Return
+            m_showSolids = value
+            Call ScheduleRefresh()
+        End Set
+    End Property
+
+    '''
+    ''' 裁剪远端横截面时，是否把不活动的三维体素模型本体也一并裁剪隐藏。
+    '''
+    '''   False（默认）= 只裁剪活动的物理场体素，模型本体保持完整；
+    '''   True = 模型本体也按同一截面规则被裁剪。
+    '''
+    <Description("裁剪远端横截面时一并裁剪不活动的固体模型本体")>
+    Public Property ClipSolidModelWithSection As Boolean
+        Get
+            Return m_clipSolidModel
+        End Get
+        Set(value As Boolean)
+            If m_clipSolidModel = value Then Return
+            m_clipSolidModel = value
+            Call ScheduleRefresh()
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' 【已弃用】速度箭头叠加层已并入矢量图（Visualization = Vectors）。
+    ''' 读取等价于"当前是否为矢量图"；写入 True 切换到矢量图，False 回到热图。
+    ''' </summary>
+    <Obsolete("速度箭头已并入矢量图，请改用 Visualization = VisualizationMode.Vectors")>
+    <Description("已弃用：请使用 Visualization 切换到矢量图")>
+    Public Property ShowArrows As Boolean
+        Get
+            Return m_visualization = VisualizationMode.Vectors
+        End Get
+        Set(value As Boolean)
+            If value Then
+                Visualization = VisualizationMode.Vectors
+            ElseIf m_visualization = VisualizationMode.Vectors Then
+                Visualization = VisualizationMode.Heatmap
+            End If
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' 【已弃用】箭头采样密度已并入矢量图的 VectorStride。
+    ''' </summary>
+    <Obsolete("箭头采样密度已并入矢量图，请改用 VectorStride")>
     Public Property ArrowDensity As Integer
         Get
-            Return m_arrowDensity
+            Return Math.Min(8, m_vectorStride)
         End Get
         Set(value As Integer)
-            value = Math.Min(8, Math.Max(1, value))
-
-            If m_arrowDensity = value Then Return
-            m_arrowDensity = value
-            Call ScheduleRefresh()
+            VectorStride = value
         End Set
     End Property
 
     ''' <summary>
     ''' 是否显示矢量图：箭头表示流体速度方向，
     ''' 箭头长度与颜色共同表示速度大小（与热图色标一致）。
+    ''' 与热图、流线图互斥（写入 True 会把可视化类型切换为矢量图）。
     ''' </summary>
     <Description("显示矢量图（箭头方向 = 流速方向，长度/颜色 = 速度大小）")>
     Public Property ShowVectors As Boolean
         Get
-            Return m_showVectors
+            Return m_visualization = VisualizationMode.Vectors
         End Get
         Set(value As Boolean)
-            If m_showVectors = value Then Return
-            m_showVectors = value
-
-            If value AndAlso m_currentFrame IsNot Nothing AndAlso m_currentFrame.U Is Nothing Then
-                ' 该帧还没加载速度场：重新请求一次，数据集会把缺失字段并入缓存帧
-                If Not m_velocityRequested Then
-                    m_velocityRequested = True
-                    Call ShowFrame(m_frameIndex)
-                    Return
-                End If
+            If value Then
+                Visualization = VisualizationMode.Vectors
+            ElseIf m_visualization = VisualizationMode.Vectors Then
+                Visualization = VisualizationMode.Heatmap
             End If
-
-            Call ScheduleRefresh()
         End Set
     End Property
 
@@ -394,27 +458,14 @@ Partial Public Class CFDCanvas
     <Description("显示流线图（入口面种子的流体质点轨迹 + 光点动画）")>
     Public Property ShowPathlines As Boolean
         Get
-            Return m_showPathlines
+            Return m_visualization = VisualizationMode.Streamlines
         End Get
         Set(value As Boolean)
-            If m_showPathlines = value Then Return
-            m_showPathlines = value
-
-            If value AndAlso m_currentFrame IsNot Nothing AndAlso m_currentFrame.U Is Nothing Then
-                If Not m_velocityRequested Then
-                    m_velocityRequested = True
-                    Call ShowFrame(m_frameIndex)
-                    Return
-                End If
+            If value Then
+                Visualization = VisualizationMode.Streamlines
+            ElseIf m_visualization = VisualizationMode.Streamlines Then
+                Visualization = VisualizationMode.Heatmap
             End If
-
-            If Not value Then
-                ' 关闭时立即清掉粒子实例缓冲
-                m_streamCache = Nothing
-                Call StopPathlineAnimation()
-            End If
-
-            Call ScheduleRefresh()
         End Set
     End Property
 
@@ -945,11 +996,10 @@ Partial Public Class CFDCanvas
             .SliceOnly = m_sectionSliceOnly,
             .SectionAxis = m_sectionAxis,
             .SectionPosition = m_sectionPosition,
-            .ShowArrows = m_showArrows,
-            .ArrowDensity = m_arrowDensity,
-            .ShowVectors = m_showVectors,
+            .Mode = m_visualization,
+            .ShowSolids = m_showSolids,
+            .ClipSolidModelWithSection = m_clipSolidModel,
             .VectorStride = m_vectorStride,
-            .ShowPathlines = m_showPathlines,
             .PathlineSeedStride = m_pathSeedStride,
             .HideStraightStreamlines = m_hideStraight,
             .SelectedVoxel = m_selectedVoxel,
@@ -957,7 +1007,7 @@ Partial Public Class CFDCanvas
         }
 
         ' 同一帧的流线折线只追踪一次（帧/种子步长未变时复用缓存）
-        If m_showPathlines AndAlso m_streamCache IsNot Nothing AndAlso
+        If m_visualization = VisualizationMode.Streamlines AndAlso m_streamCache IsNot Nothing AndAlso
             m_streamCacheFrame = m_frameIndex AndAlso m_streamCacheStride = m_pathSeedStride Then
 
             options.CachedPathlines = m_streamCache
@@ -1023,7 +1073,9 @@ Partial Public Class CFDCanvas
     ''' 按当前状态（开关、折线集、参数）启动/停止粒子动画。
     ''' </summary>
     Private Sub UpdatePathlineAnimation(streamSet As StreamlineSet, result As VoxelSceneResult)
-        If Not m_showPathlines OrElse streamSet Is Nothing OrElse streamSet.SegmentCount = 0 Then
+        If m_visualization <> VisualizationMode.Streamlines OrElse
+            streamSet Is Nothing OrElse streamSet.SegmentCount = 0 Then
+
             Call StopPathlineAnimation()
             Return
         End If
@@ -1043,7 +1095,8 @@ Partial Public Class CFDCanvas
 
     ''' <summary>按动画开关启停定时器。</summary>
     Private Sub UpdatePathlineAnimationState()
-        If m_showPathlines AndAlso m_pathlinesAnimate AndAlso m_animator IsNot Nothing Then
+        If m_visualization = VisualizationMode.Streamlines AndAlso
+            m_pathlinesAnimate AndAlso m_animator IsNot Nothing Then
             m_animClock.Restart()
             m_pathTimer.Start()
         Else
@@ -1623,7 +1676,13 @@ Partial Public Class CFDCanvas
 
         If hit.HasHit AndAlso hit.Kind = SceneHitKind.Point AndAlso
             hit.Index >= 0 AndAlso hit.Index < m_pointVoxelMap.Length Then
-            voxel = m_pointVoxelMap(hit.Index)
+
+            Dim hitVoxel As Integer = m_pointVoxelMap(hit.Index)
+
+            ' 固体模型本体的点映射为 -1，不参与悬停字段提示
+            If hitVoxel >= 0 Then
+                voxel = hitVoxel
+            End If
         End If
 
         If voxel <> m_hoverVoxel Then
@@ -1797,6 +1856,9 @@ Partial Public Class CFDCanvas
             hit.Index >= 0 AndAlso hit.Index < m_pointVoxelMap.Length Then
 
             Dim voxelIdx As Integer = m_pointVoxelMap(hit.Index)
+
+            ' 命中的是不活动的固体模型本体（映射 -1）：不做字段拾取
+            If voxelIdx < 0 Then Return
 
             m_selectedVoxel = voxelIdx
             Call ScheduleRefresh()
