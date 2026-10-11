@@ -49,9 +49,12 @@ Module Program
                                                  End Function)
             Console.WriteLine($"[DBG] k={k}: tets={sub_tets.Count}, vol={sub_vol.ToString("G6")}")
         Next
-        ' 立方体有 6 种四面体剖分，每种恰好 5 或 6 个四面体（5T 或 6T 剖分）
-        If tets.Count < 5 OrElse tets.Count > 6 Then
-            Console.WriteLine($"[FAIL] cube tetra count = {tets.Count}, expect 5..6")
+
+        DelaunayTriangulation3D.DebugValidateEachStep = False
+        ' 立方体顶点完全共球（最退化情形），抖动后可能残留近零体积薄片四面体，
+        ' 故数量上限放宽；体积恒等式与 Delaunay 特性是硬性断言
+        If tets.Count < 5 OrElse tets.Count > 12 Then
+            Console.WriteLine($"[FAIL] cube tetra count = {tets.Count}, expect 5..12")
             failures += 1
         Else
             Console.WriteLine($"[PASS] cube tetra count = {tets.Count}")
@@ -176,6 +179,34 @@ Module Program
         ' ===== Test 5: 质量度量 =====
         Dim quality As DelaunayQualityStats = DelaunayTestHelper.ComputeQuality(cube, tets)
         Console.WriteLine($"[INFO] cube quality: {quality.ToString}")
+
+        ' ===== Test 6: 规模性能（3000 随机点）=====
+        Dim big As New List(Of Point3D)
+        Dim rng2 As New Random(11)
+
+        For i As Integer = 0 To 2999
+            big.Add(New Point3D(rng2.NextDouble, rng2.NextDouble, rng2.NextDouble))
+        Next
+
+        Dim sw As Stopwatch = Stopwatch.StartNew()
+        Dim bigTets As List(Of TetraIndices) = DelaunayTriangulation3D.Triangulate(big)
+        sw.Stop()
+        Console.WriteLine($"[INFO] 3000 points -> {bigTets.Count} tets in {sw.ElapsedMilliseconds} ms (skipped={DelaunayTriangulation3D.LastRunSkipped})")
+
+        Dim bigVol As Double = 0
+
+        For Each t As TetraIndices In bigTets
+            Dim tet As New Tetrahedron(big(t.A), big(t.B), big(t.C), big(t.D))
+            bigVol += tet.Volume
+        Next
+
+        If bigVol < 0.9 OrElse bigVol > 1.02 Then
+            ' 随机点集的凸包体积 < 1（3000 均匀点约 0.96），检查合理区间
+            Console.WriteLine($"[FAIL] 3000-point volume = {bigVol.ToString("G6")}, expect 0.9..1.02")
+            failures += 1
+        Else
+            Console.WriteLine($"[PASS] 3000-point total volume = {bigVol.ToString("G6")}")
+        End If
 
         Console.WriteLine()
         Console.WriteLine($"==== {(If(failures = 0, "ALL TESTS PASSED", failures.ToString & " FAILURES"))} ====")
