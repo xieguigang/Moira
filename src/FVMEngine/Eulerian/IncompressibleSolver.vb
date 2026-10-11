@@ -71,10 +71,18 @@ Namespace Eulerian
         Public Property RelaxU As Double = 0.7
 
         ''' <summary>
-        ''' 压力场显式欠松弛（默认 1.0 —— 压力-速度耦合的欠松弛已由 rAU 承担，
-        ''' 见文件头第 2 步；发散时可降到 0.3~0.5 作为额外保险）。
+        ''' 压力场显式欠松弛（SIMPLE 教科书值 0.3）。
         ''' </summary>
-        Public Property RelaxP As Double = 1.0
+        ''' <remarks>
+        ''' ★ 不能取 1.0：虽然压力-速度耦合的主欠松弛由 rAU = 1/a_P 承担，
+        '''   但在含强非正交面（八叉树切割单元，实测最大 88°）的网格上，
+        '''   非正交显式修正与 Rhie-Chow 插值本身带误差，压力修正若全额施加
+        '''   会形成正反馈 —— 实测 F1 风洞算例的压力场在约 20 步后指数发散
+        '''   （逐次力采样 7e2 → 2e4 → 7e5 → 1e21 → 1e113 → NaN）。
+        '''   取 0.3 后该反馈被阻尼，稳态收敛稍慢但稳健。
+        '''   盒式正交网格上 0.3 与 1.0 的最终解一致，仅迭代数不同。
+        ''' </summary>
+        Public Property RelaxP As Double = 0.3
 
         ''' <summary>动量预测的平滑扫描次数（OpenFOAM smoothSolver nSweeps 等价物）。</summary>
         Public Property MomentumSweeps As Integer = 2

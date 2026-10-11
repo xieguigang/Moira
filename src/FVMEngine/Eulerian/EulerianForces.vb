@@ -56,6 +56,12 @@ Namespace Eulerian
         ''' <summary>积分面积（m²）。</summary>
         Public Property Area As Double
 
+        ''' <summary>因贡献非有限而被跳过的边界面数（网格质量诊断，正常应为 0）。</summary>
+        Public Property SkippedFaces As Integer
+
+        ''' <summary>壁面压力外推非有限、退回相邻单元压力的面数（未收敛时的临时现象）。</summary>
+        Public Property PressureFallbackFaces As Integer
+
         ''' <summary>参考面积（m²）。</summary>
         Public Property ReferenceArea As Double = 1.0
 
@@ -189,6 +195,7 @@ Namespace Eulerian
 
             Dim used As New List(Of String)
             Dim skippedFaces As Integer = 0
+            Dim pFallbackCount As Integer = 0
 
             For pi As Integer = 0 To mesh.PatchCount - 1
                 Dim geo As EulerianPatchGeometry = mesh.Patches(pi)
@@ -217,12 +224,37 @@ Namespace Eulerian
 
                     Dim sf As Moira.CFDEngine.Eulerian.EulerianVertex = geo.Sf(k)
                     Dim pB As Double = pfP.Value(k)
+
+                    ' ★ 壁面压力回退：FixedFluxPressure 的边界值 = 单元值 + (∇p)·d，
+                    '   在尚未收敛 / 局部梯度奇异时会短暂给出非有限值，
+                    '   若直接积分会把整个气动力报告变成 NaN。
+                    '   这里退回"零梯度"近似（取相邻单元压力）——
+                    '   壁面压力本来就等于近壁单元压力的一阶近似，物理上是等价的。
+                    If Double.IsNaN(pB) OrElse Double.IsInfinity(pB) Then
+                        pB = p.Value(own)
+                        pFallbackCount += 1
+
+                        If Double.IsNaN(pB) OrElse Double.IsInfinity(pB) Then
+                            pB = 0
+                        End If
+                    End If
+
                     Dim rho As Double = If(rhoFace IsNot Nothing AndAlso rhoFace.Length > f, rhoFace(f), referenceDensity)
 
-                    ' ---- 压力力：−p·S_f ----
-                    Dim fx As Double = -pB * sf.X
-                    Dim fy As Double = -pB * sf.Y
-                    Dim fz As Double = -pB * sf.Z
+                    If Double.IsNaN(rho) OrElse Double.IsInfinity(rho) Then
+                        rho = referenceDensity
+                    End If
+
+                    ' ---- 压力力：+p·S_f ----
+                    ' 推导：流体作用在物体上的压力力 F = −∮_{∂B} p·n̂ dA，
+                    '   其中 n̂ 是**物体**的外法向（由物体指向流体）。
+                    '   Eulerian 网格的边界面法向 S_f 恒"自流体指出去"，
+                    '   在障碍物壁面上正好指向物体内部 ⇒ n̂·dA = −S_f。
+                    '   代入得 F = +Σ p·S_f。
+                    '   （若取 −p·S_f 会得到反向的力：来流 +x 时算出负阻力。）
+                    Dim fx As Double = pB * sf.X
+                    Dim fy As Double = pB * sf.Y
+                    Dim fz As Double = pB * sf.Z
 
                     ' ---- 黏性力：τ_w·A ----
                     Dim ux As Double = pfU.Value(k, 0)
@@ -252,13 +284,16 @@ Namespace Eulerian
 
                     Dim tmag As Double = std.Sqrt(tx * tx + ty * ty + tz * tz)
 
+                    Dim uTau As Double = 0
+                    Dim nuLoc As Double = nuMolecular
+
                     If tmag > 1.0E-12 Then
-                        Dim uTau As Double = EstimateUTau(kField, own)
+                        uTau = EstimateUTau(kField, own)
 
                         If uTau <= 0 Then
                             ' 层流 / k 未启用：黏性底层估计 τ = ρν|u_t|/y
-                            Dim nuLoc As Double = If(nuEffFace IsNot Nothing AndAlso nuEffFace.Length > f,
-                                                     nuEffFace(f), nuMolecular)
+                            nuLoc = If(nuEffFace IsNot Nothing AndAlso nuEffFace.Length > f,
+                                       nuEffFace(f), nuMolecular)
 
                             uTau = std.Sqrt(nuLoc * tmag / std.Max(geo.Delta(k).Length, 1.0E-30))
                         End If
@@ -294,6 +329,8 @@ Namespace Eulerian
             Next
 
             report.Patches = String.Join(",", used)
+            report.SkippedFaces = skippedFaces
+            report.PressureFallbackFaces = pFallbackCount
 
             Return report
         End Function

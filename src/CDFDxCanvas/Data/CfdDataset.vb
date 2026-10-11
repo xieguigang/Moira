@@ -64,8 +64,20 @@ Namespace Data
         ''' <summary>活动体素索引表（引擎序 i*ny*nz + j*nz + k，常数，跨帧复用）。</summary>
         Dim m_active As Integer()
 
+        '''
+        ''' 不活动的固体体素索引表（引擎序，常数，跨帧复用）。
+        '''
+        '''    metadata.json 的 Grid.Mask 中：1 = 活动体素（模拟空间 / 物理场），
+        '''   0 = 空腔（固体障碍物）。mask = 0 的体素即"不活动的三维体素模型本体"
+        '''  （罐壁 / 挡板 / 车体等），热图、矢量图、流线图三种模式下都常驻渲染。
+        '''
+        Dim m_solid As Integer()
+
         ''' <summary>全部活动体素质心（懒计算，加载后为常数）。</summary>
         Dim m_centroid As Double()
+
+        ''' <summary>场景质心基准（活动体素 ∪ 固体体素，懒计算，加载后为常数）。</summary>
+        Dim m_sceneCentroid As Double()
 
         ''' <summary>数据集中可用的标量场名称（首帧字段清单）。</summary>
         Dim m_fields As New List(Of String)
@@ -90,6 +102,25 @@ Namespace Data
         Public ReadOnly Property ActiveIndices As Integer()
             Get
                 Return m_active
+            End Get
+        End Property
+
+        '''
+        ''' 不活动的固体体素索引数组（mask = 0，即三维体素模型本体；只读复用）。
+        '''
+        '''   掩膜为空（metadata 未提供 Mask）时返回零长数组，
+        '''   此时渲染层不会额外绘制模型本体。
+        '''
+        Public ReadOnly Property SolidIndices As Integer()
+            Get
+                Return m_solid
+            End Get
+        End Property
+
+        ''' <summary>固体体素数量。</summary>
+        Public ReadOnly Property SolidVoxels As Integer
+            Get
+                Return If(m_solid Is Nothing, 0, m_solid.Length)
             End Get
         End Property
 

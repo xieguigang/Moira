@@ -819,6 +819,14 @@ Module Program
                           $"ub_nan={NanCount(testCase.Fields.U.Boundaries(wi).Values)}, " &
                           $"maxU={Math.Abs(testCase.Fields.U.Magnitude().Max()).ToString("G6", CultureInfo.InvariantCulture)}")
 
+        Dim inc = testCase.Incompressible
+
+        Console.WriteLine($"      [diag] nuEffFace nan={NanCount(inc.NuEffFace)}, v0={inc.NuEffFace(wgeo.FaceIndices(0)).ToString("G4", CultureInfo.InvariantCulture)}, " &
+                          $"rhoFace nan={NanCount(inc.RhoFaceArray)}, r0={inc.RhoFaceArray(wgeo.FaceIndices(0)).ToString("G4", CultureInfo.InvariantCulture)}, " &
+                          $"|Delta0|={wgeo.Delta(0).Length.ToString("G4", CultureInfo.InvariantCulture)}, " &
+                          $"pb0={testCase.Fields.P.Boundaries(wi).Value(0).ToString("G4", CultureInfo.InvariantCulture)}, " &
+                          $"ub0={testCase.Fields.U.Boundaries(wi).Value(0, 0).ToString("G4", CultureInfo.InvariantCulture)}")
+
         Dim metadata As New EulerianSnapshotMetadata With {
             .Solver = "Eulerian FVM SIMPLE (self test)",
             .CaseName = "F1 2022",
@@ -834,6 +842,12 @@ Module Program
         Call recorder.Finish()
 
         Console.WriteLine($"      {testCase.Report.TrimEnd().Replace(vbLf, vbLf & "      ")}")
+
+        Dim fU = testCase.Fields
+        Console.WriteLine($"      [diag] after run: p nan={NanCount(fU.P.Values)}, " &
+                          $"nut nan={NanCount(fU.Nut.Values)}, k nan={NanCount(fU.K.Values)}, " &
+                          $"maxNut={fU.Nut.Values.Max().ToString("G4", CultureInfo.InvariantCulture)}, " &
+                          $"maxP={fU.P.Values.Max().ToString("G4", CultureInfo.InvariantCulture)}")
 
         ' ---- 断言 ----
         Dim frames As String() = Directory.GetFiles(outDir, "frame_*.vtu")

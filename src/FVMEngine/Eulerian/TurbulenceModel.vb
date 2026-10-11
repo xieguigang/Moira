@@ -441,6 +441,12 @@ Namespace Eulerian
         Public Const C2 As Double = 1.92
         Public Const SigmaK As Double = 1.0
         Public Const SigmaE As Double = 1.3
+
+        ''' <summary>
+        ''' 湍流粘度比上限 νt/ν。工业 CFD 的标准稳健化手段：
+        ''' 掐断"ε 被过度耗散 → νt = Cμk²/ε 失控"的正反馈。
+        ''' </summary>
+        Public Const MaxNutRatio As Double = 1.0E5
     End Module
 
     ''' <summary>k-ω SST 常数（Menter 1994 / 2003）。</summary>
@@ -538,6 +544,16 @@ Namespace Eulerian
 
                 If Double.IsNaN(v) OrElse Double.IsInfinity(v) Then
                     v = 0
+                End If
+
+                ' ★ 湍流粘度比限幅 νt ≤ MaxNutRatio·ν（工业 CFD 的标准稳健化手段）
+                '   k-ε 在粗网格 / 强非正交切割单元上会出现 ε 被过度耗散、
+                '   νt 失控增长（k²/ε 发散）的正反馈，最终把动量与压力方程一起带崩。
+                '   限幅掐断这个正反馈：粗网格上只损失少量精度，换来的是不发散。
+                Dim nuMax As Double = KECst.MaxNutRatio * std.Max(ctx.Nu, 1.0E-30)
+
+                If v > nuMax Then
+                    v = nuMax
                 End If
 
                 nt(c) = v
