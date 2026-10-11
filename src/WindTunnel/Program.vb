@@ -14,15 +14,14 @@
 ' /********************************************************************************/
 
 Imports System
-Imports WindTunnel
 
 Module Program
 
     ''' <summary>入口。</summary>
     Function Main(args As String()) As Integer
-        Dim options As CliOptions = CliOptions.Parse(args)
+        Dim options As WindTunnel.CliOptions = WindTunnel.CliOptions.Parse(args)
 
-        Return WindTunnelRunner.Run(options)
+        Return WindTunnel.WindTunnelRunner.Run(options)
     End Function
 
 End Module

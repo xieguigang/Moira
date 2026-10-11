@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Eulerian FVM 求解器自测工程（手写断言 + failures 计数 + 退出码）。
+       参考 test\ZMeshEulerianSelfTest 的组织方式。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>EulerianFvmSelfTest</RootNamespace>
+    <AssemblyName>EulerianFvmSelfTest</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <OptionStrict>Off</OptionStrict>
+    <OptionExplicit>On</OptionExplicit>
+    <Platforms>AnyCPU;x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CFDEngine\CFDEngine.vbproj" />
+    <ProjectReference Include="..\..\src\FVMEngine\FVMEngine.vbproj" />
+    <ProjectReference Include="..\..\src\ZMesh\ZMesh.vbproj" />
+  </ItemGroup>
+
+</Project>
