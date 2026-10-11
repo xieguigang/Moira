@@ -48,6 +48,26 @@ Partial Public Class CFDCanvas
     Dim m_showArrows As Boolean = False
     Dim m_arrowDensity As Integer = 2
 
+    Dim m_showVectors As Boolean = False
+    Dim m_vectorStride As Integer = 3
+    Dim m_showPathlines As Boolean = False
+    Dim m_pathSeedStride As Integer = 4
+    Dim m_pathlinesAnimate As Boolean = True
+    Dim m_pathParticlesPerLine As Integer = 2
+    Dim m_pathCyclesPerSecond As Single = 0.12F
+
+    ' 流线折线缓存（帧序号 + 种子步长未变时复用，避免逐帧重追踪）
+    Dim m_streamCache As StreamlineSet
+    Dim m_streamCacheFrame As Integer = Integer.MinValue
+    Dim m_streamCacheStride As Integer = -1
+
+    ' 流线光点粒子动画
+    Dim m_animator As StreamlineAnimator
+    Dim m_particleBuf As Single()
+    Dim m_offsetX As Double, m_offsetY As Double, m_offsetZ As Double
+    ReadOnly m_pathTimer As New Timer With {.Interval = 33, .Enabled = False}
+    ReadOnly m_animClock As New Stopwatch
+
     Dim m_sectionEnabled As Boolean = False
     Dim m_sectionSliceOnly As Boolean = False
     Dim m_sectionAxis As CfdAxis = CfdAxis.X
@@ -175,6 +195,14 @@ Partial Public Class CFDCanvas
         AddHandler m_refreshTimer.Tick, AddressOf OnRefreshTimerTick
         AddHandler m_sceneCanvas.Render, AddressOf OnSceneRender
         AddHandler m_sceneCanvas.ViewChanged, AddressOf OnSceneViewChanged
+        AddHandler m_pathTimer.Tick, AddressOf OnPathTimerTick
+
+        ' 流线动画粒子走渲染器的外部实例缓冲，以叠加层方式画在体素点云之上
+        Dim gpu = TryCast(m_sceneCanvas.Renderer, Direct3D11SceneRenderer)
+
+        If gpu IsNot Nothing Then
+            gpu.ExternalCloudOverlay = True
+        End If
     End Sub
 
     ' ---------------- 公开属性 ----------------
@@ -315,6 +343,141 @@ Partial Public Class CFDCanvas
             If m_arrowDensity = value Then Return
             m_arrowDensity = value
             Call ScheduleRefresh()
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' 是否显示矢量图：箭头表示流体速度方向，
+    ''' 箭头长度与颜色共同表示速度大小（与热图色标一致）。
+    ''' </summary>
+    <Description("显示矢量图（箭头方向 = 流速方向，长度/颜色 = 速度大小）")>
+    Public Property ShowVectors As Boolean
+        Get
+            Return m_showVectors
+        End Get
+        Set(value As Boolean)
+            If m_showVectors = value Then Return
+            m_showVectors = value
+
+            If value AndAlso m_currentFrame IsNot Nothing AndAlso m_currentFrame.U Is Nothing Then
+                ' 该帧还没加载速度场：重新请求一次，数据集会把缺失字段并入缓存帧
+                If Not m_velocityRequested Then
+                    m_velocityRequested = True
+                    Call ShowFrame(m_frameIndex)
+                    Return
+                End If
+            End If
+
+            Call ScheduleRefresh()
+        End Set
+    End Property
+
+    ''' <summary>矢量图采样步长（每轴，格点，1-10）。</summary>
+    <DefaultValue(3)>
+    Public Property VectorStride As Integer
+        Get
+            Return m_vectorStride
+        End Get
+        Set(value As Integer)
+            value = Math.Min(10, Math.Max(1, value))
+
+            If m_vectorStride = value Then Return
+            m_vectorStride = value
+            Call ScheduleRefresh()
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' 是否显示流线图：由入口面均匀注入种子、RK2 积分得到流体质点
+    ''' 运动轨迹（稳态流动分析用），叠加沿线运动的光点粒子动画。
+    ''' </summary>
+    <Description("显示流线图（入口面种子的流体质点轨迹 + 光点动画）")>
+    Public Property ShowPathlines As Boolean
+        Get
+            Return m_showPathlines
+        End Get
+        Set(value As Boolean)
+            If m_showPathlines = value Then Return
+            m_showPathlines = value
+
+            If value AndAlso m_currentFrame IsNot Nothing AndAlso m_currentFrame.U Is Nothing Then
+                If Not m_velocityRequested Then
+                    m_velocityRequested = True
+                    Call ShowFrame(m_frameIndex)
+                    Return
+                End If
+            End If
+
+            If Not value Then
+                ' 关闭时立即清掉粒子实例缓冲
+                m_streamCache = Nothing
+                Call StopPathlineAnimation()
+            End If
+
+            Call ScheduleRefresh()
+        End Set
+    End Property
+
+    ''' <summary>流线种子层采样步长（j/k 方向，格点，1-16）。</summary>
+    <DefaultValue(4)>
+    Public Property PathlineSeedStride As Integer
+        Get
+            Return m_pathSeedStride
+        End Get
+        Set(value As Integer)
+            value = Math.Min(16, Math.Max(1, value))
+
+            If m_pathSeedStride = value Then Return
+            m_pathSeedStride = value
+            m_streamCache = Nothing
+            Call ScheduleRefresh()
+        End Set
+    End Property
+
+    ''' <summary>是否启用流线光点粒子动画（关闭时只画静态流线折线）。</summary>
+    <Description("流线光点粒子动画")>
+    <DefaultValue(True)>
+    Public Property PathlinesAnimate As Boolean
+        Get
+            Return m_pathlinesAnimate
+        End Get
+        Set(value As Boolean)
+            If m_pathlinesAnimate = value Then Return
+            m_pathlinesAnimate = value
+            Call UpdatePathlineAnimationState()
+        End Set
+    End Property
+
+    ''' <summary>每条流线布置的光点粒子数（1-8）。</summary>
+    <DefaultValue(2)>
+    Public Property PathlineParticlesPerLine As Integer
+        Get
+            Return m_pathParticlesPerLine
+        End Get
+        Set(value As Integer)
+            value = Math.Min(8, Math.Max(1, value))
+
+            If m_pathParticlesPerLine = value Then Return
+            m_pathParticlesPerLine = value
+            Call UpdatePathlineAnimationState()
+        End Set
+    End Property
+
+    ''' <summary>粒子沿线速度（每秒走过折线全长的比例）。</summary>
+    <DefaultValue(0.12F)>
+    Public Property PathlineCyclesPerSecond As Single
+        Get
+            Return m_pathCyclesPerSecond
+        End Get
+        Set(value As Single)
+            value = Math.Min(4.0F, Math.Max(0.005F, value))
+
+            If Math.Abs(m_pathCyclesPerSecond - value) < 0.0001F Then Return
+            m_pathCyclesPerSecond = value
+
+            If m_animator IsNot Nothing Then
+                m_animator.CyclesPerSecond = value
+            End If
         End Set
     End Property
 
@@ -623,6 +786,9 @@ Partial Public Class CFDCanvas
         m_pendingIndex = -1
         m_velocityRequested = False
 
+        ' 新数据集：流线缓存失效
+        m_streamCache = Nothing
+
         ' 预生成 LUT
         m_lut = Designer.FromSchema(m_palette, 256)
 
@@ -756,9 +922,20 @@ Partial Public Class CFDCanvas
             .SectionPosition = m_sectionPosition,
             .ShowArrows = m_showArrows,
             .ArrowDensity = m_arrowDensity,
+            .ShowVectors = m_showVectors,
+            .VectorStride = m_vectorStride,
+            .ShowPathlines = m_showPathlines,
+            .PathlineSeedStride = m_pathSeedStride,
             .SelectedVoxel = m_selectedVoxel,
             .Lut = GetPaletteLut()
         }
+
+        ' 同一帧的流线折线只追踪一次（帧/种子步长未变时复用缓存）
+        If m_showPathlines AndAlso m_streamCache IsNot Nothing AndAlso
+            m_streamCacheFrame = m_frameIndex AndAlso m_streamCacheStride = m_pathSeedStride Then
+
+            options.CachedPathlines = m_streamCache
+        End If
 
         Dim result As VoxelSceneResult
 
@@ -768,9 +945,17 @@ Partial Public Class CFDCanvas
             Return
         End Try
 
+        ' 缓存本次追踪结果
+        If result.Pathlines IsNot Nothing Then
+            m_streamCache = result.Pathlines
+            m_streamCacheFrame = m_frameIndex
+            m_streamCacheStride = m_pathSeedStride
+        End If
+
         If result.Points.Length = 0 Then
             ' 全部体素被阈值/截面过滤：清空场景而不是保留旧画面
             m_pointVoxelMap = Nothing
+            Call UpdatePathlineAnimation(result.Pathlines, result)
 
             If m_sceneLoaded Then
                 Call m_sceneCanvas.UpdatePointCloud(New PointCloudPoint() {})
@@ -799,8 +984,95 @@ Partial Public Class CFDCanvas
 
         Call m_sceneCanvas.RequestRender()
 
+        ' 流线光点粒子动画（跟随最新折线与质心补偿偏移）
+        Call UpdatePathlineAnimation(result.Pathlines, result)
+
         ' 场景（相机）就绪后立即校准一次体素点大小
         Call AdaptPointSize()
+    End Sub
+
+    ' ---------------- 流线光点粒子动画 ----------------
+
+    ''' <summary>
+    ''' 按当前状态（开关、折线集、参数）启动/停止粒子动画。
+    ''' </summary>
+    Private Sub UpdatePathlineAnimation(streamSet As StreamlineSet, result As VoxelSceneResult)
+        If Not m_showPathlines OrElse streamSet Is Nothing OrElse streamSet.SegmentCount = 0 Then
+            Call StopPathlineAnimation()
+            Return
+        End If
+
+        m_animator = New StreamlineAnimator(streamSet, m_pathParticlesPerLine) With {
+            .CyclesPerSecond = m_pathCyclesPerSecond
+        }
+        m_particleBuf = New Single(Math.Max(1, m_animator.ParticleCount) * 8 - 1) {}
+
+        ' 粒子与流线折线使用同一质心补偿偏移（与点云对齐）
+        m_offsetX = result.LineOffsetX
+        m_offsetY = result.LineOffsetY
+        m_offsetZ = result.LineOffsetZ
+
+        Call UpdatePathlineAnimationState()
+    End Sub
+
+    ''' <summary>按动画开关启停定时器。</summary>
+    Private Sub UpdatePathlineAnimationState()
+        If m_showPathlines AndAlso m_pathlinesAnimate AndAlso m_animator IsNot Nothing Then
+            m_animClock.Restart()
+            m_pathTimer.Start()
+        Else
+            m_pathTimer.Stop()
+        End If
+
+        If Not m_pathlinesAnimate AndAlso m_animator IsNot Nothing Then
+            ' 静态模式：粒子消失，只保留流线折线
+            Call ClearExternalInstances()
+        End If
+    End Sub
+
+    Private Sub StopPathlineAnimation()
+        m_pathTimer.Stop()
+        m_animator = Nothing
+        m_particleBuf = Nothing
+        Call ClearExternalInstances()
+    End Sub
+
+    Private Sub ClearExternalInstances()
+        Dim gpu = TryCast(m_sceneCanvas.Renderer, Direct3D11SceneRenderer)
+
+        If gpu IsNot Nothing Then
+            Call gpu.ClearInstances()
+            Call m_sceneCanvas.RequestRender()
+        End If
+    End Sub
+
+    Private Sub OnPathTimerTick(sender As Object, e As EventArgs)
+        If m_animator Is Nothing OrElse m_particleBuf Is Nothing Then
+            Call m_pathTimer.Stop()
+            Return
+        End If
+
+        Dim gpu = TryCast(m_sceneCanvas.Renderer, Direct3D11SceneRenderer)
+
+        If gpu Is Nothing Then
+            ' 无 GPU 管线时粒子无法绘制，动画失去意义
+            Call m_pathTimer.Stop()
+            Return
+        End If
+
+        Dim dt As Double = m_animClock.Elapsed.TotalSeconds
+
+        m_animClock.Restart()
+        Call m_animator.Advance(dt)
+
+        Dim count As Integer = m_animator.Pack(m_particleBuf, m_offsetX, m_offsetY, m_offsetZ)
+
+        If count > 0 Then
+            Call gpu.EnsureInstanceCapacity(m_animator.ParticleCount)
+            Call gpu.UploadInstances(m_particleBuf, count)
+        End If
+
+        Call m_sceneCanvas.RequestRender()
     End Sub
 
     Private Sub OnRefreshTimerTick(sender As Object, e As EventArgs)

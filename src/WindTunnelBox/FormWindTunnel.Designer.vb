@@ -115,6 +115,24 @@ Partial Class FormWindTunnel
         m_chkArrows.Text = "速度箭头"
 
         ' 
+        ' m_chkVectors
+        ' 
+        m_chkVectors = New CheckBox()
+        m_chkVectors.AutoSize = True
+        m_chkVectors.Name = "m_chkVectors"
+        m_chkVectors.Size = New Size(56, 17)
+        m_chkVectors.Text = "矢量图"
+
+        ' 
+        ' m_chkPathlines
+        ' 
+        m_chkPathlines = New CheckBox()
+        m_chkPathlines.AutoSize = True
+        m_chkPathlines.Name = "m_chkPathlines"
+        m_chkPathlines.Size = New Size(56, 17)
+        m_chkPathlines.Text = "流线图"
+
+        ' 
         ' m_chkSlice
         ' 
         m_chkSlice = New CheckBox()
@@ -391,6 +409,8 @@ Partial Class FormWindTunnel
         m_row1.Controls.Add(m_sep1)
         m_row1.Controls.Add(m_chkGpu)
         m_row1.Controls.Add(m_chkArrows)
+        m_row1.Controls.Add(m_chkVectors)
+        m_row1.Controls.Add(m_chkPathlines)
         m_row1.Controls.Add(m_chkSlice)
         m_row1.Dock = DockStyle.Top
         m_row1.Height = 36
@@ -517,6 +537,8 @@ Partial Class FormWindTunnel
     Friend WithEvents m_btnReset As Button
     Friend WithEvents m_chkGpu As CheckBox
     Friend WithEvents m_chkArrows As CheckBox
+    Friend WithEvents m_chkVectors As CheckBox
+    Friend WithEvents m_chkPathlines As CheckBox
     Friend WithEvents m_chkSlice As CheckBox
     Friend WithEvents m_cmbField As ComboBox
     Friend WithEvents m_cmbVoxelizer As ComboBox

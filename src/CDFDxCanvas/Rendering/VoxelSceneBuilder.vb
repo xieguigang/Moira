@@ -45,6 +45,22 @@ Namespace Rendering
         ''' <summary>箭头采样密度（2/3/4，步长）。</summary>
         Public Property ArrowDensity As Integer
 
+        ''' <summary>是否显示矢量图（带箭头头部的线段矢量，FlowVectors）。</summary>
+        Public Property ShowVectors As Boolean
+        ''' <summary>矢量图采样步长（每轴，格点）。</summary>
+        Public Property VectorStride As Integer = 3
+
+        ''' <summary>是否显示流线图（入口面种子 RK 积分，StreamlineTracer）。</summary>
+        Public Property ShowPathlines As Boolean
+        ''' <summary>流线种子层采样步长（j/k 方向，格点）。</summary>
+        Public Property PathlineSeedStride As Integer = 4
+
+        ''' <summary>
+        ''' 已缓存的流线折线（帧未变时复用，避免逐帧重追踪）；
+        ''' Nothing 时由构建器现场追踪。
+        ''' </summary>
+        Public Property CachedPathlines As StreamlineSet
+
         ''' <summary>选中的体素索引（引擎序），-1 = 无。</summary>
         Public Property SelectedVoxel As Integer = -1
 
@@ -62,6 +78,20 @@ Namespace Rendering
         ''' <summary>Points 数组下标 → 体素引擎索引（拾取映射用）。</summary>
         Public Property PointVoxelMap As Integer()
         Public Property Lines As LineSegment()
+
+        ''' <summary>
+        ''' 流线折线集合（原始世界坐标，供动画光点粒子复用）；
+        ''' 未启用流线图时为 Nothing。
+        ''' </summary>
+        Public Property Pathlines As StreamlineSet
+
+        ''' <summary>
+        ''' 线段的质心补偿偏移（与点云同一空间）；动画粒子打包时
+        ''' 使用同一偏移保证与流线对齐。
+        ''' </summary>
+        Public Property LineOffsetX As Double
+        Public Property LineOffsetY As Double
+        Public Property LineOffsetZ As Double
 
     End Class
 
@@ -186,11 +216,25 @@ Namespace Rendering
                 pointMap(p) = idx
             Next
 
-            ' ---- 线段：箭头 + 拾取高亮框 ----
+            ' ---- 线段：箭头 + 矢量图 + 流线 + 拾取高亮框 ----
             Dim lines As New List(Of LineSegment)
 
             If options.ShowArrows Then
                 Call BuildArrows(dataset, frame, options, mn, mx, ox, oy, oz, lines)
+            End If
+
+            If options.ShowVectors Then
+                Call lines.AddRange(BuildVectors(dataset, frame, options))
+            End If
+
+            Dim pathlines As StreamlineSet = Nothing
+
+            If options.ShowPathlines Then
+                pathlines = If(options.CachedPathlines, BuildPathlines(dataset, frame, options))
+
+                If pathlines IsNot Nothing Then
+                    Call lines.AddRange(pathlines.BuildLines(options.Lut, 210, ox, oy, oz))
+                End If
             End If
 
             If options.SelectedVoxel >= 0 Then
@@ -204,7 +248,11 @@ Namespace Rendering
             Return New VoxelSceneResult With {
                 .Points = points,
                 .PointVoxelMap = pointMap,
-                .Lines = lines.ToArray()
+                .Lines = lines.ToArray(),
+                .Pathlines = pathlines,
+                .LineOffsetX = ox,
+                .LineOffsetY = oy,
+                .LineOffsetZ = oz
             }
         End Function
 
@@ -432,6 +480,165 @@ Namespace Rendering
 
             Return -1
         End Function
+
+        ''' <summary>
+        ''' 矢量图 Pass：带箭头头部的线段矢量（长度∝速度、LUT 着色），
+        ''' 与点云使用同一套截面过滤规则。
+        ''' </summary>
+        Private Shared Function BuildVectors(dataset As CfdDataset,
+                                             frame As VtiFrameData,
+                                             options As VoxelViewOptions) As LineSegment()
+            If frame.U Is Nothing Then
+                ' 该数据集没有速度场，画不出矢量
+                Return New LineSegment() {}
+            End If
+
+            Dim field As New DatasetFlowField(dataset, frame)
+            Dim options2 As New VectorArrowOptions With {
+                .Stride = options.VectorStride,
+                .Lut = options.Lut,
+                .Alpha = 235
+            }
+
+            If dataset.HasRange("speed") Then
+                options2.SpeedMax = dataset.GetRange("speed").Item2
+            End If
+
+            ' 矢量与点云使用同一套截面过滤规则（裁剪 / 切片），显示阈值不作用于矢量
+            If options.SectionEnabled Then
+                Dim cut As Double = SliceCut(dataset, options.SectionAxis, options.SectionPosition)
+                Dim halfSpan As Double = AxisSpacing(dataset, options.SectionAxis) * 0.5
+                Dim eps As Double = halfSpan * 0.1
+
+                options2.IncludePoint =
+                    Function(i As Integer, j As Integer, k As Integer) As Boolean
+                        Dim idx As Integer = dataset.IJKToIdx(i, j, k)
+                        Return SectionVisible(dataset, options, cut, halfSpan, eps, idx)
+                    End Function
+            End If
+
+            Return FlowVectors.BuildArrows(field, options2)
+        End Function
+
+        ''' <summary>
+        ''' 流线图 Pass：入口面种子 + RK2 积分（流线不受截面过滤影响，
+        ''' 保持完整轨迹；调用方用返回的折线做光点粒子动画）。
+        ''' </summary>
+        Private Shared Function BuildPathlines(dataset As CfdDataset,
+                                               frame As VtiFrameData,
+                                               options As VoxelViewOptions) As StreamlineSet
+            If frame.U Is Nothing Then
+                Return Nothing
+            End If
+
+            Dim field As New DatasetFlowField(dataset, frame)
+            Dim opt As New StreamlineOptions With {
+                .SeedStride = Math.Max(1, options.PathlineSeedStride)
+            }
+
+            If dataset.HasRange("speed") Then
+                opt.SpeedMax = dataset.GetRange("speed").Item2
+            End If
+
+            Return StreamlineTracer.Trace(field, opt)
+        End Function
+
+        ''' <summary>
+        ''' IFlowFieldData 的离线数据集适配器：CfdDataset + VtiFrameData
+        ''' → 速度场只读视图（体素中心坐标，CenterOffset = 0.5）。
+        ''' </summary>
+        Private NotInheritable Class DatasetFlowField : Implements IFlowFieldData
+
+            ReadOnly m_ds As CfdDataset
+            ReadOnly m_frame As VtiFrameData
+
+            Public Sub New(ds As CfdDataset, frame As VtiFrameData)
+                m_ds = ds
+                m_frame = frame
+            End Sub
+
+            Public ReadOnly Property Nx As Integer Implements IFlowFieldData.Nx
+                Get
+                    Return m_ds.Nx
+                End Get
+            End Property
+
+            Public ReadOnly Property Ny As Integer Implements IFlowFieldData.Ny
+                Get
+                    Return m_ds.Ny
+                End Get
+            End Property
+
+            Public ReadOnly Property Nz As Integer Implements IFlowFieldData.Nz
+                Get
+                    Return m_ds.Nz
+                End Get
+            End Property
+
+            Public ReadOnly Property OriginX As Single Implements IFlowFieldData.OriginX
+                Get
+                    Return CSng(m_ds.Origin(0))
+                End Get
+            End Property
+
+            Public ReadOnly Property OriginY As Single Implements IFlowFieldData.OriginY
+                Get
+                    Return CSng(m_ds.Origin(1))
+                End Get
+            End Property
+
+            Public ReadOnly Property OriginZ As Single Implements IFlowFieldData.OriginZ
+                Get
+                    Return CSng(m_ds.Origin(2))
+                End Get
+            End Property
+
+            Public ReadOnly Property SpacingX As Single Implements IFlowFieldData.SpacingX
+                Get
+                    Return CSng(m_ds.Spacing(0))
+                End Get
+            End Property
+
+            Public ReadOnly Property SpacingY As Single Implements IFlowFieldData.SpacingY
+                Get
+                    Return CSng(m_ds.Spacing(1))
+                End Get
+            End Property
+
+            Public ReadOnly Property SpacingZ As Single Implements IFlowFieldData.SpacingZ
+                Get
+                    Return CSng(m_ds.Spacing(2))
+                End Get
+            End Property
+
+            ''' <summary>体素中心坐标：格内偏移 0.5。</summary>
+            Public ReadOnly Property CenterOffset As Single Implements IFlowFieldData.CenterOffset
+                Get
+                    Return 0.5F
+                End Get
+            End Property
+
+            Public Function UxAt(idx As Integer) As Single Implements IFlowFieldData.UxAt
+                Return If(m_frame.U IsNot Nothing, m_frame.U(idx), 0.0F)
+            End Function
+
+            Public Function UyAt(idx As Integer) As Single Implements IFlowFieldData.UyAt
+                Return If(m_frame.V IsNot Nothing, m_frame.V(idx), 0.0F)
+            End Function
+
+            Public Function UzAt(idx As Integer) As Single Implements IFlowFieldData.UzAt
+                Return If(m_frame.W IsNot Nothing, m_frame.W(idx), 0.0F)
+            End Function
+
+            Public Function IsActive(idx As Integer) As Boolean Implements IFlowFieldData.IsActive
+                Return m_frame.Mask(idx)
+            End Function
+
+            Public Function IsSeedable(idx As Integer) As Boolean Implements IFlowFieldData.IsSeedable
+                Return m_frame.Mask(idx)
+            End Function
+
+        End Class
 
     End Class
 

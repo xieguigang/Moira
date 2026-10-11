@@ -51,6 +51,122 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property ArrowStride As Integer = 3
 
+    ''' <summary>
+    ''' 是否显示矢量图：箭头表示流体速度方向，
+    ''' 箭头长度与颜色共同表示速度大小（与热图色标一致）。
+    ''' </summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+    Public Property ShowVectors As Boolean = False
+
+    ''' <summary>矢量图采样步长（每轴，格点）。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+    Public Property VectorStride As Integer = 3
+
+    ''' <summary>
+    ''' 是否显示流线图：由入口面均匀注入种子、RK2 积分得到流体质点
+    ''' 运动轨迹（稳态流动分析用），叠加沿线运动的光点粒子动画。
+    ''' </summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+    Public Property ShowPathlines As Boolean
+        Get
+            Return m_showPathlines
+        End Get
+        Set(value As Boolean)
+            If m_showPathlines = value Then Return
+            m_showPathlines = value
+
+            If Not value Then
+                ' 关闭时立即清掉残留的粒子实例与折线缓存
+                Call InvalidatePathlines()
+            End If
+        End Set
+    End Property
+
+    Private m_showPathlines As Boolean = False
+
+    ''' <summary>流线种子层采样步长（j/k 方向，格点）。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+    Public Property PathlineSeedStride As Integer
+        Get
+            Return m_pathSeedStride
+        End Get
+        Set(value As Integer)
+            value = Math.Max(1, Math.Min(16, value))
+
+            If m_pathSeedStride = value Then Return
+            m_pathSeedStride = value
+            Call InvalidatePathlines()
+        End Set
+    End Property
+
+    Private m_pathSeedStride As Integer = 4
+
+    ''' <summary>是否启用流线光点粒子动画（关闭时只画静态流线折线）。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+    Public Property PathlinesAnimate As Boolean
+        Get
+            Return m_pathlinesAnimate
+        End Get
+        Set(value As Boolean)
+            If m_pathlinesAnimate = value Then Return
+            m_pathlinesAnimate = value
+
+            If value AndAlso m_animator IsNot Nothing AndAlso m_backend IsNot Nothing Then
+                m_animClock.Restart()
+                m_pathTimer.Start()
+            ElseIf Not value Then
+                m_pathTimer.Stop()
+                Call ClearParticleInstances()
+            End If
+        End Set
+    End Property
+
+    Private m_pathlinesAnimate As Boolean = True
+
+    ''' <summary>每条流线布置的光点粒子数（1-8）。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+    Public Property PathlineParticlesPerLine As Integer
+        Get
+            Return m_pathParticlesPerLine
+        End Get
+        Set(value As Integer)
+            value = Math.Max(1, Math.Min(8, value))
+
+            If m_pathParticlesPerLine = value Then Return
+            m_pathParticlesPerLine = value
+
+            ' 已有折线时立即按新粒子数重建动画器
+            If m_streamSet IsNot Nothing Then
+                m_animator = New StreamlineAnimator(m_streamSet, value) With {
+                    .CyclesPerSecond = PathlineCyclesPerSecond
+                }
+                m_particleBuf = New Single(Math.Max(1, m_animator.ParticleCount) * 8 - 1) {}
+            End If
+        End Set
+    End Property
+
+    Private m_pathParticlesPerLine As Integer = 2
+
+    ''' <summary>粒子沿线速度（每秒走过折线全长的比例）。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+    Public Property PathlineCyclesPerSecond As Single
+        Get
+            Return m_pathCyclesPerSecond
+        End Get
+        Set(value As Single)
+            value = Math.Max(0.005F, Math.Min(4.0F, value))
+
+            If Math.Abs(m_pathCyclesPerSecond - value) < 0.0001F Then Return
+            m_pathCyclesPerSecond = value
+
+            If m_animator IsNot Nothing Then
+                m_animator.CyclesPerSecond = value
+            End If
+        End Set
+    End Property
+
+    Private m_pathCyclesPerSecond As Single = 0.12F
+
     ''' <summary>是否启用截面。</summary>
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property SliceEnabled As Boolean = False
@@ -111,6 +227,26 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
     ' 当前帧值域（诊断 / 色标用）
     Private m_rangeMin, m_rangeMax As Double
 
+    ' ---- 矢量图 / 流线图 ----
+
+    ''' <summary>Direct3D 渲染后端（外部实例缓冲 = 动画光点粒子通道）。</summary>
+    Private m_backend As Direct3D11SceneRenderer
+
+    ''' <summary>流线折线缓存（原始世界坐标；流场重置后失效重追踪）。</summary>
+    Private m_streamSet As StreamlineSet
+
+    ''' <summary>折线的质心补偿空间线段缓存（偏移未变时复用）。</summary>
+    Private m_pathLinesCache As LineSegment()
+    Private m_pathOffsetX As Double = Double.NaN
+    Private m_pathOffsetY As Double = Double.NaN
+    Private m_pathOffsetZ As Double = Double.NaN
+
+    ''' <summary>流线光点粒子动画。</summary>
+    Private m_animator As StreamlineAnimator
+    Private m_particleBuf As Single()
+    Private WithEvents m_pathTimer As New Timer With {.Interval = 33, .Enabled = False}
+    Private ReadOnly m_animClock As New Stopwatch
+
 #End Region
 
 #Region "构造与场景配置"
@@ -134,6 +270,14 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
         Call Controls.Add(m_sceneCanvas)
 
         AddHandler m_sceneCanvas.Render, AddressOf OnSceneRender
+        AddHandler m_pathTimer.Tick, AddressOf OnPathTimerTick
+
+        ' 流线动画粒子走渲染器的外部实例缓冲，以叠加层方式画在体素点云之上
+        m_backend = TryCast(m_sceneCanvas.Renderer, Direct3D11SceneRenderer)
+
+        If m_backend IsNot Nothing Then
+            m_backend.ExternalCloudOverlay = True
+        End If
     End Sub
 
     ''' <summary>内嵌的 3D 场景画布（相机控制等高级操作入口）。</summary>
@@ -212,6 +356,9 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
         ' ---- 点缓冲复用（容量上限）----
         Dim cap As Integer = CInt(total \ (CLng(m_stride) * m_stride * m_stride)) + m_nx * m_ny \ 4 + 16
         m_buf = New PointCloudPoint(cap - 1) {}
+
+        ' ---- 矢量图 / 流线图状态重置（新流场，缓存全部失效）----
+        Call InvalidatePathlines()
 
         Call RefreshField()
     End Sub
@@ -435,6 +582,114 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
             Next
         End If
 
+        ' ---- 矢量图（主干 + V 形箭头头部的线段矢量，长度∝速度、LUT 着色）----
+        If ShowVectors Then
+            Dim vStride As Integer = Math.Max(1, VectorStride)
+
+            ' 采样子集上的速度上限（直接读宿主数组，避免每帧全量扫描）
+            Dim maxS2 As Double = 0.0
+
+            For i As Integer = 0 To m_nx - 1 Step vStride
+                For j As Integer = 0 To m_ny - 1 Step vStride
+                    For k As Integer = 0 To m_nz - 1 Step vStride
+                        Dim idx As Integer = i * plane + j * m_nz + k
+
+                        If m_btype(idx) <> CudaLbmBackend.CellFluid Then
+                            Continue For
+                        End If
+
+                        Dim uu As Double = dataUx(idx)
+                        Dim vv As Double = dataUy(idx)
+                        Dim ww As Double = dataUz(idx)
+                        Dim s2 As Double = uu * uu + vv * vv + ww * ww
+
+                        If s2 > maxS2 Then maxS2 = s2
+                    Next
+                Next
+            Next
+
+            Dim speedMax As Double = Math.Sqrt(Math.Max(maxS2, 0.000000000001))
+
+            ' 矢量与箭头使用同一显示规则：切片过滤 + 低于显示阈值剔除
+            Dim include As Func(Of Integer, Integer, Integer, Boolean) =
+                Function(ii As Integer, jj As Integer, kk As Integer) As Boolean
+                    If Not SliceVisible(ii, jj, kk) Then Return False
+
+                    Dim vidx As Integer = ii * plane + jj * m_nz + kk
+                    Dim vu As Double = dataUx(vidx)
+                    Dim vv As Double = dataUy(vidx)
+                    Dim vw As Double = dataUz(vidx)
+                    Dim vtc As Double = Math.Sqrt(vu * vu + vv * vv + vw * vw) / speedMax
+
+                    Return vtc >= Threshold
+                End Function
+
+            ' 矢量线段直接生成在质心补偿空间（与点云/箭头同一坐标空间）
+            Dim vfield As New WindTunnelFlowField(
+                m_nx, m_ny, m_nz, dataUx, dataUy, dataUz, m_btype,
+                CSng(ox), CSng(oy), CSng(oz))
+            Dim voptions As New VectorArrowOptions With {
+                .Stride = vStride,
+                .SpeedMax = speedMax,
+                .Lut = m_lut,
+                .Alpha = 235,
+                .IncludePoint = include
+            }
+
+            Call lines.AddRange(FlowVectors.BuildArrows(vfield, voptions))
+        End If
+
+        ' ---- 流线图（入口面种子 + RK2 积分；折线缓存，仅在需要时重追踪）----
+        If ShowPathlines Then
+            If m_streamSet Is Nothing Then
+                Dim sfield As New WindTunnelFlowField(m_nx, m_ny, m_nz, dataUx, dataUy, dataUz, m_btype)
+
+                Try
+                    m_streamSet = StreamlineTracer.Trace(sfield, New StreamlineOptions With {
+                        .SeedStride = Math.Max(1, PathlineSeedStride)
+                    })
+                Catch ex As Exception
+                    ' 追踪失败（如预算异常）：静默降级为不显示，避免打断渲染循环
+                    m_streamSet = Nothing
+                End Try
+
+                m_animator = Nothing
+                m_pathLinesCache = Nothing
+            End If
+
+            If m_streamSet IsNot Nothing Then
+                ' 折线平移到质心补偿空间（偏移未变时复用上次结果，避免每帧重建）
+                If m_pathLinesCache Is Nothing OrElse
+                    Math.Abs(m_pathOffsetX - ox) > 0.000001 OrElse
+                    Math.Abs(m_pathOffsetY - oy) > 0.000001 OrElse
+                    Math.Abs(m_pathOffsetZ - oz) > 0.000001 Then
+
+                    m_pathLinesCache = m_streamSet.BuildLines(m_lut, 210, ox, oy, oz)
+                    m_pathOffsetX = ox
+                    m_pathOffsetY = oy
+                    m_pathOffsetZ = oz
+                End If
+
+                Call lines.AddRange(m_pathLinesCache)
+
+                If m_animator Is Nothing Then
+                    m_animator = New StreamlineAnimator(m_streamSet, PathlineParticlesPerLine) With {
+                        .CyclesPerSecond = PathlineCyclesPerSecond
+                    }
+                    m_particleBuf = New Single(Math.Max(1, m_animator.ParticleCount) * 8 - 1) {}
+
+                    If PathlinesAnimate AndAlso m_backend IsNot Nothing Then
+                        m_animClock.Restart()
+                        m_pathTimer.Start()
+                    End If
+                End If
+            End If
+        Else
+            m_streamSet = Nothing
+            m_animator = Nothing
+            m_pathTimer.Stop()
+        End If
+
         ' ---- 场景提交（首帧 FitView，后续帧相机保持）----
         If Not m_sceneReady Then
             Call m_sceneCanvas.LoadPointCloud(New PointSlice(m_buf, m_count))
@@ -474,6 +729,51 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
         m_solver = Nothing
         m_colorbar.Visible = False
         Call m_sceneCanvas.Scene.Clear()
+    End Sub
+
+    ''' <summary>
+    ''' 流线缓存失效（流场重置 / 更换求解器后调用），
+    ''' 下次 <see cref="RefreshField"/> 重新追踪流线。
+    ''' </summary>
+    Public Sub InvalidatePathlines()
+        m_streamSet = Nothing
+        m_animator = Nothing
+        m_pathLinesCache = Nothing
+        m_pathOffsetX = Double.NaN
+        m_pathOffsetY = Double.NaN
+        m_pathOffsetZ = Double.NaN
+        m_pathTimer.Stop()
+        Call ClearParticleInstances()
+    End Sub
+
+    Private Sub ClearParticleInstances()
+        If m_backend IsNot Nothing Then
+            Call m_backend.ClearInstances()
+        End If
+    End Sub
+
+    ''' <summary>流线光点粒子动画节拍：推进相位 → 打包 → 上传外部实例缓冲。</summary>
+    Private Sub OnPathTimerTick(sender As Object, e As EventArgs)
+        If Not ShowPathlines OrElse Not PathlinesAnimate OrElse
+            m_animator Is Nothing OrElse m_particleBuf Is Nothing OrElse m_backend Is Nothing Then
+
+            Call m_pathTimer.Stop()
+            Return
+        End If
+
+        Dim dt As Double = m_animClock.Elapsed.TotalSeconds
+
+        m_animClock.Restart()
+        Call m_animator.Advance(dt)
+
+        Dim count As Integer = m_animator.Pack(m_particleBuf, m_pathOffsetX, m_pathOffsetY, m_pathOffsetZ)
+
+        If count > 0 Then
+            Call m_backend.EnsureInstanceCapacity(m_animator.ParticleCount)
+            Call m_backend.UploadInstances(m_particleBuf, count)
+        End If
+
+        Call m_sceneCanvas.RequestRender()
     End Sub
 
     Private ReadOnly m_overlayFont As New Font("Consolas", 9.0F)

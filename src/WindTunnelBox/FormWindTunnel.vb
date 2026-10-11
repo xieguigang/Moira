@@ -165,6 +165,7 @@ Public Class FormWindTunnel
         m_btnRun.Text = "启动"
 
         Call m_solver.InitializeFlow()
+        Call m_canvas.InvalidatePathlines()
         Call m_canvas.RefreshField()
         Call UpdateOverlay()
     End Sub
@@ -188,6 +189,16 @@ Public Class FormWindTunnel
 
     Private Sub OnArrowsChanged(sender As Object, e As EventArgs) Handles m_chkArrows.CheckedChanged
         m_canvas.ShowArrows = m_chkArrows.Checked
+        m_canvas.RefreshField()
+    End Sub
+
+    Private Sub OnVectorsChanged(sender As Object, e As EventArgs) Handles m_chkVectors.CheckedChanged
+        m_canvas.ShowVectors = m_chkVectors.Checked
+        m_canvas.RefreshField()
+    End Sub
+
+    Private Sub OnPathlinesChanged(sender As Object, e As EventArgs) Handles m_chkPathlines.CheckedChanged
+        m_canvas.ShowPathlines = m_chkPathlines.Checked
         m_canvas.RefreshField()
     End Sub
 
