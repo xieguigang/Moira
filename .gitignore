@@ -406,3 +406,4 @@ src/FVMEngine/test/cmp_d/metadata.json
 /test/f1_r010.zip
 /test/f1_structured.zip
 /test/f1_bl.zip
+/test/f1_delaunay.zip
