@@ -106,6 +106,9 @@
   <Project Path="Voxelizer/Voxelizer.vbproj" Id="a1a0c410-77d6-47c4-acd3-ef5e8a777061">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
+  <Project Path="WindTunnel/WindTunnel.vbproj" Id="0bf5e9aa-bce3-45eb-9254-077f872e638b">
+    <Platform Solution="Debug|x64" Project="x64" />
+  </Project>
   <Project Path="WindTunnelBox/WindTunnelBox.vbproj" Id="3e87cb7e-03ed-4d63-8276-26b45d1f28f4">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
