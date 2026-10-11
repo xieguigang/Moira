@@ -36,36 +36,47 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
 #Region "显示选项"
 
     ''' <summary>显示的标量场。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property Field As TunnelField = TunnelField.Speed
 
     ''' <summary>热图调色板。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property Palette As ScalerPalette = ScalerPalette.Jet
 
     ''' <summary>是否显示速度箭头（LineSegment 叠加层）。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property ShowArrows As Boolean = False
 
     ''' <summary>箭头采样步长（每轴，格点）。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property ArrowStride As Integer = 3
 
     ''' <summary>是否启用截面。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property SliceEnabled As Boolean = False
 
     ''' <summary>True = 仅显示截面层；False = 显示截面一侧（裁剪模式）。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property SliceOnly As Boolean = False
 
     ''' <summary>截面轴。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property SliceAxis As SliceAxisKind = SliceAxisKind.X
 
     ''' <summary>截面位置（体素索引）。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property SlicePosition As Integer = 0
 
     ''' <summary>是否显示固体障碍体素。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property ShowSolids As Boolean = True
 
     ''' <summary>流场点云采样上限（自动降采样，控制每帧传输量）。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property MaxPoints As Integer = 160000
 
     ''' <summary>左上角信息叠加文本（网格 / 路径 / 步数等统计）。</summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property OverlayText As String = ""
 
 #End Region

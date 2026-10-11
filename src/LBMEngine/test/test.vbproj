@@ -22,6 +22,7 @@
     <ProjectReference Include="..\..\..\..\GCModeller\src\runtime\sciBASIC#\vs_solutions\dev\VisualStudio\VisualStudio.NET5.vbproj" />
     <ProjectReference Include="..\..\CFDEngine\CFDEngine.vbproj" />
     <ProjectReference Include="..\LBMEngine.vbproj" />
+    <ProjectReference Include="..\..\ZMesh\ZMesh.vbproj" />
   </ItemGroup>
 
 </Project>

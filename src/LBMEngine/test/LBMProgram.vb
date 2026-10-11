@@ -11,6 +11,8 @@ Option Explicit On
 '
 ' /********************************************************************************/
 
+Imports Moira.ZMesh
+
 Module LBMProgram
 
     Function Main(args As String()) As Integer
@@ -22,6 +24,7 @@ Module LBMProgram
             Case "/demo", "--demo", "demo" : Return Demo(args.Skip(1).ToArray())
             Case "/float", "--float", "float" : Return FloatDemo(args.Skip(1).ToArray())
             Case "/tunnel", "--tunnel", "tunnel" : Return TunnelDemo(args.Skip(1).ToArray())
+            Case "/voxel", "--voxel", "voxel" : Return VoxelDemo(args.Skip(1).ToArray())
             Case "/help", "--help", "-h", "help"
                 ShowHelp()
                 Return 0
@@ -38,6 +41,7 @@ Module LBMProgram
         Console.WriteLine("  /demo [outdir] [options]   顶盖驱动方腔仿真（Double 基准）+ Ghia 对比 + VTI 导出")
         Console.WriteLine("  /float [options]           float32 求解器（LbmSolverF）验证：Ghia 对比 + CPU/GPU 基准")
         Console.WriteLine("  /tunnel [options]          float32 风洞求解器（WindTunnelSolver）冒烟测试（方柱绕流）")
+        Console.WriteLine("  /voxel [model] [options]   ZMesh 体素化路径验证（Standard/Sdf/Physical/SdfRaw 对比）")
         Console.WriteLine("  /help                      显示本帮助")
         Console.WriteLine()
         Console.WriteLine("options:")
@@ -294,6 +298,60 @@ Module LBMProgram
 
         Console.WriteLine()
         Console.WriteLine($"计算耗时 = {sw.Elapsed.TotalSeconds:F1} s ({sw.Elapsed.TotalMilliseconds / steps:F2} ms/step)")
+        Return 0
+    End Function
+
+    ''' <summary>
+    ''' /voxel：ZMesh 四条体素化路径对比验证（Standard / Sdf / Physical / SdfRaw）。
+    ''' </summary>
+    Private Function VoxelDemo(args As String()) As Integer
+        Dim model = "G:\Moira\src\ZMesh\CityBlender\samples\city_seed42.stl"
+        Dim resolution = 48
+
+        Dim i = 0
+        While i < args.Length
+            Select Case args(i)
+                Case "--res" : i += 1 : resolution = CInt(args(i))
+                Case Else : model = args(i)
+            End Select
+            i += 1
+        End While
+
+        If Not IO.File.Exists(model) Then
+            Console.WriteLine($"模型不存在: {model}")
+            Return 1
+        End If
+
+        Console.WriteLine("=== LbmTank /voxel 体素化路径对比 ===")
+        Console.WriteLine($"  模型 = {model}   targetResolution = {resolution}")
+
+        For Each kind As VoxelizerKind In New VoxelizerKind() {
+            VoxelizerKind.Standard, VoxelizerKind.Sdf,
+            VoxelizerKind.Physical, VoxelizerKind.SdfRaw}
+
+            Dim sw = System.Diagnostics.Stopwatch.StartNew()
+
+            Try
+                ' Physical：voxelSize 由目标分辨率对最长边的均分推导（等价于绕开
+                ' 整数量化限制的直接物理尺寸调用；此处仅做路径演示）
+                Dim scene = WindTunnelSceneBuilder.BuildScene(
+                    model, resolution, kind,
+                    domainScale:=1.0, groundClearance:=0,
+                    voxelSize:=0)
+
+                sw.Stop()
+                Dim m = scene.VoxelModel
+
+                Console.WriteLine($"  [{kind,-8}] {m.Width}x{m.Height}x{m.Depth}  " &
+                                  $"solid = {m.SolidVoxelCount,7}  " &
+                                  $"voxelSize = {If(m.VoxelSize IsNot Nothing, m.VoxelSize(0).ToString("G6"), "?")}  " &
+                                  $"({sw.Elapsed.TotalSeconds:F1} s)")
+            Catch ex As Exception
+                sw.Stop()
+                Console.WriteLine($"  [{kind,-8}] 失败: {ex.Message} ({sw.Elapsed.TotalSeconds:F1} s)")
+            End Try
+        Next
+
         Return 0
     End Function
 

@@ -265,7 +265,7 @@ Public Class CudaLbmBackend : Implements IDisposable
     ''' 并就地写出矩量。
     ''' </summary>
     ''' <param name="uwall">顶盖运动壁速度（仅 CellMovingSolid 拉取时生效）</param>
-    ''' <param name="uinx/uiny/uinz">入口平衡态速度</param>
+    ''' <param name="uinx"></param><param name="uiny"></param><param name="uinz">入口平衡态速度</param>
     Public Sub Stream(state As DeviceState,
                       uwall As Single, uinx As Single, uiny As Single, uinz As Single,
                       nx As Integer, ny As Integer, nz As Integer)
