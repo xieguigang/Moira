@@ -469,7 +469,7 @@ Namespace Rendering
 
             ' the wire frame of the box plus the ground grid, both in the box
             ' local frame and rotated by the same tilt
-            Dim lines As New List(Of LineSegment)(36)
+            Dim lines As New List(Of LineSegment)(64)
 
             Call lines.AddRange(BuildBoxEdges(m_shake.Rotation, m_hx, m_hy, m_hz))
             Call lines.AddRange(BuildGroundGrid(m_shake.Rotation, m_hx, m_hy, m_hz))
@@ -515,7 +515,7 @@ Namespace Rendering
 
         ''' <summary>
         ''' the grid that marks the ground under the box: parallel lines on the
-        ''' plane of the bottom wall, a bit wider than the footprint of the box
+        ''' plane of the bottom wall, wider than the footprint of the box
         ''' </summary>
         ''' <remarks>
         ''' The grid lives in the box local frame on the z = -hz plane (the z
@@ -526,10 +526,10 @@ Namespace Rendering
         Private Function BuildGroundGrid(r As Single(),
                                          hx As Single, hy As Single, hz As Single) As List(Of LineSegment)
 
-            Const cells As Integer = 10
+            Const cells As Integer = 24
 
             ' a square footprint that is wider than the box itself
-            Dim ext As Single = std.Max(hx, hy) * 1.5F
+            Dim ext As Single = std.Max(hx, hy) * 2.5F
             Dim z As Single = -hz
             Dim ink As Color = Color.FromArgb(70, 120, 135, 150)
             Dim lines As New List(Of LineSegment)(2 * cells + 2)
