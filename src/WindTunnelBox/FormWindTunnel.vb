@@ -231,7 +231,7 @@ Public Class FormWindTunnel
 
             Dim useGpu As Boolean = m_chkGpu.Checked
             Dim voxelizer As VoxelizerKind = CType(m_cmbVoxelizer.SelectedIndex, VoxelizerKind)
-            Dim resolution As Integer = CInt(m_numResolution.Value)
+            Dim resolution As Integer = 512
             Dim voxelSize As Double = If(voxelizer = VoxelizerKind.Physical, CDbl(m_numVoxelSize.Value), 0.0R)
 
             m_lblStatus.Text = $"正在加载并体素化: {IO.Path.GetFileName(path)} ({voxelizer})..."
