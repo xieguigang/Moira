@@ -215,7 +215,7 @@ Namespace Eulerian
 
         ''' <summary>逐面混合密度 ρ_f。</summary>
         Public Function RhoFace() As Double()
-            Dim mesh = Mesh
+            Dim mesh = Me.Mesh
             Dim nF As Integer = mesh.FaceCount
             Dim r(nF - 1) As Double
             Dim w As Double() = mesh.InterpWeight
@@ -244,7 +244,7 @@ Namespace Eulerian
 
         ''' <summary>逐面混合运动粘度 ν_f。</summary>
         Public Function NuFace() As Double()
-            Dim mesh = Mesh
+            Dim mesh = Me.Mesh
             Dim nF As Integer = mesh.FaceCount
             Dim r(nF - 1) As Double
             Dim w As Double() = mesh.InterpWeight
@@ -283,7 +283,7 @@ Namespace Eulerian
         ''' <param name="deltaT">时间步长</param>
         ''' <param name="ctx">求解上下文（线性求解参数、松弛）</param>
         Public Function Advect(flux As Double(), deltaT As Double, ctx As TurbulenceContext) As EulerianSolverReport
-            Dim mesh As EulerianFvMesh = Mesh
+            Dim mesh As EulerianFvMesh = Me.Mesh
             Dim n As Integer = mesh.CellCount
 
             If deltaT <= 0 Then
@@ -343,7 +343,7 @@ Namespace Eulerian
         ''' 数值扩散；强度取与迎风扩散同量级并乘以 Cα。
         ''' </summary>
         Private Sub BuildCompressionFlux(flux As Double(), ByRef cellDivergence As Double())
-            Dim mesh As EulerianFvMesh = Mesh
+            Dim mesh As EulerianFvMesh = Me.Mesh
             Dim n As Integer = mesh.CellCount
 
             Dim gx As Double() = New Double(n - 1) {}
@@ -476,15 +476,13 @@ Namespace Eulerian
 #Region "表面张力（CSF）"
 
         ''' <summary>
-        ''' CSF 表面张力源（运动学形式，逐单元）：
-        '''     f_σ = σ·κ·(∇α)/ρ ，其中 κ = −∇·(∇α/|∇α|)
-        ''' 调用方以 <c>m.AddSource(c, vol(c)*f_σ(c))</c> 的符号加入动量方程
-        ''' （该项在动量方程右端为正号）。
+        ''' CSF 表面张力源（动力学形式，逐单元）：
+        '''     f_σ = σ·κ·(∇α) ，其中 κ = −∇·(∇α/|∇α|)
+        ''' 单位 N/m³。调用方以 <c>m.AddSource(c, vol(c)·f_σ(c))</c> 加入动量方程右端。
         ''' </summary>
         ''' <param name="component">速度分量（0=X, 1=Y, 2=Z）</param>
-        ''' <param name="rho">逐单元密度（可取自 VOF 混合密度）</param>
-        Public Function SurfaceTensionSource(component As Integer, rho As Double()) As Double()
-            Dim mesh As EulerianFvMesh = Mesh
+        Public Function SurfaceTensionSource(component As Integer) As Double()
+            Dim mesh As EulerianFvMesh = Me.Mesh
             Dim n As Integer = mesh.CellCount
             Dim src(n - 1) As Double
 
@@ -514,48 +512,30 @@ Namespace Eulerian
                 End If
             Next
 
-            ' κ = −∇·n̂（用 Gauss 散度定理直接对单元求和，避免构造额外的场对象）
+            ' κ = −∇·n̂：先把 n̂ 插值到面，再用散度定理逐单元求和
+            Dim fx As Double() = New Double(mesh.FaceCount - 1) {}
+            Dim fy As Double() = New Double(mesh.FaceCount - 1) {}
+            Dim fz As Double() = New Double(mesh.FaceCount - 1) {}
+
+            Call EulerianOperators.FaceGradient(mesh, ux, uy, uz, fx, fy, fz)
+
+            Dim faces As List(Of Moira.CFDEngine.Eulerian.EulerianFace) = mesh.Mesh.Faces
+
             For c As Integer = 0 To n - 1
                 Dim div As Double = 0
 
                 For Each f As Integer In mesh.CellFaces(c)
-                    Dim own As Integer = mesh.Mesh.Faces(f).Owner
                     Dim s As Moira.CFDEngine.Eulerian.EulerianVertex = mesh.Sf(f)
-                    Dim nx As Double
-                    Dim ny As Double
-                    Dim nz As Double
+                    Dim sign As Double = If(faces(f).Owner = c, 1.0, -1.0)
 
-                    If mesh.FaceIsBoundary(f) Then
-                        nx = ux(own)
-                        ny = uy(own)
-                        nz = uz(own)
-                    Else
-                        Dim q As Integer = If(own = c, mesh.Mesh.Faces(f).Neighbour, own)
-                        Dim wi As Double = 0.5
-
-                        For i As Integer = 0 To mesh.InternalFaceCount - 1
-                            If mesh.InternalFaces(i) = f Then
-                                wi = mesh.InterpWeight(i)
-                                Exit For
-                            End If
-                        Next
-
-                        nx = wi * ux(own) + (1.0 - wi) * ux(q)
-                        ny = wi * uy(own) + (1.0 - wi) * uy(q)
-                        nz = wi * uz(own) + (1.0 - wi) * uz(q)
-                    End If
-
-                    Dim sign As Double = If(mesh.Mesh.Faces(f).Owner = c, 1.0, -1.0)
-
-                    div += sign * (nx * s.X + ny * s.Y + nz * s.Z)
+                    div += sign * (fx(f) * s.X + fy(f) * s.Y + fz(f) * s.Z)
                 Next
 
                 Dim volume As Double = mesh.CellVolume(c)
                 Dim kappa As Double = If(volume > 0, -div / volume, 0)
                 Dim grad As Double = If(component = 0, gx(c), If(component = 1, gy(c), gz(c)))
-                Dim r As Double = If(rho IsNot Nothing AndAlso rho.Length > c, std.Max(rho(c), 1.0E-6), 1.0)
 
-                src(c) = SurfaceTension * kappa * grad / r
+                src(c) = SurfaceTension * kappa * grad
             Next
 
             Return src

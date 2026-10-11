@@ -172,10 +172,12 @@ Namespace Eulerian
 
         ''' <summary>
         ''' 把旋转参考系的科氏（2Ω×u）与离心（Ω×(Ω×r)）源项加入动量方程的分量 component。
-        ''' （运动学形式：ρ 已在方程两侧约去）
+        ''' 动力学形式：源项按 ρ_P·V_P 加权（单位 N）。
         ''' </summary>
+        ''' <param name="rhoCell">逐单元密度（长度 = CellCount）</param>
         Public Sub AddFrameSource(m As FvMatrix, mrf As EulerianMrfZone,
-                                  u As EulerianField, component As Integer)
+                                  u As EulerianField, component As Integer,
+                                  rhoCell As Double())
 
             If mrf Is Nothing OrElse mrf.IsEmpty Then Return
             If std.Abs(mrf.Omega) < 1.0E-30 Then Return
@@ -185,7 +187,6 @@ Namespace Eulerian
             Dim om As Moira.CFDEngine.Eulerian.EulerianVertex = mrf.OmegaVector
             Dim ax As Moira.CFDEngine.Eulerian.EulerianVertex = mrf.AxisPoint
             Dim n As Integer = mesh.CellCount
-            Dim off As Integer = component * n
 
             For Each c As Integer In mrf.Cells
                 Dim r As Moira.CFDEngine.Eulerian.EulerianVertex = mesh.CellCentre(c) - ax
@@ -221,9 +222,9 @@ Namespace Eulerian
                         s = coz + cez
                 End Select
 
-                ' 算子右端取负：−(2Ω×u + Ω×(Ω×r))·V
+                ' 算子右端取负：−ρ·(2Ω×u + Ω×(Ω×r))·V
                 If s <> 0 Then
-                    m.AddSource(c, -vol(c) * s)
+                    m.AddSource(c, -rhoCell(c) * vol(c) * s)
                 End If
             Next
         End Sub
@@ -232,8 +233,10 @@ Namespace Eulerian
         ''' 虚拟桨盘驱动：把桨区单元的切向速度向 Ω×r 拉（显式源，不破坏轴向流动）。
         ''' 仅在 <see cref="EulerianMrfZone.DriveStrength"/> &gt; 0 时生效。
         ''' </summary>
+        ''' <param name="rhoCell">逐单元密度（长度 = CellCount）</param>
         Public Sub AddDriveSource(m As FvMatrix, mrf As EulerianMrfZone,
-                                  u As EulerianField, component As Integer)
+                                  u As EulerianField, component As Integer,
+                                  rhoCell As Double())
 
             If mrf Is Nothing OrElse mrf.IsEmpty Then Return
             If mrf.DriveStrength <= 0 Then Return
@@ -281,8 +284,8 @@ Namespace Eulerian
                 Dim target As Double = su + sv + sw
                 Dim current As Double = If(component = 0, uxTan, If(component = 1, uyTan, uzTan))
 
-                ' 源 = s·(target − current)；target 在轴向分量为 0，因此只驱动切向
-                m.AddSource(c, vol(c) * s * (target - current))
+                ' 源 = ρ·s·(target − current)；target 在轴向分量为 0，因此只驱动切向
+                m.AddSource(c, rhoCell(c) * vol(c) * s * (target - current))
             Next
         End Sub
 
