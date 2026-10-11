@@ -5,12 +5,16 @@ Option Explicit On
 '
 '   TensorGrid.vb
 '
-'   结构化网格上的 Tensor 算子库 —— FVM 离散的积木。
+'   结构化网格上的 Tensor 算子库 —— 跨求解器共享的网格算子层。
 '
-'   ★ 核心模块①【FVM 骨架】的网格算子层（FVM.md §一 1.2 面通量三关键量）：
-'     ShiftX/Y/Z = 邻位取值（owner/neighbour 面表的张量化等价物）
-'     Ddx/Ddy/Ddz = 中心差分梯度（扩散通量 ∇φ·n）
-'     被 MomentumPredictor / PressureCorrection / 各输运方程统一复用。
+'   ★ 本模块由 CFDEngine 统一提供（Moira.CFDEngine.TensorGrid），
+'     供三个求解器复用：
+'       - StableFluidsSolver / WindTunnel（CFDEngine）
+'       - LbmSolver（D3Q19 演化的分布函数移位）
+'       - FvmSolver（FVM 离散的积木，FVM.md §一 1.2 面通量三关键量）：
+'         ShiftX/Y/Z = 邻位取值（owner/neighbour 面表的张量化等价物）
+'         Ddx/Ddy/Ddz = 中心差分梯度（扩散通量 ∇φ·n）
+'         被 MomentumPredictor / PressureCorrection / 各输运方程统一复用。
 '
 '   设计说明：
 '       - 移位（邻居取值）是纯数据搬运，用 BCL Array.Copy 实现；
@@ -18,7 +22,7 @@ Option Explicit On
 '         tfMath 模块（Tensor.computeKernel 路由）完成 —— 切换
 '         computeKernel 到 CUDA 后端即可整体迁移到 GPU。
 '       - 布局与 Tensor.Item(i,j,k) 一致：idx = i*(Ny*Nz) + j*Nz + k。
-'
+
 ' /********************************************************************************/
 
 Imports Microsoft.VisualBasic.MachineLearning.TensorFlow

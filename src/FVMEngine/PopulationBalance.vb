@@ -37,6 +37,7 @@ Option Explicit On
 
 Imports Microsoft.VisualBasic.MachineLearning.TensorFlow
 Imports tfMath = Microsoft.VisualBasic.MachineLearning.TensorFlow.Math
+Imports Moira.CFDEngine
 
 Partial Public Class FvmSolver
 
