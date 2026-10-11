@@ -1,10 +1,36 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- 风洞 / 发酵罐 Eulerian FVM 生产命令行工具。
+
+       输入：src\EulerianMesh 生成的 Eulerian 网格 zip（或由本工具用 ZMesh 现场生成）。
+       输出：VTK 动画序列（.vtu 非结构 / .vti 结构重采样）+ animation.pvd + frames.json
+             + metadata.json + summary.json（气动力 / 搅拌功率报告）。
+
+       部署：按 src\Voxelizer 的约定直接输出到 G:\Moira\assembly\bin，
+             并关闭目标框架子目录，保证 runtimeconfig.json / deps.json 同目录落盘。 -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <RootNamespace>WindTunnel</RootNamespace>
+    <AssemblyName>EulerianFvm</AssemblyName>
     <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <OptionStrict>Off</OptionStrict>
+    <OptionExplicit>On</OptionExplicit>
     <Platforms>AnyCPU;x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <OutputPath>G:\Moira\assembly\bin</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <OutputPath>G:\Moira\assembly\bin</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'nuget_release'">
+    <OutputPath>G:\Moira\assembly\bin</OutputPath>
   </PropertyGroup>
 
   <ItemGroup>
