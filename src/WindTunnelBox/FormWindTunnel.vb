@@ -1,8 +1,6 @@
-﻿Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
-Imports Math = System.Math
-Imports Moira.LBMEngine
+﻿Imports Moira.LBMEngine
 Imports Moira.ZMesh
-Imports WindTunnelBox.Rendering
+Imports Math = System.Math
 
 ' /********************************************************************************/
 '
