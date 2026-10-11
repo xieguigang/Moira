@@ -29,6 +29,7 @@ Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
 Imports Microsoft.VisualBasic.My.JavaScript
 Imports Moira.CDFDxCanvas
 Imports Moira.CDFDxCanvas.Data
+Imports Moira.CDFDxCanvas.Rendering
 
 Public Class DemoTestForm
 
@@ -106,11 +107,14 @@ Public Class DemoTestForm
     End Sub
 
     Private Sub chkArrows_CheckedChanged(sender As Object, e As EventArgs) Handles chkArrows.CheckedChanged
-        m_canvas.ShowArrows = chkArrows.Checked
+        ' 速度箭头已并入矢量图：勾选 = 矢量图（与热图互斥），取消 = 回到热图
+        m_canvas.Visualization = If(chkArrows.Checked,
+            VisualizationMode.Vectors,
+            VisualizationMode.Heatmap)
     End Sub
 
     Private Sub cboArrowDensity_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cboArrowDensity.SelectedIndexChanged
-        m_canvas.ArrowDensity = cboArrowDensity.SelectedIndex + 2
+        m_canvas.VectorStride = cboArrowDensity.SelectedIndex + 2
     End Sub
 
     ''' <summary>把截面模式下拉映射到控件属性。</summary>

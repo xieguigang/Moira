@@ -19,8 +19,9 @@ Imports SolidBrush = Microsoft.VisualBasic.Imaging.SolidBrush
 '   风洞实时渲染画布 —— 参照 CDFDxCanvas/CFDCanvas 的组装模式：
 '
 '       UserControl + 内嵌 DxScene3DCanvas（DXApi Direct3D11 渲染管线）
-'         - 障碍体素 + 流场点云：世界空间实例立方体（PointShape=Cube）
-'         - 速度箭头：LineSegment 连线叠加层（ShowConnections）
+'         - 障碍体素（不活动的三维体素模型本体）+ 流场点云：世界空间实例立方体（PointShape=Cube）
+'         - 可视化类型互斥：热图（流体点云）/ 矢量图 / 流线图，由 Visualization 单一状态表达
+'         - 矢量图 / 流线图：LineSegment 连线叠加层（ShowConnections）；固体模型本体常驻显示
 '         - 色标条：复用 CDFDxCanvas Rendering.ColorbarOverlay（Render 事件 2D 叠加）
 '
 '   数据源不是离线 VTI（CfdDataset），而是实时 WindTunnelSolver 的矩量场
@@ -43,20 +44,86 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property Palette As ScalerPalette = ScalerPalette.Jet
 
-    ''' <summary>是否显示速度箭头（LineSegment 叠加层）。</summary>
+    '''
+    ''' 当前可视化类型：热图 / 矢量图 / 流线图（严格互斥，同一时刻只有一种生效）。
+    '''
+    '''   热图 = 流体体素按标量场 LUT 着色的点云；矢量图 = 速度矢量线段；
+    '''   流线图 = 入口面种子 RK2 轨迹 + 光点粒子动画。
+    '''   不活动的固体模型本体不属于可视化类型，三种模式下都常驻渲染。
+    '''
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
-    Public Property ShowArrows As Boolean = False
+    Public Property Visualization As VisualizationMode
+        Get
+            Return m_visualization
+        End Get
+        Set(value As VisualizationMode)
+            If m_visualization = value Then Return
 
-    ''' <summary>箭头采样步长（每轴，格点）。</summary>
+            Dim leavingStreamlines As Boolean = (m_visualization = VisualizationMode.Streamlines)
+            m_visualization = value
+
+            If leavingStreamlines AndAlso value <> VisualizationMode.Streamlines Then
+                ' 离开流线图：清掉折线缓存与粒子动画
+                Call InvalidatePathlines()
+            End If
+
+            Call RefreshField()
+        End Set
+    End Property
+
+    Private m_visualization As VisualizationMode = VisualizationMode.Heatmap
+
+    ''' <summary>
+    ''' 【已弃用】速度箭头叠加层已并入矢量图（Visualization = Vectors）。
+    ''' 读取等价于"当前是否为矢量图"；写入 True 切换到矢量图，False 回到热图。
+    ''' </summary>
+    <Obsolete("速度箭头已并入矢量图，请改用 Visualization = VisualizationMode.Vectors")>
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
-    Public Property ArrowStride As Integer = 3
+    Public Property ShowArrows As Boolean
+        Get
+            Return m_visualization = VisualizationMode.Vectors
+        End Get
+        Set(value As Boolean)
+            If value Then
+                Visualization = VisualizationMode.Vectors
+            ElseIf m_visualization = VisualizationMode.Vectors Then
+                Visualization = VisualizationMode.Heatmap
+            End If
+        End Set
+    End Property
+
+    ''' <summary>
+    ''' 【已弃用】箭头采样步长已并入矢量图的 VectorStride。
+    ''' </summary>
+    <Obsolete("箭头采样步长已并入矢量图，请改用 VectorStride")>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+    Public Property ArrowStride As Integer
+        Get
+            Return VectorStride
+        End Get
+        Set(value As Integer)
+            VectorStride = value
+        End Set
+    End Property
 
     ''' <summary>
     ''' 是否显示矢量图：箭头表示流体速度方向，
     ''' 箭头长度与颜色共同表示速度大小（与热图色标一致）。
+    ''' 与热图、流线图互斥（写入 True 会把可视化类型切换为矢量图）。
     ''' </summary>
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
-    Public Property ShowVectors As Boolean = False
+    Public Property ShowVectors As Boolean
+        Get
+            Return m_visualization = VisualizationMode.Vectors
+        End Get
+        Set(value As Boolean)
+            If value Then
+                Visualization = VisualizationMode.Vectors
+            ElseIf m_visualization = VisualizationMode.Vectors Then
+                Visualization = VisualizationMode.Heatmap
+            End If
+        End Set
+    End Property
 
     ''' <summary>矢量图采样步长（每轴，格点）。</summary>
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
@@ -65,24 +132,21 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
     ''' <summary>
     ''' 是否显示流线图：由入口面均匀注入种子、RK2 积分得到流体质点
     ''' 运动轨迹（稳态流动分析用），叠加沿线运动的光点粒子动画。
+    ''' 与热图、矢量图互斥（写入 True 会把可视化类型切换为流线图）。
     ''' </summary>
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property ShowPathlines As Boolean
         Get
-            Return m_showPathlines
+            Return m_visualization = VisualizationMode.Streamlines
         End Get
         Set(value As Boolean)
-            If m_showPathlines = value Then Return
-            m_showPathlines = value
-
-            If Not value Then
-                ' 关闭时立即清掉残留的粒子实例与折线缓存
-                Call InvalidatePathlines()
+            If value Then
+                Visualization = VisualizationMode.Streamlines
+            ElseIf m_visualization = VisualizationMode.Streamlines Then
+                Visualization = VisualizationMode.Heatmap
             End If
         End Set
     End Property
-
-    Private m_showPathlines As Boolean = False
 
     ''' <summary>流线种子层采样步长（j/k 方向，格点）。</summary>
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
@@ -218,9 +282,29 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property SlicePosition As Integer = 0
 
-    ''' <summary>是否显示固体障碍体素。</summary>
+    ''' <summary>是否显示固体障碍体素（不活动的三维体素模型本体）。</summary>
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property ShowSolids As Boolean = True
+
+    '''
+    ''' 裁剪远端横截面时，是否把不活动的三维体素模型本体（固体障碍体素）也一并裁剪隐藏。
+    '''
+    '''   False（默认）= 只裁剪活动的物理场流体体素，模型本体保持完整，
+    '''   便于看清被剖开区域与模型的相对位置；True = 模型本体也按同一截面规则裁剪。
+    '''
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+    Public Property ClipSolidModelWithSection As Boolean
+        Get
+            Return m_clipSolidModel
+        End Get
+        Set(value As Boolean)
+            If m_clipSolidModel = value Then Return
+            m_clipSolidModel = value
+            Call RefreshField()
+        End Set
+    End Property
+
+    Private m_clipSolidModel As Boolean = False
 
     ''' <summary>流场点云采样上限（自动降采样，控制每帧传输量）。</summary>
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
@@ -479,7 +563,13 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
             m_lut = Designer.FromSchema(Palette, 256)
         End If
 
-        ' ---- Pass 1：可见流体格点的标量值域 + 可见子集聚心（质心补偿）----
+        ' 热图模式才生成流体体素点云（三种可视化类型严格互斥）
+        Dim heatmap As Boolean = (m_visualization = VisualizationMode.Heatmap)
+
+        ' 固体模型本体是否跟随远端横截面一起裁剪（默认 False = 保持完整）
+        Dim clipSolid As Boolean = SliceEnabled AndAlso ClipSolidModelWithSection
+
+        ' ---- Pass 1：可见流体格点的标量值域 + 渲染子集聚心（质心补偿）----
         Dim mn As Double = Double.PositiveInfinity
         Dim mx As Double = Double.NegativeInfinity
         Dim sx As Double = 0, sy As Double = 0, sz As Double = 0
@@ -489,26 +579,41 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
             For j As Integer = 0 To m_ny - 1 Step m_stride
                 For k As Integer = 0 To m_nz - 1 Step m_stride
                     Dim idx As Integer = i * plane + j * m_nz + k
+                    Dim bt As Byte = m_btype(idx)
 
-                    If m_btype(idx) <> CudaLbmBackend.CellFluid Then
-                        Continue For
+                    If bt = CudaLbmBackend.CellSolid Then
+                        ' 固体模型本体：三种模式下都常驻，默认不受截面裁剪
+                        If Not ShowSolids Then
+                            Continue For
+                        End If
+                        If clipSolid AndAlso Not SliceVisible(i, j, k) Then
+                            Continue For
+                        End If
+
+                        sx += i : sy += j : sz += k
+                        nVis += 1
+
+                    ElseIf bt = CudaLbmBackend.CellFluid Then
+                        If Not SliceVisible(i, j, k) Then
+                            Continue For
+                        End If
+
+                        Dim v As Double = ScalarAt(idx, dataRho, dataUx, dataUy, dataUz)
+
+                        If v < mn Then mn = v
+                        If v > mx Then mx = v
+
+                        ' 热图模式才把流体点画进点云，因此质心只在热图模式下计入流体
+                        If heatmap Then
+                            sx += i : sy += j : sz += k
+                            nVis += 1
+                        End If
                     End If
-                    If Not SliceVisible(i, j, k) Then
-                        Continue For
-                    End If
-
-                    Dim v As Double = ScalarAt(idx, dataRho, dataUx, dataUy, dataUz)
-
-                    If v < mn Then mn = v
-                    If v > mx Then mx = v
-
-                    sx += i : sy += j : sz += k
-                    nVis += 1
                 Next
             Next
         Next
 
-        If nVis = 0 OrElse mx - mn < 1.0E-12 Then
+        If mn = Double.PositiveInfinity OrElse mx - mn < 1.0E-12 Then
             mn = 0 : mx = 1
         End If
 
@@ -531,14 +636,19 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
                     Dim bt As Byte = m_btype(idx)
 
                     If bt = CudaLbmBackend.CellSolid Then
-                        If Not ShowSolids OrElse Not SliceVisible(i, j, k) Then
+                        If Not ShowSolids Then
+                            Continue For
+                        End If
+                        If clipSolid AndAlso Not SliceVisible(i, j, k) Then
                             Continue For
                         End If
 
                         m_buf(p) = New PointCloudPoint(i + ox, j + oy, k + oz, 0.0R, solidHtml)
                         p += 1
 
-                    ElseIf bt = CudaLbmBackend.CellFluid AndAlso SliceVisible(i, j, k) Then
+                    ElseIf bt = CudaLbmBackend.CellFluid AndAlso heatmap AndAlso
+                        SliceVisible(i, j, k) Then
+
                         Dim v As Double = ScalarAt(idx, dataRho, dataUx, dataUy, dataUz)
                         Dim tc As Double = (v - mn) / denom
 
@@ -566,59 +676,10 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
 
         m_count = p
 
-        ' ---- 速度箭头（LineSegment 连线叠加层）----
+        ' ---- 线段图层：矢量图 / 流线图（互斥，旧的简单箭头叠加层已并入矢量图）----
         Dim lines As New List(Of LineSegment)
 
-        If ShowArrows Then
-            Dim stride As Integer = Math.Max(1, ArrowStride)
-            Dim speedMax As Double = Math.Max(0.000001R, m_rangeMax)
-            Dim maxLen As Double = 1.7R
-
-            For i As Integer = 0 To m_nx - 1 Step stride
-                For j As Integer = 0 To m_ny - 1 Step stride
-                    For k As Integer = 0 To m_nz - 1 Step stride
-                        Dim idx As Integer = i * plane + j * m_nz + k
-
-                        If m_btype(idx) <> CudaLbmBackend.CellFluid Then
-                            Continue For
-                        End If
-                        If Not SliceVisible(i, j, k) Then
-                            Continue For
-                        End If
-
-                        Dim uu As Double = dataUx(idx)
-                        Dim vv As Double = dataUy(idx)
-                        Dim ww As Double = dataUz(idx)
-                        Dim spd As Double = Math.Sqrt(uu * uu + vv * vv + ww * ww)
-
-                        If spd < 0.000000001R Then
-                            Continue For
-                        End If
-
-                        Dim len As Double = (spd / speedMax) * maxLen
-                        Dim tx As Double = i + (uu / spd) * len
-                        Dim ty As Double = j + (vv / spd) * len
-                        Dim tz As Double = k + (ww / spd) * len
-                        Dim tc As Double = Math.Min(1.0R, spd / speedMax)
-
-                        ' 箭头与流体点使用同一显示阈值
-                        If tc < Threshold Then
-                            Continue For
-                        End If
-
-                        Dim ac As Color = m_lut(CInt(tc * (m_lut.Length - 1)))
-
-                        Call lines.Add(New LineSegment(
-                            New Point3D(i + ox, j + oy, k + oz),
-                            New Point3D(tx + ox, ty + oy, tz + oz),
-                            Color.FromArgb(235, ac)))
-                    Next
-                Next
-            Next
-        End If
-
-        ' ---- 矢量图（主干 + V 形箭头头部的线段矢量，长度∝速度、LUT 着色）----
-        If ShowVectors Then
+        If m_visualization = VisualizationMode.Vectors Then
             Dim vStride As Integer = Math.Max(1, VectorStride)
 
             ' 采样子集上的速度上限（直接读宿主数组，避免每帧全量扫描）
@@ -675,7 +736,7 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
         End If
 
         ' ---- 流线图（入口面种子 + RK2 积分；折线缓存，仅在需要时重追踪）----
-        If ShowPathlines Then
+        If m_visualization = VisualizationMode.Streamlines Then
             If m_streamSet Is Nothing Then
                 Dim sfield As New WindTunnelFlowField(m_nx, m_ny, m_nz, dataUx, dataUy, dataUz, m_btype)
 
@@ -795,7 +856,7 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
 
     ''' <summary>流线光点粒子动画节拍：推进相位 → 打包 → 上传外部实例缓冲。</summary>
     Private Sub OnPathTimerTick(sender As Object, e As EventArgs)
-        If Not ShowPathlines OrElse Not PathlinesAnimate OrElse
+        If m_visualization <> VisualizationMode.Streamlines OrElse Not PathlinesAnimate OrElse
             m_animator Is Nothing OrElse m_particleBuf Is Nothing OrElse m_backend Is Nothing Then
 
             Call m_pathTimer.Stop()

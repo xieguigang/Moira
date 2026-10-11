@@ -6,8 +6,17 @@
 '
 '   作用：
 '       把一帧 CFD 体数据按当前视图状态（标量场、值域、阈值、横截面、
-'       箭头、拾取高亮）转换为 DxScene3DCanvas 可渲染的点云与线段集合。
+'       可视化类型、拾取高亮）转换为 DxScene3DCanvas 可渲染的点云与线段集合。
 '       热图颜色由调用方传入的 LUT 查表得到（LUT 由 Designer.FromSchema 生成）。
+'
+'   可视化类型互斥：
+'       热图 / 矢量图 / 流线图三种类型由 VoxelViewOptions.Mode 单一状态表达，
+'       只有热图会生成物理场体素点云；矢量图与流线图只画对应的线段图层。
+'
+'   不活动的固体模型本体：
+'       metadata 掩膜 mask = 0 的体素（罐壁 / 挡板 / 车体等）以固定灰色常驻渲染，
+'       三种可视化类型下都显示；只有 ClipSolidModelWithSection = True 时
+'       才跟随远端横截面一起被裁剪。
 '
 '   质心补偿：
 '       Scene.LoadPointCloud 每次都会把点云按其质心平移到原点。横截面与
@@ -175,10 +184,14 @@ Namespace Rendering
             Dim solids = dataset.SolidIndices
             Dim centroid = dataset.SceneCentroid
 
-            ' 热图模式才生成物理场体素点云（三种可视化类型互斥）
+            ' 热图模式且标量场已加载时才生成物理场体素点云（三种可视化类型互斥）
             Dim heatmap As Boolean = (options.Mode = VisualizationMode.Heatmap)
 
             Dim values As Single() = FieldArray(frame, options.Field)
+
+            ' 热图模式且标量场已加载时才生成物理场体素点云
+            Dim fluidPoints As Boolean = heatmap AndAlso values IsNot Nothing
+
             Dim mn As Double = options.RangeMin
             Dim mx As Double = Math.Max(options.RangeMax, mn + 0.000000000001)
             Dim denom As Double = mx - mn
@@ -219,7 +232,7 @@ Namespace Rendering
                     visible = SectionVisible(dataset, options, cut, halfSpan, eps, idx)
                 End If
 
-                If visible AndAlso threshold > 0 Then
+                If visible AndAlso threshold > 0 AndAlso values IsNot Nothing Then
                     Dim v As Double = values(idx)
                     Dim tc As Double = (v - mn) / denom
                     If tc < threshold Then
@@ -232,7 +245,7 @@ Namespace Rendering
                 If visible Then
                     ' 只有热图模式才把物理场体素画进点云，
                     ' 因此质心累加也只在热图模式下计入（矢量/流线模式以模型本体为锚）
-                    If heatmap Then
+                    If fluidPoints Then
                         Dim cx As Double, cy As Double, cz As Double
                         Call VoxelCenter(dataset, idx, cx, cy, cz)
                         sx += cx : sy += cy : sz += cz
@@ -292,7 +305,7 @@ Namespace Rendering
                 Next
             End If
 
-            Dim fluidCount As Integer = If(heatmap, visibleCount, 0)
+            Dim fluidCount As Integer = If(fluidPoints, visibleCount, 0)
             Dim total As Integer = fluidCount + solidCount
 
             If total = 0 Then
@@ -319,7 +332,7 @@ Namespace Rendering
             Dim lutN As Integer = lut.Length
             Dim p As Integer = 0
 
-            If heatmap Then
+            If fluidPoints Then
                 For q As Integer = 0 To visibleCount - 1
                     Dim t As Integer = m_visibleList(q)
                     Dim idx As Integer = active(t)

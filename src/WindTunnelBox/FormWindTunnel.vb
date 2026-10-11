@@ -1,4 +1,5 @@
-﻿Imports Moira.LBMEngine
+﻿Imports Moira.CDFDxCanvas.Rendering
+Imports Moira.LBMEngine
 Imports Moira.ZMesh
 Imports Math = System.Math
 
@@ -177,6 +178,7 @@ Public Class FormWindTunnel
         m_cmbSliceAxis.Enabled = isOn
         m_sliceBar.Enabled = isOn
         m_chkSliceOnly.Enabled = isOn
+        m_chkClipSolid.Enabled = isOn
         m_sliceBar.Maximum = Math.Max(1, SliceMax() - 1)
 
         Call m_canvas.RefreshField()
@@ -187,19 +189,20 @@ Public Class FormWindTunnel
         m_canvas.RefreshField()
     End Sub
 
-    Private Sub OnArrowsChanged(sender As Object, e As EventArgs) Handles m_chkArrows.CheckedChanged
-        m_canvas.ShowArrows = m_chkArrows.Checked
-        m_canvas.RefreshField()
+    '''
+    ''' 可视化类型切换：热图 / 矢量图 / 流线图（严格互斥，同一时刻只有一种）。
+    '''
+    Private Sub OnVisualizationChanged(sender As Object, e As EventArgs) Handles m_cmbViz.SelectedIndexChanged
+        m_canvas.Visualization = CType(m_cmbViz.SelectedIndex, VisualizationMode)
+        Call m_canvas.RefreshField()
     End Sub
 
-    Private Sub OnVectorsChanged(sender As Object, e As EventArgs) Handles m_chkVectors.CheckedChanged
-        m_canvas.ShowVectors = m_chkVectors.Checked
-        m_canvas.RefreshField()
-    End Sub
-
-    Private Sub OnPathlinesChanged(sender As Object, e As EventArgs) Handles m_chkPathlines.CheckedChanged
-        m_canvas.ShowPathlines = m_chkPathlines.Checked
-        m_canvas.RefreshField()
+    '''
+    ''' 裁剪远端横截面时，是否把不活动的固体模型本体一并裁剪（默认不裁剪）。
+    '''
+    Private Sub OnClipSolidModelChanged(sender As Object, e As EventArgs) Handles m_chkClipSolid.CheckedChanged
+        m_canvas.ClipSolidModelWithSection = m_chkClipSolid.Checked
+        Call m_canvas.RefreshField()
     End Sub
 
     Private Sub OnThresholdChanged(sender As Object, e As EventArgs) Handles m_thresholdBar.ValueChanged

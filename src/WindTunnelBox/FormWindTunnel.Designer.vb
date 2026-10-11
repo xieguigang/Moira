@@ -106,31 +106,25 @@ Partial Class FormWindTunnel
         m_chkGpu.Text = "CUDA 加速"
 
         ' 
-        ' m_chkArrows
+        ' m_lblViz
         ' 
-        m_chkArrows = New CheckBox()
-        m_chkArrows.AutoSize = True
-        m_chkArrows.Name = "m_chkArrows"
-        m_chkArrows.Size = New Size(64, 17)
-        m_chkArrows.Text = "速度箭头"
+        m_lblViz = New Label()
+        m_lblViz.AutoSize = True
+        m_lblViz.Margin = New Padding(6, 8, 0, 0)
+        m_lblViz.Name = "m_lblViz"
+        m_lblViz.Size = New Size(64, 12)
+        m_lblViz.Text = "可视化:"
 
         ' 
-        ' m_chkVectors
+        ' m_cmbViz（可视化类型：热图 / 矢量图 / 流线图，严格互斥）
         ' 
-        m_chkVectors = New CheckBox()
-        m_chkVectors.AutoSize = True
-        m_chkVectors.Name = "m_chkVectors"
-        m_chkVectors.Size = New Size(56, 17)
-        m_chkVectors.Text = "矢量图"
-
-        ' 
-        ' m_chkPathlines
-        ' 
-        m_chkPathlines = New CheckBox()
-        m_chkPathlines.AutoSize = True
-        m_chkPathlines.Name = "m_chkPathlines"
-        m_chkPathlines.Size = New Size(56, 17)
-        m_chkPathlines.Text = "流线图"
+        m_cmbViz = New ComboBox()
+        m_cmbViz.DropDownStyle = ComboBoxStyle.DropDownList
+        m_cmbViz.Items.AddRange(New Object() {"热图", "矢量图", "流线图"})
+        m_cmbViz.Name = "m_cmbViz"
+        m_cmbViz.Size = New Size(88, 21)
+        m_cmbViz.TabIndex = 1
+        m_cmbViz.SelectedIndex = 0
 
         ' 
         ' m_chkSlice
@@ -397,6 +391,17 @@ Partial Class FormWindTunnel
         m_chkSliceOnly.Size = New Size(72, 17)
         m_chkSliceOnly.Text = "仅切片层"
 
+        ' 
+        ' m_chkClipSolid（裁剪远端横截面时是否一并裁剪不活动的固体模型本体）
+        ' 
+        m_chkClipSolid = New CheckBox()
+        m_chkClipSolid.AutoSize = True
+        m_chkClipSolid.Checked = False
+        m_chkClipSolid.Enabled = False
+        m_chkClipSolid.Name = "m_chkClipSolid"
+        m_chkClipSolid.Size = New Size(96, 17)
+        m_chkClipSolid.Text = "裁剪模型本体"
+
         ' ---- 第二层：行容器（FlowLayoutPanel，先 New 再添加已创建的子控件）----
         ' 
         ' m_row1 (第一行：动作)
@@ -408,9 +413,8 @@ Partial Class FormWindTunnel
         m_row1.Controls.Add(m_btnReset)
         m_row1.Controls.Add(m_sep1)
         m_row1.Controls.Add(m_chkGpu)
-        m_row1.Controls.Add(m_chkArrows)
-        m_row1.Controls.Add(m_chkVectors)
-        m_row1.Controls.Add(m_chkPathlines)
+        m_row1.Controls.Add(m_lblViz)
+        m_row1.Controls.Add(m_cmbViz)
         m_row1.Controls.Add(m_chkSlice)
         m_row1.Dock = DockStyle.Top
         m_row1.Height = 36
@@ -468,6 +472,7 @@ Partial Class FormWindTunnel
         m_row3.Controls.Add(m_cmbSliceAxis)
         m_row3.Controls.Add(m_sliceBar)
         m_row3.Controls.Add(m_chkSliceOnly)
+        m_row3.Controls.Add(m_chkClipSolid)
         m_row3.Dock = DockStyle.Top
         m_row3.Height = 34
         m_row3.Location = New Point(0, 0)
@@ -536,10 +541,10 @@ Partial Class FormWindTunnel
     Friend WithEvents m_btnStep As Button
     Friend WithEvents m_btnReset As Button
     Friend WithEvents m_chkGpu As CheckBox
-    Friend WithEvents m_chkArrows As CheckBox
-    Friend WithEvents m_chkVectors As CheckBox
-    Friend WithEvents m_chkPathlines As CheckBox
+    Friend WithEvents m_lblViz As Label
+    Friend WithEvents m_cmbViz As ComboBox
     Friend WithEvents m_chkSlice As CheckBox
+    Friend WithEvents m_chkClipSolid As CheckBox
     Friend WithEvents m_cmbField As ComboBox
     Friend WithEvents m_cmbVoxelizer As ComboBox
     Friend WithEvents m_numResolution As NumericUpDown
