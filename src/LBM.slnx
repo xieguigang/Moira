@@ -26,7 +26,7 @@
   <Project Path="CFDEngine/CFDEngine.vbproj">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
-  <Project Path="Moira.LbmEngine/Moira.LbmEngine.vbproj">
+  <Project Path="Moira.LbmEngine/LBMEngine.vbproj">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
 </Solution>
