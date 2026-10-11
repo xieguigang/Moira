@@ -96,7 +96,7 @@ Public Class FvmTopologyBuilder
         Return DelaunayFaceKey(sorted(0), sorted(1), sorted(2))
     End Function
 
-    Friend Shared Function DelaunayFaceKey(a As Integer, b As Integer, c As Integer) As Long
+    Public Shared Function DelaunayFaceKey(a As Integer, b As Integer, c As Integer) As Long
         Dim x As Integer = a, y As Integer = b, z As Integer = c
 
         If y < x Then

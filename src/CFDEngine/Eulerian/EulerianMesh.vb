@@ -286,7 +286,8 @@ Namespace Eulerian
                 CellVolumes(c) = vol
 
                 If vol > 0 Then
-                    CellCentroids(c) = New EulerianVertex(wx / (4 * vol6), wy / (4 * vol6), wz / (4 * vol6))
+                    ' 质心 = ∫x dV / V = (1/4·Σ d·c) / (vol6/3)
+                    CellCentroids(c) = New EulerianVertex(3.0 * wx / (4 * vol6), 3.0 * wy / (4 * vol6), 3.0 * wz / (4 * vol6))
                 End If
             Next
         End Sub
