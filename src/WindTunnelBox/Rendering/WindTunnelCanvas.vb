@@ -441,15 +441,15 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
         Call m_sceneCanvas.Scene.Clear()
     End Sub
 
+    Private ReadOnly m_overlayFont As New Font("Consolas", 9.0F)
+
     ''' <summary>Render 事件 2D 叠加：色标条 + 统计信息。</summary>
     Private Sub OnSceneRender(sender As Object, e As DxRenderEventArgs)
         Call m_colorbar.Draw(e.Graphics, e.Size)
 
         If Not String.IsNullOrEmpty(OverlayText) Then
-            Using font As New Font("Consolas", 9.0F)
-                Using brush As New SolidBrush(Color.FromArgb(180, 30, 41, 59))
-                    Call e.Graphics.DrawString(OverlayText, font, brush, 12.0F, 12.0F)
-                End Using
+            Using brush As New SolidBrush(Color.FromArgb(180, 30, 41, 59))
+                Call e.Graphics.DrawString(OverlayText, m_overlayFont, brush, 12.0F, 12.0F)
             End Using
         End If
     End Sub
