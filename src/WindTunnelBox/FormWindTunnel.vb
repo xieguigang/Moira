@@ -57,7 +57,13 @@ Public Class FormWindTunnel
     Private m_numVoxelSize As New NumericUpDown With {.Minimum = 0.1D, .Maximum = 10D,
         .Increment = 0.1D, .Value = 1.0D, .DecimalPlaces = 1, .Width = 56}
 
-    ' 第三行：截面控制
+    ' 第三行：阈值（低于阈值的流体点透明，看见模型表面气流）
+    Private m_thresholdBar As New TrackBar With {
+        .Minimum = 0, .Maximum = 100, .TickFrequency = 10, .Width = 240,
+        .AutoSize = False, .Height = 28}
+    Private m_lblThreshold As New Label With {.Text = "0%", .AutoSize = True, .Margin = New Padding(6, 9, 0, 0)}
+
+    ' 第四行：截面控制
     Private m_cmbSliceAxis As New ComboBox With {.DropDownStyle = ComboBoxStyle.DropDownList, .Width = 56, .Enabled = False}
     Private m_sliceBar As New TrackBar With {
         .Minimum = 0, .Maximum = 100, .TickFrequency = 10, .Width = 220,
@@ -96,6 +102,8 @@ Public Class FormWindTunnel
             .Dock = DockStyle.Top, .Height = 36, .WrapContents = False}
         Dim row2 As New FlowLayoutPanel With {
             .Dock = DockStyle.Top, .Height = 36, .WrapContents = False}
+        Dim rowT As New FlowLayoutPanel With {
+            .Dock = DockStyle.Top, .Height = 32, .WrapContents = False}
         Dim row3 As New FlowLayoutPanel With {
             .Dock = DockStyle.Top, .Height = 34, .WrapContents = False}
 
@@ -120,14 +128,19 @@ Public Class FormWindTunnel
             m_numResolution, Sep(), m_numFreestream, Sep(),
             m_numStepsPerFrame, Sep(), m_numVoxelSize})
 
+        ' 阈值行：拖动滑块，低于阈值的流体点透明，露出模型表面气流
+        Call AddLabel(rowT, "透明阈值:")
+        rowT.Controls.AddRange(New Control() {m_thresholdBar, m_lblThreshold})
+
         m_cmbSliceAxis.Items.AddRange(New Object() {"X", "Y", "Z"})
         m_cmbSliceAxis.SelectedIndex = 0
         row3.Controls.AddRange(New Control() {
             m_cmbSliceAxis, m_sliceBar, m_chkSliceOnly})
         row3.Visible = False
 
-        m_toolbar.Height = row1.Height + row2.Height + row3.Height + 12
+        m_toolbar.Height = row1.Height + row2.Height + rowT.Height + row3.Height + 12
         m_toolbar.Controls.Add(row3)
+        m_toolbar.Controls.Add(rowT)
         m_toolbar.Controls.Add(row2)
         m_toolbar.Controls.Add(row1)
 
@@ -149,6 +162,12 @@ Public Class FormWindTunnel
         AddHandler m_chkArrows.CheckedChanged,
             Sub()
                 m_canvas.ShowArrows = m_chkArrows.Checked
+                m_canvas.RefreshField()
+            End Sub
+        AddHandler m_thresholdBar.ValueChanged,
+            Sub()
+                m_canvas.Threshold = m_thresholdBar.Value / 100.0R
+                m_lblThreshold.Text = $"{m_thresholdBar.Value}%"
                 m_canvas.RefreshField()
             End Sub
         AddHandler m_chkSlice.CheckedChanged, AddressOf OnToggleSlice

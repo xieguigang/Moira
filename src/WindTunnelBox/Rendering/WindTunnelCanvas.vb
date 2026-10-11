@@ -75,6 +75,15 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property MaxPoints As Integer = 160000
 
+    ''' <summary>
+    ''' 流场显示阈值（归一化 [0,1]，相对当前帧 [RangeMin, RangeMax]）。
+    ''' 标量值低于该阈值的流体点不渲染（视觉上透明），
+    ''' 用于剥掉低速背景流，看见模型表面的气流结构。
+    ''' 阈值不影响色标值域的稳定性（值域始终按全体可见流体计算）。
+    ''' </summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+    Public Property Threshold As Double = 0.0
+
     ''' <summary>左上角信息叠加文本（网格 / 路径 / 步数等统计）。</summary>
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property OverlayText As String = ""
@@ -354,6 +363,11 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
                         If tc < 0.0R Then tc = 0.0R
                         If tc > 1.0R Then tc = 1.0R
 
+                        ' 低于显示阈值的流体点不渲染（透明），露出模型表面气流
+                        If tc < Threshold Then
+                            Continue For
+                        End If
+
                         Dim c As Color = m_lut(CInt(tc * (m_lut.Length - 1)))
 
                         m_buf(p) = New PointCloudPoint(i + ox, j + oy, k + oz, tc,
@@ -400,6 +414,12 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
                         Dim ty As Double = j + (vv / spd) * len
                         Dim tz As Double = k + (ww / spd) * len
                         Dim tc As Double = Math.Min(1.0R, spd / speedMax)
+
+                        ' 箭头与流体点使用同一显示阈值
+                        If tc < Threshold Then
+                            Continue For
+                        End If
+
                         Dim ac As Color = m_lut(CInt(tc * (m_lut.Length - 1)))
 
                         Call lines.Add(New LineSegment(
