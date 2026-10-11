@@ -33,6 +33,11 @@
     <EmbeddedResource Remove="test\**" />
     <None Remove="test\**" />
   </ItemGroup>
+  <!-- Eulerian FVM 的 float32 CUDA 热内核：以嵌入资源随程序集分发，
+       由 EulerianFvmCompute.KernelSource 在运行时读取并交给 NVRTC 即时编译。 -->
+  <ItemGroup>
+    <EmbeddedResource Include="Kernels\moira_eulerian_fvm_f32.cu" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\cuda\ILCudaTensor\ILCudaTensor.vbproj" />
     <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\cuda\ILCuda\ILCuda.vbproj" />

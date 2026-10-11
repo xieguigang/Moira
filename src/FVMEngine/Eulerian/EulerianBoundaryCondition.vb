@@ -88,6 +88,21 @@ Namespace Eulerian
         ''' </summary>
         Public Property Enabled As Boolean = True
 
+        ''' <summary>
+        ''' 本边界条件是否"直接规定了边界速度"（Dirichlet 型速度边界）。
+        '''
+        ''' 语义（对应 OpenFOAM 的 <c>constrainHbyA</c>）：
+        '''   · True：边界速度由边界条件给定，SIMPLE/PIMPLE 在构造面通量 phiHbyA 时
+        '''           必须用边界速度 u_b 取代 HbyA 的边界插值，从而让面通量精确满足
+        '''           质量守恒（入口流量 / 壁面零穿透 / 运动壁面）。
+        '''   · False：边界速度未知（出流、零梯度），phiHbyA 的边界值由内部值零阶外插。
+        ''' </summary>
+        Public Overridable ReadOnly Property PrescribesVelocity As Boolean
+            Get
+                Return False
+            End Get
+        End Property
+
         Protected Sub New(patchField As EulerianPatchField)
             If patchField Is Nothing Then
                 Throw New ArgumentNullException(NameOf(patchField))
@@ -327,6 +342,13 @@ Namespace Eulerian
         Public Overrides ReadOnly Property Description As String
             Get
                 Return $"fixed value {DescribeValues()}"
+            End Get
+        End Property
+
+        ''' <summary>定值边界直接规定边界速度。</summary>
+        Public Overrides ReadOnly Property PrescribesVelocity As Boolean
+            Get
+                Return True
             End Get
         End Property
 
@@ -588,6 +610,13 @@ Namespace Eulerian
         Public Overrides ReadOnly Property Description As String
             Get
                 Return "symmetry plane"
+            End Get
+        End Property
+
+        ''' <summary>对称面法向速度为零，等价于"规定了边界速度"。</summary>
+        Public Overrides ReadOnly Property PrescribesVelocity As Boolean
+            Get
+                Return True
             End Get
         End Property
 

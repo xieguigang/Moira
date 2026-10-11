@@ -288,6 +288,17 @@ Namespace Eulerian
         Private _internalNeighbour As Integer()
         Private _facePatch As Integer()
         Private _faceIsBoundary As Boolean()
+        Private _faceInPatch As Integer()
+
+        ''' <summary>
+        ''' 边界面 → 该面在所属 patch 内的位置（用于索引边界条件的逐面系数数组）；
+        ''' 内部面为 −1。
+        ''' </summary>
+        Public ReadOnly Property FaceInPatch As Integer()
+            Get
+                Return _faceInPatch
+            End Get
+        End Property
 
         ''' <summary>内部面索引（Neighbour ≥ 0 且 ≠ Owner），升序。</summary>
         Public ReadOnly Property InternalFaces As Integer()
@@ -393,6 +404,7 @@ Namespace Eulerian
         Private Sub BuildPatchGeometry(override_ As IDictionary(Of String, EulerianPatchType))
             _patchGeometries = New List(Of EulerianPatchGeometry)
             _unassignedBoundaryFaceCount = 0
+            _faceInPatch = InitMinusOne(_faceCount)
 
             For p As Integer = 0 To Me.Mesh.Patches.Count - 1
                 Dim src As EulerianPatch = Me.Mesh.Patches(p)
@@ -410,6 +422,7 @@ Namespace Eulerian
 
                 For i As Integer = 0 To geo.FaceIndices.Length - 1
                     _facePatch(geo.FaceIndices(i)) = _patchGeometries.Count
+                    _faceInPatch(geo.FaceIndices(i)) = i
                 Next
 
                 _patchGeometries.Add(geo)
@@ -431,6 +444,7 @@ Namespace Eulerian
 
                 For i As Integer = 0 To geo.FaceIndices.Length - 1
                     _facePatch(geo.FaceIndices(i)) = _patchGeometries.Count
+                    _faceInPatch(geo.FaceIndices(i)) = i
                 Next
 
                 _patchGeometries.Add(geo)
