@@ -43,7 +43,7 @@ Partial Class PanelPlayerLeft
         lblThresholdVal = New Label()
         trackThreshold = New TrackBar()
         lblTitleArrows = New Label()
-        chkArrows = New CheckBox()
+        cboViz = New ComboBox()
         lblArrowDensity = New Label()
         cboArrowDensity = New ComboBox()
         lblTitleSection = New Label()
@@ -51,6 +51,8 @@ Partial Class PanelPlayerLeft
         cboSectionMode = New ComboBox()
         lblSectionAxisLabel = New Label()
         cboSectionAxis = New ComboBox()
+        chkShowSolids = New CheckBox()
+        chkClipSolidModel = New CheckBox()
         lblPosition = New Label()
         lblSectionPosVal = New Label()
         trackSectionPos = New TrackBar()
@@ -249,16 +251,20 @@ Partial Class PanelPlayerLeft
         lblTitleArrows.Name = "lblTitleArrows"
         lblTitleArrows.Size = New Size(93, 19)
         lblTitleArrows.TabIndex = 50
-        lblTitleArrows.Text = "速度矢量箭头"
+        lblTitleArrows.Text = "可视化类型"
         ' 
-        ' chkArrows
+        ' cboViz（热图 / 矢量图 / 流线图，严格互斥）
         ' 
-        chkArrows.AutoSize = True
-        chkArrows.Location = New Point(18, 451)
-        chkArrows.Name = "chkArrows"
-        chkArrows.Size = New Size(78, 19)
-        chkArrows.TabIndex = 51
-        chkArrows.Text = "显示箭头"
+        cboViz.BackColor = Color.FromArgb(CByte(248), CByte(250), CByte(252))
+        cboViz.DropDownStyle = ComboBoxStyle.DropDownList
+        cboViz.FlatStyle = FlatStyle.Flat
+        cboViz.Font = New Font("Microsoft YaHei UI", 9F)
+        cboViz.Items.AddRange(New Object() {"体素热图", "矢量图", "流线图"})
+        cboViz.Location = New Point(17, 451)
+        cboViz.Name = "cboViz"
+        cboViz.Size = New Size(277, 25)
+        cboViz.TabIndex = 51
+        cboViz.SelectedIndex = 0
         ' 
         ' lblArrowDensity
         ' 
@@ -268,15 +274,15 @@ Partial Class PanelPlayerLeft
         lblArrowDensity.Name = "lblArrowDensity"
         lblArrowDensity.Size = New Size(59, 15)
         lblArrowDensity.TabIndex = 52
-        lblArrowDensity.Text = "箭头密度"
+        lblArrowDensity.Text = "采样密度"
         ' 
-        ' cboArrowDensity
+        ' cboArrowDensity（矢量图 / 流线图的采样步长）
         ' 
         cboArrowDensity.BackColor = Color.FromArgb(CByte(248), CByte(250), CByte(252))
         cboArrowDensity.DropDownStyle = ComboBoxStyle.DropDownList
         cboArrowDensity.FlatStyle = FlatStyle.Flat
         cboArrowDensity.Font = New Font("Microsoft YaHei UI", 9F)
-        cboArrowDensity.Items.AddRange(New Object() {"高 (2×2×2)", "中 (3×3×3)", "低 (4×4×4)"})
+        cboArrowDensity.Items.AddRange(New Object() {"高 (步长 2)", "中 (步长 3)", "低 (步长 4)"})
         cboArrowDensity.Location = New Point(17, 503)
         cboArrowDensity.Name = "cboArrowDensity"
         cboArrowDensity.Size = New Size(277, 25)
@@ -336,6 +342,27 @@ Partial Class PanelPlayerLeft
         cboSectionAxis.Name = "cboSectionAxis"
         cboSectionAxis.Size = New Size(277, 25)
         cboSectionAxis.TabIndex = 58
+        ' 
+        ' chkShowSolids（不活动的三维体素模型本体是否显示）
+        ' 
+        chkShowSolids.AutoSize = True
+        chkShowSolids.Checked = True
+        chkShowSolids.CheckState = CheckState.Checked
+        chkShowSolids.Location = New Point(18, 680)
+        chkShowSolids.Name = "chkShowSolids"
+        chkShowSolids.Size = New Size(104, 19)
+        chkShowSolids.TabIndex = 71
+        chkShowSolids.Text = "显示模型本体"
+        ' 
+        ' chkClipSolidModel（裁剪远端横截面时是否一并裁剪模型本体）
+        ' 
+        chkClipSolidModel.AutoSize = True
+        chkClipSolidModel.Enabled = False
+        chkClipSolidModel.Location = New Point(150, 680)
+        chkClipSolidModel.Name = "chkClipSolidModel"
+        chkClipSolidModel.Size = New Size(104, 19)
+        chkClipSolidModel.TabIndex = 72
+        chkClipSolidModel.Text = "裁剪模型本体"
         ' 
         ' lblPosition
         ' 
@@ -481,7 +508,7 @@ Partial Class PanelPlayerLeft
         Controls.Add(lblThresholdVal)
         Controls.Add(trackThreshold)
         Controls.Add(lblTitleArrows)
-        Controls.Add(chkArrows)
+        Controls.Add(cboViz)
         Controls.Add(lblArrowDensity)
         Controls.Add(cboArrowDensity)
         Controls.Add(lblTitleSection)
@@ -489,6 +516,8 @@ Partial Class PanelPlayerLeft
         Controls.Add(cboSectionMode)
         Controls.Add(lblSectionAxisLabel)
         Controls.Add(cboSectionAxis)
+        Controls.Add(chkShowSolids)
+        Controls.Add(chkClipSolidModel)
         Controls.Add(lblPosition)
         Controls.Add(lblSectionPosVal)
         Controls.Add(trackSectionPos)
@@ -530,7 +559,7 @@ Partial Class PanelPlayerLeft
     Friend WithEvents lblThresholdVal As Label
     Friend WithEvents trackThreshold As TrackBar
     Friend WithEvents lblTitleArrows As Label
-    Friend WithEvents chkArrows As CheckBox
+    Friend WithEvents cboViz As ComboBox
     Friend WithEvents lblArrowDensity As Label
     Friend WithEvents cboArrowDensity As ComboBox
     Friend WithEvents lblTitleSection As Label
@@ -538,6 +567,8 @@ Partial Class PanelPlayerLeft
     Friend WithEvents cboSectionMode As ComboBox
     Friend WithEvents lblSectionAxisLabel As Label
     Friend WithEvents cboSectionAxis As ComboBox
+    Friend WithEvents chkShowSolids As CheckBox
+    Friend WithEvents chkClipSolidModel As CheckBox
     Friend WithEvents lblPosition As Label
     Friend WithEvents lblSectionPosVal As Label
     Friend WithEvents trackSectionPos As TrackBar

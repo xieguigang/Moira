@@ -1,5 +1,6 @@
 ﻿Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
 Imports Moira.CDFDxCanvas.Data
+Imports Moira.CDFDxCanvas.Rendering
 
 Public Class PanelPlayerLeft
 
@@ -73,7 +74,7 @@ Public Class PanelPlayerLeft
         If Double.TryParse(txtRangeMax.Text, v) Then player.Canvas.RangeMax = v
     End Sub
 
-    ' ---------------- 阈值 / 箭头 / 截面 ----------------
+    ' ---------------- 阈值 / 可视化类型 / 截面 ----------------
 
     Private Sub trackThreshold_ValueChanged(sender As Object, e As EventArgs) Handles trackThreshold.ValueChanged
         Dim t As Double = trackThreshold.Value / 100.0
@@ -81,16 +82,51 @@ Public Class PanelPlayerLeft
         player.Canvas.Threshold = t
     End Sub
 
-    Private Sub chkArrows_CheckedChanged(sender As Object, e As EventArgs) Handles chkArrows.CheckedChanged
-        player.Canvas.ShowArrows = chkArrows.Checked
+    '''
+    ''' 可视化类型切换：体素热图 / 矢量图 / 流线图（严格互斥，同一时刻只有一种生效）。
+    '''
+    Private Sub cboViz_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cboViz.SelectedIndexChanged
+        ' InitializeComponent 里设置 SelectedIndex 时 player 还没赋值
+        If player Is Nothing OrElse player.Canvas Is Nothing Then Return
+
+        player.Canvas.Visualization = CType(cboViz.SelectedIndex, VisualizationMode)
     End Sub
 
+    '''
+    ''' 采样密度：同时作用于矢量图步长与流线图种子步长。
+    '''
     Private Sub cboArrowDensity_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cboArrowDensity.SelectedIndexChanged
-        player.Canvas.ArrowDensity = cboArrowDensity.SelectedIndex + 2
+        If player Is Nothing OrElse player.Canvas Is Nothing Then Return
+
+        Dim stride As Integer = cboArrowDensity.SelectedIndex + 2
+
+        player.Canvas.VectorStride = stride
+        player.Canvas.PathlineSeedStride = stride
+    End Sub
+
+    '''
+    ''' 是否显示不活动的三维体素模型本体（三种可视化类型下都常驻）。
+    '''
+    Private Sub chkShowSolids_CheckedChanged(sender As Object, e As EventArgs) Handles chkShowSolids.CheckedChanged
+        ' InitializeComponent 里设置 Checked 时 player 还没赋值
+        If player Is Nothing OrElse player.Canvas Is Nothing Then Return
+
+        player.Canvas.ShowSolids = chkShowSolids.Checked
+    End Sub
+
+    '''
+    ''' 裁剪远端横截面时，是否把不活动的三维体素模型本体一并裁剪（默认不裁剪）。
+    '''
+    Private Sub chkClipSolidModel_CheckedChanged(sender As Object, e As EventArgs) Handles chkClipSolidModel.CheckedChanged
+        If player Is Nothing OrElse player.Canvas Is Nothing Then Return
+
+        player.Canvas.ClipSolidModelWithSection = chkClipSolidModel.Checked
     End Sub
 
     ''' <summary>把截面模式下拉映射到控件属性。</summary>
     Private Sub ApplySectionMode(sender As Object, e As EventArgs) Handles cboSectionMode.SelectedIndexChanged
+        Dim enabled As Boolean = cboSectionMode.SelectedIndex > 0
+
         Select Case cboSectionMode.SelectedIndex
             Case 1
                 player.Canvas.SectionEnabled = True
@@ -103,6 +139,9 @@ Public Class PanelPlayerLeft
                 player.Canvas.SliceOnly = False
                 player.Canvas.SectionEnabled = False
         End Select
+
+        ' "裁剪模型本体"只在启用横截面时才有意义
+        chkClipSolidModel.Enabled = enabled
     End Sub
 
     Private Sub cboSectionAxis_SelectedIndexChanged(sender As Object, e As EventArgs) Handles cboSectionAxis.SelectedIndexChanged

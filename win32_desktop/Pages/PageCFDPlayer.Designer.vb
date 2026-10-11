@@ -47,7 +47,7 @@ Partial Class PageCFDPlayer
         ' 
         ' m_canvas
         ' 
-        m_canvas.ArrowDensity = 2
+        m_canvas.VectorStride = 2
         m_canvas.AutoPointSize = True
         m_canvas.AutoRange = True
         m_canvas.Dock = DockStyle.Fill
@@ -62,7 +62,7 @@ Partial Class PageCFDPlayer
         m_canvas.SectionEnabled = False
         m_canvas.SectionPosition = 0
         m_canvas.SelectedVoxel = -1
-        m_canvas.ShowArrows = False
+        m_canvas.Visualization = Moira.CDFDxCanvas.Rendering.VisualizationMode.Heatmap
         m_canvas.ShowDebugInfo = False
         m_canvas.ShowHoverTooltip = False
         m_canvas.Size = New Size(1183, 433)

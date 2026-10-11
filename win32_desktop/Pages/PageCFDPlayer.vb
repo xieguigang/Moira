@@ -155,7 +155,8 @@ Public Class PageCFDPlayer
 
         Text = $"CFD Player · 已加载 {dataset.FrameCount} 帧 " &
                $"({dataset.Nx}×{dataset.Ny}×{dataset.Nz}，" &
-               $"{dataset.ActiveVoxels:N0} 活动体素 · {dataset.FieldNames.Length} 个标量场)"
+               $"{dataset.ActiveVoxels:N0} 活动体素 · {dataset.SolidVoxels:N0} 固体体素 · " &
+               $"{dataset.FieldNames.Length} 个标量场)"
 
         Call CommonRuntime.Success(Text)
         Call Globals.host.SetTitle(Text)
