@@ -26,9 +26,9 @@
 '
 ' /********************************************************************************/
 
-Imports ILCudaRuntime = Microsoft.VisualBasic.Computing.ILCuda.Runtime
-Imports ILCudaKernels = Microsoft.VisualBasic.Computing.ILCuda.Kernels
 Imports Microsoft.VisualBasic.MachineLearning.TensorFlow
+Imports ILCudaKernels = Microsoft.VisualBasic.Computing.ILCuda.Kernels
+Imports ILCudaRuntime = Microsoft.VisualBasic.Computing.ILCuda.Runtime
 Imports tfCompute = Microsoft.VisualBasic.MachineLearning.TensorFlow.Compute
 
 ''' <summary>
