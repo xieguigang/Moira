@@ -35,8 +35,14 @@ Module Program
         Console.WriteLine($"[DBG] skipped={DelaunayTriangulation3D.LastRunSkipped}, alive={DelaunayTriangulation3D.LastRunAliveTets}/{DelaunayTriangulation3D.LastRunTotalTets}")
 
         ' 逐步加点定位首次出错
+        DelaunayTriangulation3D.DebugValidateEachStep = True
+
         For k As Integer = 4 To 8
             Dim sub_tets As List(Of TetraIndices) = DelaunayTriangulation3D.Triangulate(cube.Take(k).ToList)
+
+            For Each line As String In DelaunayTriangulation3D.LastDebugLog
+                Console.WriteLine($"[DBG k={k}] {line}")
+            Next
             Dim sub_vol As Double = sub_tets.Sum(Function(t)
                                                      Dim tet As New Tetrahedron(cube(t.A), cube(t.B), cube(t.C), cube(t.D))
                                                      Return tet.Volume
