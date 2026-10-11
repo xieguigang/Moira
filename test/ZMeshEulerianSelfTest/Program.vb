@@ -135,6 +135,26 @@ Module Program
 
         Check("TightOctree.Leaves", leaves.Count = 64, $"leaves={leaves.Count} (uniform depth2)")
 
+        ' 探针：直接检查 Octant
+        For i As Integer = 0 To 7
+            Dim o As BoundingBox3D = bounds.Octant(i)
+            Console.WriteLine($"[OCTANT {i}] {o.ToString}")
+        Next
+
+        ' 探针：检查负载项分布
+        Dim probe As New TightOctree(Of Integer)(bounds, maxDepth:=4)
+        Call probe.Insert(New BoundingBox3D(1.5, 0, 0, 2.5, 4, 4), 7)
+        Dim rootLeaves As List(Of TightOctreeCell(Of Integer)) = probe.Leaves
+        Dim rootItems As Integer = rootLeaves.Sum(Function(l) l.Items.Count)
+        Call probe.RefineToUniform(1)
+        Dim l1 As List(Of TightOctreeCell(Of Integer)) = probe.Leaves
+        Dim l1Items As Integer = l1.Sum(Function(l) l.Items.Count)
+        Dim l1Boundary As Integer = l1.Where(Function(l) l.IsBoundaryCell).Count()
+        Call probe.RefineToUniform(2)
+        Dim l2 As List(Of TightOctreeCell(Of Integer)) = probe.Leaves
+        Dim l2Items As Integer = l2.Sum(Function(l) l.Items.Count)
+        Console.WriteLine($"[PROBE] root items={rootItems}, L1 leaves={l1.Count} items={l1Items} boundary={l1Boundary}, L2 leaves={l2.Count} items={l2Items}")
+
         Dim boundaryCount As Integer = leaves.Where(Function(l) l.IsBoundaryCell).Count()
         Check("TightOctree.boundary cells", boundaryCount > 0 AndAlso boundaryCount < leaves.Count, $"boundary={boundaryCount}")
 
@@ -296,8 +316,9 @@ Module Program
             Dim p As Double() = corners(i)
 
             If i = 0 OrElse i = 3 OrElse i = 4 OrElse i = 7 Then
-                ' 共享面（x=1）上的角点复用 hex A 的顶点索引
-                b(i) = a(i)
+                ' 共享面（x=1）上的角点复用 hex A 的顶点索引：
+                ' b0=(1,0,0)=a1, b3=(1,1,0)=a2, b4=(1,0,1)=a5, b7=(1,1,1)=a6
+                b(i) = a(If(i = 0, 1, If(i = 3, 2, If(i = 4, 5, 6))))
             Else
                 b(i) = raw.AddVertex(New EulerianVertex(p(0) + 1, p(1), p(2)))
             End If

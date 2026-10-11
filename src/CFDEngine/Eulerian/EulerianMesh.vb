@@ -267,6 +267,7 @@ Namespace Eulerian
             '
             '    V = (1/3) Σ_f (c_f · n̂_f) A_f
             '    centroid = (1/(4V)) Σ_f (c_f · n̂_f) A_f c_f
+            ' 注意：内部面在 Owner 一侧取 +d，Neighbour 一侧取 -d（法向恒自 Owner 指向 Neighbour）
             CellVolumes = New Double(nc - 1) {}
 
             For c As Integer = 0 To nc - 1
@@ -277,6 +278,10 @@ Namespace Eulerian
                     Dim cf As EulerianVertex = FaceCentroids(fi)
                     Dim nf2 As EulerianVertex = FaceNormals(fi)
                     Dim d As Double = EulerianVertex.Dot(cf, nf2) * FaceAreas(fi)
+
+                    If Faces(fi).Neighbour = c AndAlso Faces(fi).Owner <> c Then
+                        d = -d
+                    End If
 
                     vol6 += d
                     wx += d * cf.X : wy += d * cf.Y : wz += d * cf.Z

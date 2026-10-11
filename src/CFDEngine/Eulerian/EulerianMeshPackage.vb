@@ -216,7 +216,7 @@ Namespace Eulerian
                     Using text As New StreamWriter(entryStream)
                         Call text.Write(JsonSerializer.Serialize(
                             info,
-                            New JsonSerializerOptions With {.WriteIndented = False}))
+                            New JsonSerializerOptions With {.WriteIndented = False, .IncludeFields = True}))
                     End Using
                 End Using
             End Sub
@@ -259,82 +259,72 @@ Namespace Eulerian
             Public Function LoadMesh(Optional computeGeometry As Boolean = True) As EulerianMesh
                 Dim mesh As New EulerianMesh
 
-                ' 节点
-                Using s As Stream = FindEntry(MeshPointsEntry).Open()
-                    Using r As New BinaryReader(s)
-                        Dim n As Integer = If(Info IsNot Nothing, Info.PointCount, -1)
+                ' DeflateStream 不支持 Length/Position，先把条目读入内存再解析
+                Using r As BinaryReader = OpenBinary(MeshPointsEntry)
+                    Dim n As Integer = If(Info IsNot Nothing, Info.PointCount, CInt(r.BaseStream.Length \ 24))
 
-                        If n < 0 Then
-                            n = CInt(s.Length \ 24)
-                        End If
-
-                        For i As Integer = 0 To n - 1
-                            mesh.Points.Add(New EulerianVertex(r.ReadDouble, r.ReadDouble, r.ReadDouble))
-                        Next
-                    End Using
+                    For i As Integer = 0 To n - 1
+                        mesh.Points.Add(New EulerianVertex(r.ReadDouble, r.ReadDouble, r.ReadDouble))
+                    Next
                 End Using
 
                 ' 面（写端顺序：[顶点数 n][owner][neighbour][n × 顶点索引]）
-                Using s As Stream = FindEntry(MeshFacesEntry).Open()
-                    Using r As New BinaryReader(s)
-                        While s.Position < s.Length
-                            Dim nv As Integer = r.ReadInt32()
-                            Dim owner As Integer = r.ReadInt32()
-                            Dim neighbour As Integer = r.ReadInt32()
-                            Dim f As New EulerianFace With {
-                                .PointIndices = New List(Of Integer),
-                                .Owner = owner,
-                                .Neighbour = neighbour}
+                Using r As BinaryReader = OpenBinary(MeshFacesEntry)
+                    While r.BaseStream.Position < r.BaseStream.Length
+                        Dim nv As Integer = r.ReadInt32()
+                        Dim owner As Integer = r.ReadInt32()
+                        Dim neighbour As Integer = r.ReadInt32()
+                        Dim f As New EulerianFace With {
+                            .PointIndices = New List(Of Integer),
+                            .Owner = owner,
+                            .Neighbour = neighbour}
 
-                            For j As Integer = 0 To nv - 1
-                                f.PointIndices.Add(r.ReadInt32())
-                            Next
+                        For j As Integer = 0 To nv - 1
+                            f.PointIndices.Add(r.ReadInt32())
+                        Next
 
-                            mesh.Faces.Add(f)
-                        End While
-                    End Using
+                        mesh.Faces.Add(f)
+                    End While
                 End Using
 
                 ' 单元 → 面索引表
-                Using s As Stream = FindEntry(MeshCellFacesEntry).Open()
-                    Using r As New BinaryReader(s)
-                        While s.Position < s.Length
-                            Dim m As Integer = r.ReadInt32()
-                            Dim cell As Integer() = New Integer(m - 1) {}
+                Using r As BinaryReader = OpenBinary(MeshCellFacesEntry)
+                    While r.BaseStream.Position < r.BaseStream.Length
+                        Dim m As Integer = r.ReadInt32()
+                        Dim cell As Integer() = New Integer(m - 1) {}
 
-                            For j As Integer = 0 To m - 1
-                                cell(j) = r.ReadInt32()
-                            Next
+                        For j As Integer = 0 To m - 1
+                            cell(j) = r.ReadInt32()
+                        Next
 
-                            mesh.CellFaces.Add(cell)
-                        End While
-                    End Using
+                        mesh.CellFaces.Add(cell)
+                    End While
                 End Using
 
                 ' Patch（面索引；名称/类型来自元数据）
-                Using s As Stream = FindEntry(MeshPatchesEntry).Open()
-                    Using r As New BinaryReader(s)
-                        Dim patchIndex As Integer = 0
+                Using r As BinaryReader = OpenBinary(MeshPatchesEntry)
+                    Dim patchIndex As Integer = 0
 
-                        While s.Position < s.Length
-                            Dim k As Integer = r.ReadInt32()
-                            Dim patch As New EulerianPatch
+                    While r.BaseStream.Position < r.BaseStream.Length
+                        Dim k As Integer = r.ReadInt32()
+                        Dim patch As New EulerianPatch
 
-                            If Info IsNot Nothing AndAlso patchIndex < Info.Patches.Count Then
-                                patch.Name = Info.Patches(patchIndex).Name
-                                patch.Type = ParsePatchType(Info.Patches(patchIndex).Type)
-                            Else
-                                patch.Name = $"patch{patchIndex}"
-                            End If
+                        If Info IsNot Nothing AndAlso Info.Patches IsNot Nothing AndAlso
+                            patchIndex < Info.Patches.Count Then
 
-                            For j As Integer = 0 To k - 1
-                                patch.FaceIndices.Add(r.ReadInt32())
-                            Next
+                            patch.Name = Info.Patches(patchIndex).Name
+                            patch.Type = ParsePatchType(Info.Patches(patchIndex).Type)
+                        Else
+                            patch.Name = $"patch{patchIndex}"
+                        End If
 
-                            mesh.Patches.Add(patch)
-                            patchIndex += 1
-                        End While
-                    End Using
+                        For j As Integer = 0 To k - 1
+                            patch.FaceIndices.Add(r.ReadInt32())
+                        Next
+
+                        mesh.Patches.Add(patch)
+                        patchIndex += 1
+                    End While
                 End Using
 
                 If computeGeometry Then
@@ -342,6 +332,16 @@ Namespace Eulerian
                 End If
 
                 Return mesh
+            End Function
+
+            ''' <summary>把 zip 条目整段读入内存并包装为 BinaryReader。</summary>
+            Private Function OpenBinary(entryName As String) As BinaryReader
+                Using s As Stream = FindEntry(entryName).Open()
+                    Dim ms As New MemoryStream
+                    Call s.CopyTo(ms)
+                    ms.Position = 0
+                    Return New BinaryReader(ms)
+                End Using
             End Function
 
             Private Shared Function ParsePatchType(text As String) As EulerianPatchType
@@ -366,7 +366,9 @@ Namespace Eulerian
 
             Private Function ParseMetadata() As EulerianMeshInfo
                 Using entryStream As Stream = FindEntry(MeshJsonEntry).Open()
-                    Dim info As EulerianMeshInfo = JsonSerializer.Deserialize(Of EulerianMeshInfo)(entryStream)
+                    Dim info As EulerianMeshInfo = JsonSerializer.Deserialize(Of EulerianMeshInfo)(
+                        entryStream,
+                        New JsonSerializerOptions With {.IncludeFields = True})
 
                     If info Is Nothing Then
                         Throw New InvalidDataException("mesh.json 解析失败")

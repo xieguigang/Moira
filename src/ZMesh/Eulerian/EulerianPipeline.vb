@@ -60,17 +60,14 @@ Public Class EulerianPipeline
                                    Optional rules As List(Of PatchRule) = Nothing) As PipelineReport
 
         Dim watch As Stopwatch = Stopwatch.StartNew()
-        Dim res As Double = resolution
 
         ' ---- 1. 几何预处理 ----
         Dim domain As GeometryPreprocessor.FluidDomain =
             GeometryPreprocessor.FromModelFile(modelFile, domainScale:=domainScale)
         Dim modelExtent As Double = (domain.ModelMax - domain.ModelMin).Length
 
-        If res <= 0 Then
-            ' 默认：模型跨越约 20 个单元
-            res = modelExtent * 0.05
-        End If
+        ' resolution 语义：相对模型最大对角线长度的比例（0.05 = 模型跨越约 20 个单元）
+        Dim res As Double = If(resolution > 0, modelExtent * resolution, modelExtent * 0.05)
 
         Dim options As New MeshGenerateOptions With {
             .Domain = domain,
