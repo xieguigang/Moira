@@ -34,7 +34,6 @@ Public Class LbmVtiRecorder
         Public FileName As String
     End Structure
 
-    ''' <summary>输出目录。</summary>
     ''' <summary>已导出帧数。</summary>
     Public ReadOnly Property FrameCount As Integer
         Get
@@ -42,6 +41,7 @@ Public Class LbmVtiRecorder
         End Get
     End Property
 
+    ''' <summary>输出目录。</summary>
     Public ReadOnly OutputDir As String
     ''' <summary>每 N 步导一帧。</summary>
     Public ReadOnly Interval As Integer

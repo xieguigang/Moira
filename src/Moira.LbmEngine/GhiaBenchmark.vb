@@ -57,7 +57,6 @@ Public Module GhiaBenchmark
         Return System.Math.Sqrt(num / den)
     End Function
 
-    ''' <summary>分段线性插值（sim 升序）。</summary>
     ''' <summary>分段线性插值（sim 第一列升序）——供 CLI 打印对比表。</summary>
     Public Function L2Interp(sim As Double(,), x As Double) As Double
         Dim n = sim.GetLength(0)
