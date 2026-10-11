@@ -307,7 +307,10 @@ Namespace Rendering
                 If state IsNot Nothing AndAlso state.Count > 0 Then n = state.Count
 
                 ' the tilt of the box changes while the user is dragging it, so
-                ' the world transform of the cloud has to follow it
+                ' the world transform of the cloud has to follow it. The
+                ' rotation of the shake controller already carries the fixed
+                ' basis change from the solver frame into the scene frame (see
+                ' BoxShakeController.RenderBasis)
                 Call m_packer.Request(state, n, m_shake.Rotation, m_hx, m_hy, m_hz)
 
                 m_lastStep = steps
@@ -490,10 +493,10 @@ Namespace Rendering
             m_tiltY = m_shake.TiltY
             m_lineClock.Restart()
 
-            ' the ground grid in the box local frame, rotated by the tilt of
-            ' the box: the wire frame of the box itself is drawn by the screen
-            ' space overlay (see OnOverlay) because the direct3d line list is
-            ' always one pixel wide
+            ' the ground grid in the box local frame, rotated by the rotation
+            ' of the box: the wire frame of the box itself is drawn by the
+            ' screen space overlay (see OnOverlay) because the direct3d line
+            ' list is always one pixel wide
             Call UpdateConnections(BuildGroundGrid(m_shake.Rotation, m_hx, m_hy, m_hz))
         End Sub
 
@@ -567,15 +570,20 @@ Namespace Rendering
 
         ''' <summary>
         ''' the xyz orientation gizmo in the lower left corner: three fixed
-        ''' length lines that point along the world axes as the camera sees
-        ''' them, labelled with the name of the axis
+        ''' length lines that point along the axes of the solver frame as the
+        ''' camera sees them, labelled with the name of the axis
         ''' </summary>
         ''' <remarks>
-        ''' The direction of each line is the screen space direction of the
-        ''' world axis: the origin and a unit step along the axis are projected
-        ''' and the difference of the two screen positions gives the direction.
-        ''' The gizmo shows the world frame, it only turns when the camera
-        ''' turns, never with the shake of the box.
+        ''' The scene camera displays the world with the y axis downwards on
+        ''' the screen, so the raw axes of the scene frame are of no use here:
+        ''' the gizmo shows the solver frame instead (z up, the gravity pulls
+        ''' along -z). Each solver axis is mapped into the scene frame by the
+        ''' fixed <see cref="BoxShakeController.RenderBasis"/> and projected,
+        ''' the difference of the two screen positions gives the direction.
+        ''' With the default camera the z axis of the solver points upwards on
+        ''' the screen, the x axis to the right and the y axis into the
+        ''' screen, no axis points downwards. The gizmo only turns when the
+        ''' camera turns, never with the shake of the box.
         ''' </remarks>
         Private Sub DrawAxisGizmo(g As IGraphics, size As Size)
             Const length As Single = 46.0F
@@ -585,6 +593,7 @@ Namespace Rendering
             ' in any direction, the margin keeps it inside of the canvas
             Dim anchor As New PointF(margin + length / 2.0F,
                                      size.Height - margin - length / 2.0F)
+            Dim basis As Single() = BoxShakeController.RenderBasis
             Dim origin As PointF
 
             If Not TryProjectPoint(New Point3D(0, 0, 0), origin) Then Return
@@ -601,8 +610,9 @@ Namespace Rendering
 
             For i As Integer = 0 To 2
                 Dim tip As PointF
+                Dim a As Point3D = axes(i)
 
-                If Not TryProjectPoint(axes(i), tip) Then Continue For
+                If Not TryProjectPoint(Transform(basis, a.X, a.Y, a.Z), tip) Then Continue For
 
                 Dim dx As Single = tip.X - origin.X
                 Dim dy As Single = tip.Y - origin.Y
