@@ -10,10 +10,16 @@
     <!-- a numerical kernel: the per particle loops must not pay for the
          integer overflow checks of the default debug friendly settings -->
     <RemoveIntegerOverflowChecks>true</RemoveIntegerOverflowChecks>
+    <UseWPF>True</UseWPF>
+    <ApplicationIcon>CFD.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="selftest10m.log" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="CFD.ico" />
   </ItemGroup>
 
   <ItemGroup>

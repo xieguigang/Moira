@@ -167,7 +167,6 @@ Public Class Form1
         Call ParseCommandLine()
         Call SetupControls()
         Call RelayoutOverlay()
-        Call StartLoading()
 
         ' The animation must not be driven by Application.Idle: the winforms
         ' message pump blocks in GetMessage as soon as the queue runs dry, so
@@ -175,7 +174,9 @@ Public Class Form1
         ' the loop then stalls at a few ticks per second. A timer posts a
         ' message of its own and keeps the loop at a steady rate.
         m_clock = New Timer() With {.Interval = 8}
+
         Call m_clock.Start()
+        Call ResetBox()
     End Sub
 
     ''' <summary>
@@ -567,7 +568,7 @@ Public Class Form1
         Call UpdateStatus()
     End Sub
 
-    Private Sub OnResetClick(sender As Object, e As EventArgs) Handles m_btnReset.Click
+    Private Sub ResetBox() Handles m_btnReset.Click
         If m_sim IsNot Nothing Then Call m_sim.Stop()
         If m_packer IsNot Nothing Then Call m_packer.Stop()
 

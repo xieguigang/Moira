@@ -26,15 +26,16 @@ Partial Class Form1
     'Do not modify it using the code editor.
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
+        Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(Form1))
         m_body = New Panel()
         m_stage = New Panel()
-        m_canvas = New FluidSceneCanvas()
         m_hud = New Label()
         m_legend = New Panel()
         m_legendName = New Label()
         m_legendMax = New Label()
         m_legendMin = New Label()
         m_legendBar = New Panel()
+        m_canvas = New FluidSceneCanvas()
         m_params = New Panel()
         m_lblParamsTitle = New Label()
         m_gravityHost = New Panel()
@@ -148,19 +149,6 @@ Partial Class Form1
         m_stage.Size = New Size(1168, 818)
         m_stage.TabIndex = 0
         ' 
-        ' m_canvas
-        ' 
-        m_canvas.AutoClear = False
-        m_canvas.BackColor = Color.White
-        m_canvas.BackgroundColor = Color.FromArgb(CByte(237), CByte(250), CByte(254))
-        m_canvas.BackgroundGridColor = Color.Black
-        m_canvas.Dock = DockStyle.Fill
-        m_canvas.Location = New Point(0, 0)
-        m_canvas.Margin = New Padding(0)
-        m_canvas.Name = "m_canvas"
-        m_canvas.Size = New Size(1168, 818)
-        m_canvas.TabIndex = 0
-        ' 
         ' m_hud
         ' 
         m_hud.BackColor = Color.White
@@ -227,6 +215,20 @@ Partial Class Form1
         m_legendBar.Name = "m_legendBar"
         m_legendBar.Size = New Size(212, 16)
         m_legendBar.TabIndex = 3
+        ' 
+        ' m_canvas
+        ' 
+        m_canvas.AutoClear = False
+        m_canvas.BackColor = Color.White
+        m_canvas.BackgroundColor = Color.FromArgb(CByte(237), CByte(250), CByte(254))
+        m_canvas.BackgroundGridColor = Color.Black
+        m_canvas.ColorScheme = Microsoft.VisualBasic.Imaging.Drawing2D.Colors.ScalerPalette.viridis
+        m_canvas.Dock = DockStyle.Fill
+        m_canvas.Location = New Point(0, 0)
+        m_canvas.Margin = New Padding(0)
+        m_canvas.Name = "m_canvas"
+        m_canvas.Size = New Size(1168, 818)
+        m_canvas.TabIndex = 0
         ' 
         ' m_params
         ' 
@@ -967,6 +969,7 @@ Partial Class Form1
         Controls.Add(m_loading)
         Font = New Font("Microsoft YaHei UI", 9F)
         ForeColor = Color.FromArgb(CByte(30), CByte(41), CByte(59))
+        Icon = CType(resources.GetObject("$this.Icon"), Icon)
         MinimumSize = New Size(1024, 640)
         Name = "Form1"
         StartPosition = FormStartPosition.CenterScreen
