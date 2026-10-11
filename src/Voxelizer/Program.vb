@@ -48,6 +48,18 @@ End Enum
 Module Program
 
     Function Main(args As String()) As Integer
+        Try
+            Return Run(args)
+        Catch oom As OutOfMemoryException
+            Console.Error.WriteLine(oom.ToString())
+            Return 2
+        Catch ex As Exception
+            Console.Error.WriteLine(ex.ToString())
+            Return 1
+        End Try
+    End Function
+
+    Function Run(args As String()) As Integer
         If args.Length = 0 OrElse args(0) = "--help" OrElse args(0) = "-h" Then
             ShowUsage()
             Return If(args.Length = 0, 1, 0)
@@ -186,12 +198,16 @@ Module Program
         If outPath.ToLowerInvariant.EndsWith(".zip") OrElse outPath.ToLowerInvariant.EndsWith(".voxel") Then
             ' 二进制体素包：model.json 元数据 + model.vox 掩膜字节流（分块流式写入，
             ' 全程无 Integer() 大数组，高分辨率不 OOM）
+            Console.WriteLine("  [stage] writer/new ...")
             Using writer As New VoxelPackage.Writer(outPath)
+                Console.WriteLine("  [stage] metadata ...")
                 Call writer.WriteMetadata(grid)
+                Console.WriteLine("  [stage] openmask ...")
                 Call writer.OpenMask()
 
                 Dim chunk(VoxelPackage.DefaultChunkSize - 1) As Byte
                 Dim pending As Integer = 0
+                Console.WriteLine("  [stage] chunk loop ...")
 
                 For idx As Integer = 0 To CInt(nTotal - 1)
                     ' Landscape True=固体 → byte 0；流体 → byte 1
@@ -204,9 +220,11 @@ Module Program
                     End If
                 Next
 
+                Console.WriteLine("  [stage] flush tail ...")
                 If pending > 0 Then
                     Call writer.WriteMaskChunk(chunk, pending)
                 End If
+                Console.WriteLine("  [stage] dispose zip ...")
             End Using
         Else
             ' 兼容旧路径：GridInfo JSON（Mask 为 Integer 大数组，仅低分辨率适用）
