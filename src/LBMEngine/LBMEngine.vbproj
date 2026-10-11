@@ -21,6 +21,10 @@
     <None Remove="test\**" />
   </ItemGroup>
   <ItemGroup>
+    <!-- LBM float32 CUDA 内核源码：嵌入程序集，运行时由 CudaLbmBackend.LbmKernelSource 读取 -->
+    <EmbeddedResource Include="Kernels\moira_lbm_f32.cu" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\cuda\ILCudaTensor\ILCudaTensor.vbproj" />
     <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\cuda\ILCuda\ILCuda.vbproj" />
     <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\Data_science\MachineLearning\TensorFlow\TensorFlow.vbproj" />
