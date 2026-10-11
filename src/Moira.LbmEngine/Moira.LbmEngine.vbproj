@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- LBM 格子 Boltzmann 3D CFD 引擎（含用户 Snapshot 快照系统子集）。
+       RootNamespace = Moira.LbmEngine，使 Snapshot 源码中的
+       `Imports Moira.LbmEngine.Snapshot.JSON` 按原样解析。 -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Moira.LbmEngine</RootNamespace>
+    <AssemblyName>Moira.LbmEngine</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <OptionStrict>Off</OptionStrict>
+    <OptionExplicit>On</OptionExplicit>
+    <OptionInfer>On</OptionInfer>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="test\**" />
+    <EmbeddedResource Remove="test\**" />
+    <None Remove="test\**" />
+  </ItemGroup>
+
+</Project>
