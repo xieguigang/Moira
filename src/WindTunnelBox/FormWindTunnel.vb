@@ -214,8 +214,8 @@ Public Class FormWindTunnel
 
     Private Sub OnLoadModel(sender As Object, e As EventArgs)
         Using dlg As New OpenFileDialog With {
-            .Title = "选择 3D 模型文件 (STL / 3MF / OBJ ...)",
-            .Filter = "3D 模型|*.stl;*.3mf;*.obj;*.dae;*.3ds|所有文件|*.*",
+            .Title = "选择 3D 模型文件 (STL / 3MF / OBJ ...) 或预体素化 json",
+            .Filter = "3D 模型|*.stl;*.3mf;*.obj;*.dae;*.3ds|体素模型 json|*.voxel.json;*.json|所有文件|*.*",
             .InitialDirectory = If(IO.File.Exists(DefaultModelPath),
                 IO.Path.GetDirectoryName(DefaultModelPath), Environment.CurrentDirectory)
         }
@@ -238,13 +238,18 @@ Public Class FormWindTunnel
             Dim resolution As Integer = 512
             Dim voxelSize As Double = If(voxelizer = VoxelizerKind.Physical, CDbl(m_numVoxelSize.Value), 0.0R)
 
-            m_lblStatus.Text = $"正在加载并体素化: {IO.Path.GetFileName(path)} ({voxelizer})..."
-
-            ' ---- 1. 加载 + 体素化 + 放大定位 ----
-            m_scene = WindTunnelSceneBuilder.BuildScene(
-                path, resolution, voxelizer,
-                domainScale:=2.0, groundClearance:=0,
-                voxelSize:=voxelSize)
+            ' ---- 1. 加载 + 体素化/直载 + 放大定位 ----
+            If IO.Path.GetExtension(path).ToLowerInvariant() = ".json" Then
+                ' 预体素化 json 直载（Voxelizer CLI 产物）
+                m_lblStatus.Text = $"正在加载体素模型 json: {IO.Path.GetFileName(path)}..."
+                m_scene = WindTunnelVoxelJson.BuildSceneFromJson(path, domainScale:=2.0, groundClearance:=0)
+            Else
+                m_lblStatus.Text = $"正在加载并体素化: {IO.Path.GetFileName(path)} ({voxelizer})..."
+                m_scene = WindTunnelSceneBuilder.BuildScene(
+                    path, resolution, voxelizer,
+                    domainScale:=2.0, groundClearance:=0,
+                    voxelSize:=voxelSize)
+            End If
 
             ' ---- 2. 创建 LBM float32 风洞求解器 ----
             If m_solver IsNot Nothing Then
