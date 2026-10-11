@@ -73,6 +73,12 @@ Module Program
                     Case "--cut-cells" : cutCells = True
                     Case "--poisson" : i += 1 : poisson = Integer.Parse(args(i))
                     Case "--no-smooth" : smooth = False
+                    Case "--gpu", "-g"
+                        If Not CudaTensorF.TryRegister() Then
+                            Console.WriteLine($"warning: CUDA GPU 后端不可用（{CudaTensorF.LastError}），回退 CPU SIMD")
+                        Else
+                            Console.WriteLine("GPU: CUDA tensor 后端已启用")
+                        End If
                     Case "--patch", "-p"
                         i += 1
                         ' 格式：名称:类型:盒面，如 ground:Wall:YMin
