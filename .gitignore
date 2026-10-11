@@ -401,3 +401,6 @@ src/FVMEngine/test/smoke_d/metadata.json
 src/FVMEngine/test/smoke_cuda/metadata.json
 src/FVMEngine/test/cmp_s/metadata.json
 src/FVMEngine/test/cmp_d/metadata.json
+/test/f1_r002.zip
+/test/f1_r005.zip
+/test/f1_r010.zip
