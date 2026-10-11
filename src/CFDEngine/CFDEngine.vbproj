@@ -99,4 +99,8 @@
     <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\vs_solutions\dev\VisualStudio\VisualStudio.NET5.vbproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Eulerian\" />
+  </ItemGroup>
+
 </Project>
