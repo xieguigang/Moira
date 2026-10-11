@@ -19,18 +19,33 @@ Public Class FvmTopologyBuilder
         Dim mesh As New EulerianMesh
         mesh.Points.AddRange(raw.Points)
 
-        ' 单元 → 面索引表
-        Dim cellFaces As List(Of Integer)() = New List(Of Integer)(raw.Cells.Count - 1) {}
+        ' 过滤退化单元（面数不足或含退化面；真实模型脏数据防护）
+        Dim cells As New List(Of RawCell)
+        Dim skippedCells As Integer = 0
 
-        For c As Integer = 0 To raw.Cells.Count - 1
+        For Each cell As RawCell In raw.Cells
+            Dim valid As Integer = cell.Faces.Where(Function(f) f.PointIndices.Count >= 3).Count()
+
+            If valid < 4 Then
+                skippedCells += 1
+                Continue For
+            End If
+
+            cells.Add(cell)
+        Next
+
+        ' 单元 → 面索引表
+        Dim cellFaces As List(Of Integer)() = New List(Of Integer)(cells.Count - 1) {}
+
+        For c As Integer = 0 To cells.Count - 1
             cellFaces(c) = New List(Of Integer)
         Next
 
         ' 面键 → 候选面索引（哈希碰撞时做环绕等价校验）
         Dim faceMap As New Dictionary(Of Long, List(Of Integer))
 
-        For c As Integer = 0 To raw.Cells.Count - 1
-            For Each f As RawFace In raw.Cells(c).Faces
+        For c As Integer = 0 To cells.Count - 1
+            For Each f As RawFace In cells(c).Faces
                 If f.PointIndices.Count < 3 Then
                     Continue For
                 End If
@@ -77,12 +92,8 @@ Public Class FvmTopologyBuilder
             End If
         Next
 
-        For c As Integer = 0 To raw.Cells.Count - 1
+        For c As Integer = 0 To cells.Count - 1
             mesh.CellFaces.Add(cellFaces(c).ToArray)
-
-            If mesh.CellFaces(c).Length < 4 Then
-                Throw New InvalidDataException($"cell #{c} has only {mesh.CellFaces(c).Length} faces (degenerate)")
-            End If
         Next
 
         Call mesh.ComputeGeometry()

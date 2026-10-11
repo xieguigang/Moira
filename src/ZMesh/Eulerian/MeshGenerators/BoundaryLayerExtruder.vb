@@ -97,8 +97,20 @@ Public Class BoundaryLayerExtruder : Implements IMeshGenerator
                 layerPoints(layer + 1)(v) = mesh.AddVertex(p)
             Next
 
-            ' ---- 3. 该层的三棱柱单元 ----
+            ' ---- 3. 该层的三棱柱单元（跳过退化三角形）----
             For Each tri As Integer() In domain.Triangles
+                If tri(0) = tri(1) OrElse tri(1) = tri(2) OrElse tri(2) = tri(0) Then
+                    Continue For
+                End If
+
+                Dim ta As EulerianVertex = domain.Vertices(tri(0))
+                Dim tb As EulerianVertex = domain.Vertices(tri(1))
+                Dim tc As EulerianVertex = domain.Vertices(tri(2))
+
+                If EulerianVertex.Cross(tb - ta, tc - ta).Length < 1.0E-12 * modelExtent Then
+                    Continue For
+                End If
+
                 Dim b0 As Integer = layerPoints(layer)(tri(0))
                 Dim b1 As Integer = layerPoints(layer)(tri(1))
                 Dim b2 As Integer = layerPoints(layer)(tri(2))
