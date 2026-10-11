@@ -8,7 +8,7 @@ Imports std = System.Math
 ''' The fluid box simulator: a 3d box that is filled with ten million SPH
 ''' particles, coloured by their speed and shaken with the mouse.
 ''' </summary>
-Public Class Form1
+Public Class FormFluidBox
 
     ' ---- the palette of the shell, see the design guide of the app ----
     Private Shared ReadOnly Back0 As Color = FluidSceneCanvas.DefaultBackground
