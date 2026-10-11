@@ -179,6 +179,7 @@ Public Class FormWindTunnel
         m_sliceBar.Enabled = isOn
         m_chkSliceOnly.Enabled = isOn
         m_chkClipSolid.Enabled = isOn
+        m_row3.Visible = isOn
         m_sliceBar.Maximum = Math.Max(1, SliceMax() - 1)
 
         Call m_canvas.RefreshField()
