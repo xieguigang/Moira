@@ -83,12 +83,83 @@ Namespace Rendering
             End Get
         End Property
 
+        ' 直线度缓存（懒计算，-1 = 未计算）
+        Private m_straightness As Double = -1.0
+
+        ''' <summary>
+        ''' 直线度：折线顶点到首尾弦的最大垂距 / 弦长。
+        ''' </summary>
+        ''' <remarks>
+        ''' 0 = 完全直线；值越大弯曲越明显。用于把始终呈直线形态的
+        ''' 来流流线从显示中过滤掉，只保留有曲线变化的运动轨迹。
+        ''' </remarks>
+        Public ReadOnly Property Straightness As Double
+            Get
+                If m_straightness < 0 Then
+                    m_straightness = ComputeStraightness()
+                End If
+
+                Return m_straightness
+            End Get
+        End Property
+
+        Private Function ComputeStraightness() As Double
+            Dim n As Integer = Xs.Count
+
+            If n < 3 Then
+                ' 两点折线必然是直线
+                Return 0.0
+            End If
+
+            Dim dx As Double = Xs(n - 1) - Xs(0)
+            Dim dy As Double = Ys(n - 1) - Ys(0)
+            Dim dz As Double = Zs(n - 1) - Zs(0)
+            Dim chord2 As Double = dx * dx + dy * dy + dz * dz
+
+            If chord2 < 0.000000000001 Then
+                Return 0.0
+            End If
+
+            ' 最大垂距 = max(|d × w|) / |d|，直线度 = 垂距 / 弦长 = max(|d × w|) / |d|²
+            Dim maxCross2 As Double = 0.0
+
+            For s As Integer = 1 To n - 2
+                Dim wx As Double = Xs(s) - Xs(0)
+                Dim wy As Double = Ys(s) - Ys(0)
+                Dim wz As Double = Zs(s) - Zs(0)
+
+                ' 叉积分量
+                Dim cx As Double = dy * wz - dz * wy
+                Dim cy As Double = dz * wx - dx * wz
+                Dim cz As Double = dx * wy - dy * wx
+                Dim cross2 As Double = cx * cx + cy * cy + cz * cz
+
+                If cross2 > maxCross2 Then
+                    maxCross2 = cross2
+                End If
+            Next
+
+            Return Math.Sqrt(maxCross2) / chord2
+        End Function
+
     End Class
 
     ''' <summary>
     ''' 一次流线追踪的结果：折线集合 + 可直接提交的线段缓存。
     ''' </summary>
     Public Class StreamlineSet
+
+        ''' <summary>
+        ''' 直线流线隐藏的缺省直线度阈值：折线顶点到首尾弦的最大垂距
+        ''' 超过弦长 5% 的流线才视为有曲线变化的运动轨迹。
+        ''' </summary>
+        Public Const DefaultStraightness As Single = 0.05F
+
+        ''' <summary>
+        ''' 直线流线的隐藏阈值（直线度 = 最大垂距 / 弦长）：
+        ''' 直线度低于该值的流线不参与显示与粒子动画；0 = 全部显示。
+        ''' </summary>
+        Public Property MinCurvature As Single = 0.0F
 
         ''' <summary>流线折线（原始世界坐标）。</summary>
         Public Property Polylines As StreamlinePolyline()
@@ -103,18 +174,30 @@ Namespace Rendering
         Public Property Truncated As Boolean
 
         ''' <summary>
+        ''' 直线度不低于 <see cref="MinCurvature"/> 的折线
+        ''' （弯曲流线；MinCurvature = 0 时为全部折线）。
+        ''' </summary>
+        Public Function CurvedPolylines() As IEnumerable(Of StreamlinePolyline)
+            If MinCurvature <= 0 Then
+                Return Polylines.Where(Function(pl) pl IsNot Nothing AndAlso pl.VertexCount >= 2)
+            End If
+
+            Return Polylines.Where(
+                Function(pl) pl IsNot Nothing AndAlso pl.VertexCount >= 2 AndAlso
+                             pl.Straightness >= MinCurvature)
+        End Function
+
+        ''' <summary>
         ''' 把折线拆成线段（LINELIST 通道），逐段按归一化速度 LUT 着色，
         ''' 并整体平移 (dx, dy, dz)（质心补偿由调用方提供）。
+        ''' 直线形态的流线被隐藏（见 <see cref="MinCurvature"/>）。
         ''' </summary>
         Public Function BuildLines(lut As Color(), alpha As Integer,
                                    dx As Double, dy As Double, dz As Double) As LineSegment()
             Dim lutN As Integer = If(lut IsNot Nothing, lut.Length, 0)
             Dim lines As New List(Of LineSegment)(If(SegmentCount > 0, SegmentCount, 1024))
 
-            For Each pl As StreamlinePolyline In Polylines
-                If pl Is Nothing OrElse pl.VertexCount < 2 Then
-                    Continue For
-                End If
+            For Each pl As StreamlinePolyline In CurvedPolylines()
 
                 Dim xs = pl.Xs, ys = pl.Ys, zs = pl.Zs
 
@@ -168,8 +251,11 @@ Namespace Rendering
 
             If particlesPerLine < 1 Then particlesPerLine = 1
 
-            m_lines = If(streamSet?.Polylines, New StreamlinePolyline() {}) _
-                .Where(Function(pl) pl IsNot Nothing AndAlso pl.TotalLength > 0.0) _
+            ' 只在被显示的弯曲流线上布置粒子（MinCurvature 过滤直线流线）
+            m_lines = If(streamSet Is Nothing,
+                New StreamlinePolyline() {},
+                streamSet.CurvedPolylines()) _
+                .Where(Function(pl) pl.TotalLength > 0.0) _
                 .ToArray()
 
             m_lengths = New Double(m_lines.Length - 1) {}

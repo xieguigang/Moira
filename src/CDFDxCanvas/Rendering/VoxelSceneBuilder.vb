@@ -56,6 +56,12 @@ Namespace Rendering
         Public Property PathlineSeedStride As Integer = 4
 
         ''' <summary>
+        ''' 隐藏直线形态的流线（始终呈直线的来流轨迹），
+        ''' 只显示有曲线变化的运动轨迹。
+        ''' </summary>
+        Public Property HideStraightStreamlines As Boolean = True
+
+        ''' <summary>
         ''' 已缓存的流线折线（帧未变时复用，避免逐帧重追踪）；
         ''' Nothing 时由构建器现场追踪。
         ''' </summary>
@@ -540,7 +546,13 @@ Namespace Rendering
                 opt.SpeedMax = dataset.GetRange("speed").Item2
             End If
 
-            Return StreamlineTracer.Trace(field, opt)
+            Dim result As StreamlineSet = StreamlineTracer.Trace(field, opt)
+
+            ' 直线形态的来流轨迹不显示，只保留有曲线变化的流线
+            result.MinCurvature = If(options.HideStraightStreamlines,
+                StreamlineSet.DefaultStraightness, 0.0F)
+
+            Return result
         End Function
 
         ''' <summary>

@@ -25,6 +25,7 @@ Module Program
         Call TestArrows()
         Call TestStreamlines()
         Call TestAnimator()
+        Call TestStraightFilter()
 
         If Failures = 0 Then
             Console.WriteLine("ALL TESTS PASSED")
@@ -42,6 +43,44 @@ Module Program
             Console.WriteLine($"  [FAIL] {name} : {detail}")
         End If
     End Sub
+
+    ''' <summary>16x16x16 波状流场 u=1, v=0.5·sin(2πx/16)：流线弯曲。</summary>
+    Private Class WaveField : Implements IFlowFieldData
+
+        Public ReadOnly Property Nx As Integer = 16 Implements IFlowFieldData.Nx
+        Public ReadOnly Property Ny As Integer = 16 Implements IFlowFieldData.Ny
+        Public ReadOnly Property Nz As Integer = 16 Implements IFlowFieldData.Nz
+
+        Public ReadOnly Property OriginX As Single = 0.0F Implements IFlowFieldData.OriginX
+        Public ReadOnly Property OriginY As Single = 0.0F Implements IFlowFieldData.OriginY
+        Public ReadOnly Property OriginZ As Single = 0.0F Implements IFlowFieldData.OriginZ
+        Public ReadOnly Property SpacingX As Single = 1.0F Implements IFlowFieldData.SpacingX
+        Public ReadOnly Property SpacingY As Single = 1.0F Implements IFlowFieldData.SpacingY
+        Public ReadOnly Property SpacingZ As Single = 1.0F Implements IFlowFieldData.SpacingZ
+        Public ReadOnly Property CenterOffset As Single = 0.0F Implements IFlowFieldData.CenterOffset
+
+        Public Function UxAt(idx As Integer) As Single Implements IFlowFieldData.UxAt
+            Return 1.0F
+        End Function
+
+        Public Function UyAt(idx As Integer) As Single Implements IFlowFieldData.UyAt
+            Dim i As Integer = idx \ (16 * 16)
+            Return 0.5F * CSng(Math.Sin(2.0 * Math.PI * i / 16.0))
+        End Function
+
+        Public Function UzAt(idx As Integer) As Single Implements IFlowFieldData.UzAt
+            Return 0.0F
+        End Function
+
+        Public Function IsActive(idx As Integer) As Boolean Implements IFlowFieldData.IsActive
+            Return True
+        End Function
+
+        Public Function IsSeedable(idx As Integer) As Boolean Implements IFlowFieldData.IsSeedable
+            Return True
+        End Function
+
+    End Class
 
     ''' <summary>16x16x16 均匀流场 u=(u,0,0)，全流体。</summary>
     Private Class UniformField : Implements IFlowFieldData
@@ -244,6 +283,60 @@ Module Program
 
         Check("pack offset", Math.Abs(buf(0) - (xBefore + 10.0F)) < 0.001 AndAlso
               buf(1) >= 20.0F - 0.001F AndAlso buf(2) >= 30.0F - 0.001F, "offset wrong")
+    End Sub
+
+    Private Sub TestStraightFilter()
+        Console.WriteLine("TestStraightFilter:")
+
+        ' ---- 均匀场：全部流线为直线，启用过滤后不显示、无粒子 ----
+        Dim uniform As New UniformField(1.0F)
+        Dim uSet As StreamlineSet = StreamlineTracer.Trace(uniform, New StreamlineOptions With {
+            .SeedStride = 8, .StepLength = 0.5F, .MaxSteps = 40})
+
+        Check("straightness of uniform flow ~ 0", uSet.Polylines(0).Straightness < 0.001,
+              $"got {uSet.Polylines(0).Straightness}")
+
+        uSet.MinCurvature = StreamlineSet.DefaultStraightness
+
+        Dim uLines As LineSegment() = uSet.BuildLines(Nothing, 210, 0, 0, 0)
+
+        Check("straight streamlines hidden", uLines.Length = 0, $"got {uLines.Length}")
+
+        Dim uAnim As New StreamlineAnimator(uSet, 2)
+
+        Check("no particles on straight lines", uAnim.ParticleCount = 0, $"got {uAnim.ParticleCount}")
+
+        ' MinCurvature = 0 时全部显示（兼容旧行为）
+        uSet.MinCurvature = 0.0F
+
+        Dim uLinesAll As LineSegment() = uSet.BuildLines(Nothing, 210, 0, 0, 0)
+
+        Check("no filter shows all", uLinesAll.Length = uSet.SegmentCount,
+              $"lines={uLinesAll.Length}, segs={uSet.SegmentCount}")
+
+        ' ---- 波状场：流线弯曲，启用过滤后仍然显示 ----
+        Dim wave As New WaveField
+        Dim wSet As StreamlineSet = StreamlineTracer.Trace(wave, New StreamlineOptions With {
+            .SeedStride = 8, .StepLength = 0.5F, .MaxSteps = 60})
+
+        Dim sMax As Double = 0.0
+
+        For Each pl As StreamlinePolyline In wSet.Polylines
+            If pl IsNot Nothing AndAlso pl.Straightness > sMax Then
+                sMax = pl.Straightness
+            End If
+        Next
+
+        Check("curved streamlines detected", sMax > StreamlineSet.DefaultStraightness,
+              $"max straightness = {sMax}")
+
+        wSet.MinCurvature = StreamlineSet.DefaultStraightness
+
+        Dim wLines As LineSegment() = wSet.BuildLines(Nothing, 210, 0, 0, 0)
+        Dim wAnim As New StreamlineAnimator(wSet, 2)
+
+        Check("curved streamlines kept", wLines.Length > 0 AndAlso wAnim.ParticleCount > 0,
+              $"lines={wLines.Length}, particles={wAnim.ParticleCount}")
     End Sub
 
 End Module

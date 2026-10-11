@@ -434,6 +434,31 @@ Partial Public Class CFDCanvas
         End Set
     End Property
 
+    ''' <summary>
+    ''' 隐藏直线形态的流线：始终呈直线的来流运动轨迹不显示，
+    ''' 只显示有曲线变化状态的流线（绕流 / 涡旋 / 剪切层等）。
+    ''' </summary>
+    <Description("隐藏直线形态的流线，只显示弯曲的运动轨迹")>
+    <DefaultValue(True)>
+    Public Property HideStraightStreamlines As Boolean
+        Get
+            Return m_hideStraight
+        End Get
+        Set(value As Boolean)
+            If m_hideStraight = value Then Return
+            m_hideStraight = value
+
+            ' 已缓存的流线立即按新阈值生效（无需重追踪）
+            If m_streamCache IsNot Nothing Then
+                m_streamCache.MinCurvature = If(value, StreamlineSet.DefaultStraightness, 0.0F)
+            End If
+
+            Call ScheduleRefresh()
+        End Set
+    End Property
+
+    Private m_hideStraight As Boolean = True
+
     ''' <summary>是否启用流线光点粒子动画（关闭时只画静态流线折线）。</summary>
     <Description("流线光点粒子动画")>
     <DefaultValue(True)>
@@ -926,6 +951,7 @@ Partial Public Class CFDCanvas
             .VectorStride = m_vectorStride,
             .ShowPathlines = m_showPathlines,
             .PathlineSeedStride = m_pathSeedStride,
+            .HideStraightStreamlines = m_hideStraight,
             .SelectedVoxel = m_selectedVoxel,
             .Lut = GetPaletteLut()
         }

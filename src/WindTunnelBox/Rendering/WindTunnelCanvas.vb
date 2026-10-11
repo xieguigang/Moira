@@ -101,6 +101,41 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
 
     Private m_pathSeedStride As Integer = 4
 
+    ''' <summary>
+    ''' 隐藏直线形态的流线：始终呈直线的来流运动轨迹不显示，
+    ''' 只显示有曲线变化状态的流线（绕流 / 涡旋 / 剪切层等）。
+    ''' </summary>
+    <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
+    Public Property HideStraightStreamlines As Boolean
+        Get
+            Return m_hideStraight
+        End Get
+        Set(value As Boolean)
+            If m_hideStraight = value Then Return
+            m_hideStraight = value
+
+            ' 已追踪的流线立即按新阈值生效（无需重追踪）：
+            ' 折线缓存按新过滤条件重建，粒子动画器随之重建
+            If m_streamSet IsNot Nothing Then
+                m_streamSet.MinCurvature = If(value, StreamlineSet.DefaultStraightness, 0.0F)
+                m_pathLinesCache = Nothing
+
+                If m_animator IsNot Nothing Then
+                    m_animator = New StreamlineAnimator(m_streamSet, PathlineParticlesPerLine) With {
+                        .CyclesPerSecond = PathlineCyclesPerSecond
+                    }
+                    m_particleBuf = New Single(Math.Max(1, m_animator.ParticleCount) * 8 - 1) {}
+                End If
+
+                If Not value Then
+                    Call m_sceneCanvas.RequestRender()
+                End If
+            End If
+        End Set
+    End Property
+
+    Private m_hideStraight As Boolean = True
+
     ''' <summary>是否启用流线光点粒子动画（关闭时只画静态流线折线）。</summary>
     <DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)>
     Public Property PathlinesAnimate As Boolean
@@ -648,6 +683,12 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
                     m_streamSet = StreamlineTracer.Trace(sfield, New StreamlineOptions With {
                         .SeedStride = Math.Max(1, PathlineSeedStride)
                     })
+
+                    ' 直线形态的来流轨迹不显示，只保留有曲线变化的流线
+                    If m_streamSet IsNot Nothing Then
+                        m_streamSet.MinCurvature = If(HideStraightStreamlines,
+                            StreamlineSet.DefaultStraightness, 0.0F)
+                    End If
                 Catch ex As Exception
                     ' 追踪失败（如预算异常）：静默降级为不显示，避免打断渲染循环
                     m_streamSet = Nothing
