@@ -55,14 +55,19 @@ Namespace Rendering
     ''' <summary>
     ''' 一条流线折线：顶点序列 + 累计弧长 + 逐段归一化速度（着色用）。
     ''' </summary>
+    ''' <remarks>
+    ''' 顶点/弧长/着色数组按构建器内部约定由 <see cref="StreamlineTracer"/>
+    ''' 填充，外部只读使用（折线构建后单调递增、长度一致）。
+    ''' </remarks>
     Public Class StreamlinePolyline
 
-        Friend Xs As New List(Of Single)
-        Friend Ys As New List(Of Single)
-        Friend Zs As New List(Of Single)
-        Friend Cum As New List(Of Double)
+        Public Xs As New List(Of Single)
+        Public Ys As New List(Of Single)
+        Public Zs As New List(Of Single)
+        ''' <summary>累计弧长（格点 0 起，单调递增，长度 = 顶点数）。</summary>
+        Public Cum As New List(Of Double)
         ''' <summary>每段的归一化速度（0..1），段数 = 顶点数 - 1。</summary>
-        Friend Tc As New List(Of Single)
+        Public Tc As New List(Of Single)
 
         ''' <summary>折线总弧长（世界单位）。</summary>
         Public ReadOnly Property TotalLength As Double

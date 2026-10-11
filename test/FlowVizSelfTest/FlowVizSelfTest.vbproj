@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>FlowVizSelfTest</RootNamespace>
+    <AssemblyName>FlowVizSelfTest</AssemblyName>
+    <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Moira.CDFDxCanvas">
+      <HintPath>G:\Moira\assembly\bin\Moira.CDFDxCanvas.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.VisualBasic.Imaging">
+      <HintPath>G:\Moira\assembly\bin\Microsoft.VisualBasic.Imaging.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.VisualBasic.Drawing.DirectX">
+      <HintPath>G:\Moira\assembly\bin\Microsoft.VisualBasic.Drawing.DirectX.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
