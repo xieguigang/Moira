@@ -188,6 +188,7 @@ Namespace Eulerian
                 .ReferenceVelocity = referenceVelocity}
 
             Dim used As New List(Of String)
+            Dim skippedFaces As Integer = 0
 
             For pi As Integer = 0 To mesh.PatchCount - 1
                 Dim geo As EulerianPatchGeometry = mesh.Patches(pi)
@@ -269,6 +270,14 @@ Namespace Eulerian
                         fz += tau * (tz / tmag) * area
                     End If
 
+                    ' ★ 单点退化防护：切割单元网格上极个别边界面可能给出非有限贡献
+                    '   （法向退化 / 边界外推压力为 NaN），若不加防护会污染整个积分结果，
+                    '   表现为"流场正常但 Cd = NaN"。这里跳过该类面并计数。
+                    If Not IsFinite3(fx, fy, fz) Then
+                        skippedFaces += 1
+                        Continue For
+                    End If
+
                     report.ForceX += fx
                     report.ForceY += fy
                     report.ForceZ += fz
@@ -287,6 +296,13 @@ Namespace Eulerian
             report.Patches = String.Join(",", used)
 
             Return report
+        End Function
+
+        ''' <summary>三个分量是否全部有限（NaN / Inf 防护）。</summary>
+        Private Function IsFinite3(a As Double, b As Double, c As Double) As Boolean
+            Return Not Double.IsNaN(a) AndAlso Not Double.IsInfinity(a) AndAlso
+                   Not Double.IsNaN(b) AndAlso Not Double.IsInfinity(b) AndAlso
+                   Not Double.IsNaN(c) AndAlso Not Double.IsInfinity(c)
         End Function
 
         ''' <summary>

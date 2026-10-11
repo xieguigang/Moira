@@ -1087,12 +1087,17 @@ Namespace Eulerian
                 Next
             End If
 
+            ' ★ 注意：_u 是 Double()()（5 个守恒分量），_u.Length = 5 是**分量数**，
+            '   不是单元数。单元数必须用 _u(v).Length / Mesh.CellCount，
+            '   否则只更新前 5 个单元（曾导致 Sod 算例状态完全不演化）。
+            Dim nCells As Integer = _u(0).Length
+
             ' ---- RK3 第一阶段 ----
             Call ComputeRhs()
             Call SaveState(_uOld)
 
             For v As Integer = 0 To 4
-                For c As Integer = 0 To _u.Length - 1
+                For c As Integer = 0 To nCells - 1
                     _u(v)(c) = _uOld(v)(c) + _dt(c) * _rhs(v)(c)
                 Next
             Next
@@ -1104,7 +1109,7 @@ Namespace Eulerian
             Call ComputeRhs()
 
             For v As Integer = 0 To 4
-                For c As Integer = 0 To _u.Length - 1
+                For c As Integer = 0 To nCells - 1
                     _u(v)(c) = 0.75 * _uOld(v)(c) + 0.25 * (_u(v)(c) + _dt(c) * _rhs(v)(c))
                 Next
             Next
@@ -1116,7 +1121,7 @@ Namespace Eulerian
             Call ComputeRhs()
 
             For v As Integer = 0 To 4
-                For c As Integer = 0 To _u.Length - 1
+                For c As Integer = 0 To nCells - 1
                     _u(v)(c) = (1.0 / 3.0) * _uOld(v)(c) + (2.0 / 3.0) * (_u(v)(c) + _dt(c) * _rhs(v)(c))
                 Next
             Next

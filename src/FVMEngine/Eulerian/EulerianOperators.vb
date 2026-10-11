@@ -59,6 +59,13 @@ Namespace Eulerian
     ''' <summary>有限体积离散算子集合（全部作用于 <see cref="EulerianFvMesh"/> + <see cref="EulerianField"/>）。</summary>
     Public Module EulerianOperators
 
+        ''' <summary>
+        ''' 非正交显式修正的限幅系数（相对同一面正交隐式贡献的绝对值）。
+        ''' 1.0 = 修正幅度不超过正交部分。0 或负 = 不限幅（仅学术测试用）。
+        ''' 正交网格上 k_f ≡ 0，该限幅恒不生效，不影响精度。
+        ''' </summary>
+        Public Const NonOrthCorrectionLimit As Double = 1.0
+
 #Region "面插值"
 
         ''' <summary>
@@ -576,19 +583,21 @@ Namespace Eulerian
             Next
 
             ' ---- 正交隐式部分 ----
-            ' 采用与 MMS 二阶收敛实验一致的符号：本算子（sign = +1）等价于
-            '   L·φ = −V·∇²φ  +  边界项
-            ' Owner 行：−ΓΔφ_P + ΓΔφ_Q ；Neighbour 行对称。
+            ' 本算子（sign = +1）= −div(Γ∇φ) 的体积分形式：
+            '     面贡献 ΓΔ_f(φ_P − φ_Q)   ⇒   对角 +ΓΔ_f，非对角 −ΓΔ_f
+            ' ★ 对角必须为正：SIMPLE/PIMPLE 的 rAU = 1/aP 与压力型稀疏系统
+            '   都要求动量/输运矩阵对角为正（与 OpenFOAM 的 UEqn.A() > 0 一致）。
+            ' 由此 L·φ ≈ −V·∇²φ，故制造解 ∇²φ = −k²φ 的右端应取 +V·k²·φ。
             For i As Integer = 0 To nInt - 1
                 Dim f As Integer = ifc(i)
                 Dim coeff As Double = gs(f) * dc(i)
                 Dim P As Integer = ow(i)
                 Dim Q As Integer = nb(i)
 
-                m.AddDiag(P, -coeff)
-                m.AddOwnerCoeff(f, coeff)
-                m.AddDiag(Q, -coeff)
-                m.AddNeighbourCoeff(f, coeff)
+                m.AddDiag(P, coeff)
+                m.AddOwnerCoeff(f, -coeff)
+                m.AddDiag(Q, coeff)
+                m.AddNeighbourCoeff(f, -coeff)
             Next
 
             ' ---- 非正交显式修正：Γ_f·(∇φ)_f·k_f（属算子的已知部分 → 移到右端） ----
@@ -618,16 +627,38 @@ Namespace Eulerian
                     fz(i) = wi * cz(ow(i)) + (1.0 - wi) * cz(nb(i))
                 Next
 
+                Dim phiV As Double() = phi.Values
+                Dim compOff As Integer = component * nc
+
                 For i As Integer = 0 To nInt - 1
                     Dim f As Integer = ifc(i)
                     Dim k As Moira.CFDEngine.Eulerian.EulerianVertex = korr(i)
                     Dim corr As Double = gs(f) * (fx(i) * k.X + fy(i) * k.Y + fz(i) * k.Z)
 
-                    If corr <> 0 Then
-                        ' 算子项为 −Γ(∇φ)·k_f ⇒ 移到右端取正
-                        m.AddSource(ow(i), corr)
-                        m.AddSource(nb(i), -corr)
+                    If corr = 0 Then Continue For
+
+                    ' ★ 非正交显式修正**限幅**（生产稳健性关键）
+                    '   八叉树切割单元会产生极少数 70°~90° 的退化面，其 S_f·d → 0
+                    '   使 Δ_f 与 k_f 同时放大，显式修正项随之爆炸，
+                    '   表现为"第 1 步就 NaN"且无法定位到具体单元。
+                    '   这里把修正幅度限制为同一面正交隐式贡献的若干倍（默认 1 倍）：
+                    '   正交网格上 k_f ≡ 0，限幅不生效，精度不受影响。
+                    If NonOrthCorrectionLimit > 0 Then
+                        Dim p As Integer = ow(i)
+                        Dim q As Integer = nb(i)
+                        Dim ortho As Double = std.Abs(gs(f) * dc(i) *
+                                                     (phiV(compOff + p) - phiV(compOff + q)))
+
+                        Dim lim As Double = NonOrthCorrectionLimit * (ortho + 1.0E-300)
+
+                        If std.Abs(corr) > lim Then
+                            corr = If(corr > 0, lim, -lim)
+                        End If
                     End If
+
+                    ' 算子项为 −Γ(∇φ)·k_f ⇒ 移到右端取正
+                    m.AddSource(ow(i), corr)
+                    m.AddSource(nb(i), -corr)
                 Next
             End If
 
@@ -664,9 +695,10 @@ Namespace Eulerian
                     Dim a As Double = gf * gi(k)
                     Dim b As Double = gf * gb(off + k)
 
-                    ' 边界面通量 Γ(∇φ·S)_f = Γ_f[ gi·φ_P + gb ]
+                    ' 边界面：ΓΔ_f(φ_P − φ_b) ⇒ 对角 +ΓΔ_f。
+                    ' gi 为梯度内部系数 = −Δ_f，故取 −a。
                     If a <> 0 Then
-                        m.AddDiag(own, a)
+                        m.AddDiag(own, -a)
                     End If
 
                     If b <> 0 Then

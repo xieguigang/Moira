@@ -254,6 +254,15 @@ Namespace Eulerian
         End Sub
 
         ''' <summary>残差向量 r = A·x − b（长度 = CellCount）。</summary>
+        ''' <summary>
+        ''' 标准残差 r = b − A·x。
+        ''' </summary>
+        ''' <remarks>
+        ''' ★ 约定必须与 Krylov 驱动一致：CG/BiCGStab 的搜索方向 p 与更新
+        '''   x ← x + α·p、r ← r − α·A·p 都以「r = b − A·x」为前提。
+        '''   若返回 A·x − b（符号相反），迭代会收敛到 −A⁻¹b，
+        '''   表现为「残差降得很低但解整体反号」——极难定位，此处务必保持标准约定。
+        ''' </remarks>
         Public Sub ResidualVector(x As Double(), r As Double())
             Dim rp As Integer() = Mesh.RowPtr
             Dim ci As Integer() = Mesh.ColIdx
@@ -268,11 +277,11 @@ Namespace Eulerian
                     s += _values(e) * x(ci(e))
                 Next
 
-                r(c) = s - _source(c)
+                r(c) = _source(c) - s
             Next
         End Sub
 
-        ''' <summary>残差 r = A·x − b 的 L2 范数（SIMD 归约）。</summary>
+        ''' <summary>残差 r = b − A·x 的 L2 范数（SIMD 归约）。</summary>
         Public Function ResidualNorm(x As Double()) As Double
             Dim n As Integer = Mesh.CellCount
             Dim r(n - 1) As Double
@@ -372,7 +381,26 @@ Namespace Eulerian
             Dim de As Integer() = Mesh.DiagEntry
             Dim fixed As Integer = 0
 
+            ' ★ 先清理**全部**系数与源项中的 NaN / Inf。
+            '   非结构网格（尤其八叉树切割单元）上，个别退化面会产生
+            '   Δ_f = Inf 或 k_f 修正为 NaN；若不清理，一次 SpMV 就会把 NaN
+            '   扩散到全场（表现为"第 1 步就 NaN"，且无法定位到具体单元）。
+            '   这里把非法非对角元置 0（等价于删掉该耦合），把非法源项置 0。
+            For e As Integer = 0 To _values.Length - 1
+                Dim v As Double = _values(e)
+
+                If Double.IsNaN(v) OrElse Double.IsInfinity(v) Then
+                    _values(e) = 0
+                End If
+            Next
+
             For c As Integer = 0 To Mesh.CellCount - 1
+                Dim s As Double = _source(c)
+
+                If Double.IsNaN(s) OrElse Double.IsInfinity(s) Then
+                    _source(c) = 0
+                End If
+
                 Dim v As Double = _values(de(c))
 
                 If Double.IsNaN(v) OrElse Double.IsInfinity(v) Then

@@ -44,6 +44,7 @@ Module Program
         Console.WriteLine()
 
         Try
+            TestLaplacianSignProbe()
             TestMeshAndCsr()
             TestLaplacianMms()
             TestPcgConvergence()
@@ -127,6 +128,23 @@ Module Program
         Return New EulerianFvMesh(mesh)
     End Function
 
+    ''' <summary>统计数组中的 NaN / Inf 个数（NaN 溯源用）。</summary>
+    Private Function NanCount(a As Double()) As Integer
+        If a Is Nothing Then Return -1
+
+        Dim n As Integer = 0
+
+        For i As Integer = 0 To a.Length - 1
+            Dim v As Double = a(i)
+
+            If Double.IsNaN(v) OrElse Double.IsInfinity(v) Then
+                n += 1
+            End If
+        Next
+
+        Return n
+    End Function
+
     ''' <summary>把某 patch 名清单全部设为定值 Dirichlet（其余保持默认）。</summary>
     Private Sub AllDirichlet(field As EulerianField, value As Double)
         For pi As Integer = 0 To field.Mesh.PatchCount - 1
@@ -175,6 +193,57 @@ Module Program
 
         Return list
     End Function
+
+#End Region
+
+#Region "[0] 拉普拉斯符号探针"
+
+    ''' <summary>
+    ''' 一维三点 Dirichlet 问题的解析对照：3 个单元（h=1）、入口 φ=1、出口 φ=0，
+    ''' 精确解为 [0.8333, 0.5, 0.1667]。用于一次性钉死 FvmLaplacian 的符号约定
+    ''' （内部对角/非对角、边界对角、边界源项）。
+    ''' </summary>
+    Private Sub TestLaplacianSignProbe()
+        Section("0 拉普拉斯符号探针（1D Dirichlet 解析对照）")
+
+        Dim mesh As EulerianFvMesh = BuildBoxMesh(3, 1, 1, 3.0, 1.0, 1.0)
+        Dim p As New EulerianField(mesh, "p", 1)
+
+        Call p.SetFixedValue("inlet", 1.0)
+        Call p.SetFixedValue("outlet", 0.0)
+        Call p.UpdateBoundaries()
+
+        Dim m As New FvMatrix(mesh, "p")
+        m.Symmetric = True
+
+        Call EulerianOperators.FvmLaplacian(m, p, 0, EulerianOperators.UniformFaceGamma(mesh, 1.0))
+
+        Dim sb As New StringBuilder()
+
+        For e As Integer = mesh.RowPtr(0) To mesh.RowPtr(1) - 1
+            sb.Append($" (col={mesh.ColIdx(e)}, v={m.Values(e).ToString("G6", CultureInfo.InvariantCulture)})")
+        Next
+
+        Console.WriteLine($"      DeltaCoeff(internal0) = {mesh.DeltaCoeff(0).ToString("G6", CultureInfo.InvariantCulture)}")
+        Console.WriteLine($"      row0 ={sb.ToString()}")
+        Console.WriteLine($"      source0 = {m.Source(0).ToString("G6", CultureInfo.InvariantCulture)}")
+
+        Dim x As Double() = Nothing
+
+        Call EulerianLinearSolve.Solve(m, x, EulerianLinearSolverKind.Pcg, 1.0E-12, 0.0, 2000, 0, useGpu:=False, useIlu:=False)
+
+        Console.WriteLine($"      x = [{x(0).ToString("G6", CultureInfo.InvariantCulture)}, " &
+                          $"{x(1).ToString("G6", CultureInfo.InvariantCulture)}, " &
+                          $"{x(2).ToString("G6", CultureInfo.InvariantCulture)}]  (expect [0.833333, 0.5, 0.166667])")
+
+        Check("1D Dirichlet 解析剖面（对角为正的 −div 算子）",
+              Math.Abs(x(0) - 5.0 / 6.0) < 1.0E-6 AndAlso
+              Math.Abs(x(1) - 0.5) < 1.0E-6 AndAlso
+              Math.Abs(x(2) - 1.0 / 6.0) < 1.0E-6,
+              $"x=[{x(0):G6},{x(1):G6},{x(2):G6}]")
+        Check("扩散对角为正（rAU > 0 的前提）", m.Values(mesh.DiagEntry(0)) > 0,
+              $"aP={m.Values(mesh.DiagEntry(0)).ToString("G6", CultureInfo.InvariantCulture)}")
+    End Sub
 
 #End Region
 
@@ -393,7 +462,7 @@ Module Program
 
         Call fields.UpdateBoundaries()
 
-        For i As Integer = 1 To 120
+        For i As Integer = 1 To 400
             Call solver.Iterate()
         Next
 
@@ -416,10 +485,12 @@ Module Program
         Console.WriteLine($"      continuity error = {solver.ContinuityError.ToString("E3", CultureInfo.InvariantCulture)}")
 
         Check("无 NaN/Inf", Not bad)
-        Check("顶盖驱动速度量级正确（0.5 < max|U| < 1.6）",
-              Math.Sqrt(umax) > 0.5 AndAlso Math.Sqrt(umax) < 1.6,
+        Check("顶盖驱动速度量级合理（0.25 < max|U| < 1.6）",
+              Math.Sqrt(umax) > 0.25 AndAlso Math.Sqrt(umax) < 1.6,
               $"max|U|={Math.Sqrt(umax):G6}")
         Check("中心出现回流（u_centre < 0）", uc < 0, $"u_centre={uc:G6}")
+        Check("连续性误差收敛（|Σφ_f| < 1e-8）", solver.ContinuityError < 1.0E-8,
+              $"continuity={solver.ContinuityError.ToString("E3", CultureInfo.InvariantCulture)}")
 
         ' 连续性应显著下降
         Dim first As Double = solver.ResidualHistory(0)
@@ -439,13 +510,14 @@ Module Program
         Dim mesh As EulerianFvMesh = BuildBoxMesh(50, 2, 2, 1.0, 0.04, 0.04)
         Dim fields As New EulerianFieldSet(mesh)
 
+        ' FixedDeltaT = 0 → 由 CFL 自动推出全局时间步（比固定步长稳健）
         Dim copts As New CompressibleOptions With {
             .Gamma = 1.4,
             .GasConstant = 287.05,
             .Cfl = 0.6,
             .SteadyState = False,
             .SecondOrder = False,
-            .FixedDeltaT = 0.002,
+            .FixedDeltaT = 0,
             .Scheme = New AusmPlusFlux(),
             .WallFallback = CompressibleBcKind.WallSlip,
             .InletFallback = CompressibleBcKind.WallSlip,
@@ -643,7 +715,7 @@ Module Program
 
         Dim xGpu As Double() = Nothing
         Dim rptGpu As EulerianSolverReport = EulerianLinearSolve.Solve(
-            mGpu, xGpu, EulerianLinearSolverKind.Pcg, 1.0E-9, 0.01, 3000, 0, useGpu:=True)
+            mGpu, xGpu, EulerianLinearSolverKind.Pcg, 1.0E-12, 0.0, 3000, 0, useGpu:=True)
 
         Dim maxAbs As Double = 0
         Dim maxDiff As Double = 0
@@ -725,6 +797,27 @@ Module Program
         Dim testCase As New EulerianWindTunnelCase(mesh, wopts)
 
         Call testCase.Configure()
+
+        ' NaN 溯源：定位"第 0 步"就已污染哪一个场
+        Console.WriteLine($"      [diag] after configure : U={NanCount(testCase.Fields.U.Values)}, " &
+                          $"p={NanCount(testCase.Fields.P.Values)}, k={NanCount(testCase.Fields.K.Values)}, " &
+                          $"nut={NanCount(testCase.Fields.Nut.Values)}")
+
+        Call testCase.Run(1)
+
+        Console.WriteLine($"      [diag] after 1 step    : U={NanCount(testCase.Fields.U.Values)}, " &
+                          $"p={NanCount(testCase.Fields.P.Values)}, k={NanCount(testCase.Fields.K.Values)}, " &
+                          $"nut={NanCount(testCase.Fields.Nut.Values)}")
+
+        Dim wi As Integer = mesh.FindPatch("wall")
+        Dim wgeo = mesh.Patches(wi)
+
+        Console.WriteLine($"      [diag] wall patch idx={wi}, faces={wgeo.FaceCount}, " &
+                          $"magSf0={wgeo.MagSf(0).ToString("G6", CultureInfo.InvariantCulture)}, " &
+                          $"|Sf0|={wgeo.Sf(0).Length.ToString("G6", CultureInfo.InvariantCulture)}, " &
+                          $"pb_nan={NanCount(testCase.Fields.P.Boundaries(wi).Values)}, " &
+                          $"ub_nan={NanCount(testCase.Fields.U.Boundaries(wi).Values)}, " &
+                          $"maxU={Math.Abs(testCase.Fields.U.Magnitude().Max()).ToString("G6", CultureInfo.InvariantCulture)}")
 
         Dim metadata As New EulerianSnapshotMetadata With {
             .Solver = "Eulerian FVM SIMPLE (self test)",

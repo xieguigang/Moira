@@ -103,8 +103,12 @@ Namespace Eulerian
         ''' <summary>湍流模型（Nothing = 层流）。</summary>
         Public Property Turbulence As EulerianTurbulenceModel
 
-        ''' <summary>湍流方程求解上下文。</summary>
-        Public Property TurbulenceContext As TurbulenceContext
+        ''' <summary>
+        ''' 湍流方程求解上下文。
+        ''' 默认已构造（调用方可在 <c>Initialize()</c> 之前直接改其 Rho/Nu/松弛等成员）；
+        ''' <c>Initialize()</c> 会按 <see cref="Rho"/>/<see cref="Nu"/> 覆盖物性。
+        ''' </summary>
+        Public Property TurbulenceContext As New TurbulenceContext()
 
         ''' <summary>湍流方程求解间隔（每隔多少外迭代解一次；0 = 只解一次，1 = 每次）。</summary>
         Public Property TurbulenceInterval As Integer = 1

@@ -408,7 +408,12 @@ Namespace Eulerian
             Try
                 Dim applyPrecond As Action(Of Double(), Double())
 
-                If useIlu Then
+                ' ★ 对称矩阵（压力 Poisson / PCG）必须用**对称**预条件子。
+                '   ILU0 的 L·U 不对称，套在 PCG 上会破坏 Krylov 子空间的正交性，
+                '   表现为"残差停滞不降"（而非发散），极难定位。
+                '   对称情形改用对角预条件（DIC 的零填充退化解）；非对称的动量/输运
+                '   方程走 ILU0 + BiCGStab，那里非对称预条件是合法的。
+                If useIlu AndAlso Not m.Symmetric Then
                     Dim ilu As New Ilu0Preconditioner(m)
 
                     precond = ilu
