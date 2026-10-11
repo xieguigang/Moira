@@ -21,7 +21,6 @@ Option Explicit On
 '
 ' /********************************************************************************/
 
-Imports Microsoft.VisualBasic.MachineLearning.TensorFlow
 Imports Moira.CFDEngine
 
 ''' <summary>

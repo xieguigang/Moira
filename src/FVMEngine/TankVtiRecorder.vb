@@ -19,7 +19,6 @@ Option Explicit On
 
 Imports System.IO
 Imports System.Text
-Imports Microsoft.VisualBasic.MachineLearning.TensorFlow
 Imports Moira.CFDEngine
 Imports Moira.CFDEngine.Snapshot
 Imports Moira.CFDEngine.Snapshot.JSON
