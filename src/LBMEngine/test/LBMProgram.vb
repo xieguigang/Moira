@@ -381,10 +381,18 @@ Module LBMProgram
 
         Console.WriteLine("=== LbmTank /voxeljson 体素 json 回读 + 风洞冒烟测试 ===")
 
+        Dim scene As WindTunnelScene
         Dim sw = System.Diagnostics.Stopwatch.StartNew()
-        Dim scene = WindTunnelVoxelJson.BuildSceneFromJson(jsonPath,
-                                                           domainScale:=1.5, groundClearance:=0)
-        Console.WriteLine($"  json 加载: {scene.Describe()}   ({sw.Elapsed.TotalSeconds:F1} s)")
+
+        Try
+            scene = WindTunnelVoxelJson.BuildSceneFromJson(jsonPath,
+                                                           domainScale:=2.0, groundClearance:=0)
+            Console.WriteLine($"  json 加载: {scene.Describe()}   ({sw.Elapsed.TotalSeconds:F1} s)")
+        Catch ex As InvalidOperationException
+            ' 容量超限等指引性错误：只呈现消息，不打印堆栈
+            Console.WriteLine($"加载失败: {ex.Message}")
+            Return 1
+        End Try
 
         ' 粘度：ν = U∞·H/Re，取 U∞ = 0.1、Re = 100、H ≈ Ny/2
         Dim freestream = 0.1R

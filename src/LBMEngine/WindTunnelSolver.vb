@@ -143,6 +143,17 @@ Public Class WindTunnelSolver : Implements IDisposable
         If solid.Length <> nx * ny * nz Then
             Throw New ArgumentException($"solid 长度必须为 {nx * ny * nz}")
         End If
+
+        ' 前置容量校验（在分配 btype / f 场之前给出可读错误）
+        Dim nTotal As Long = CLng(nx) * ny * nz
+
+        If nTotal > LbmCoreF.MaxGridPoints Then
+            Throw New InvalidOperationException(
+                $"风洞计算域格点数 {nTotal:N0} 超出硬上限 {LbmCoreF.MaxGridPoints:N0}" &
+                $"（{nx}x{ny}x{nz}）。请降低体素化分辨率" &
+                "（Voxelizer CLI：--resolution ≤ 128）或减小计算域后再加载。")
+        End If
+
         If freestream > MaxFreestream Then
             Throw New ArgumentException(
                 $"来流速度 U∞={freestream:F3} 过大（格子单位下要求 ≤ {MaxFreestream}，" &

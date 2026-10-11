@@ -28,6 +28,17 @@ Imports Microsoft.VisualBasic.MachineLearning.TensorFlow
 ''' </summary>
 Public Class LbmCoreF : Implements IDisposable
 
+#Region "容量上限"
+
+    ''' <summary>
+    ''' 单求解器格点数硬上限：f / fc 为 19×N 的 Single 数组（方向主序），
+    ''' 单数组长度不得超过 Int32.MaxValue（.NET 数组元素上限），
+    ''' 即 N ≤ Int32.MaxValue \ 19 ≈ 112,936,676。
+    ''' </summary>
+    Public Const MaxGridPoints As Long = Int32.MaxValue \ LatticeD3Q19.Q
+
+#End Region
+
 #Region "网格"
 
     Public ReadOnly Nx As Integer
@@ -156,6 +167,16 @@ Public Class LbmCoreF : Implements IDisposable
         If nx < 5 OrElse ny < 5 OrElse nz < 5 Then
             Throw New ArgumentException("网格各方向至少 5 节点")
         End If
+
+        Dim nTotal As Long = CLng(nx) * ny * nz
+
+        If nTotal > MaxGridPoints Then
+            Throw New InvalidOperationException(
+                $"网格格点数 {nTotal:N0} 超出硬上限 {MaxGridPoints:N0}" &
+                $"（f/fc 分布函数为 19×N 的 Single 数组，受 .NET 数组长度上限约束）。" &
+                "请降低体素化分辨率或减小计算域。")
+        End If
+
         If btype Is Nothing OrElse btype.Length <> nx * ny * nz Then
             Throw New ArgumentException($"btype 长度必须为 {nx * ny * nz}")
         End If

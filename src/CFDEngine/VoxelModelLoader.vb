@@ -245,11 +245,23 @@ Public Class VoxelModelLoader
         Dim dny = std.Max(model.Height, CInt(std.Ceiling(model.Height * domainScale)))
         Dim dnz = std.Max(model.Depth, CInt(std.Ceiling(model.Depth * domainScale)))
 
-        Dim total = dnx * dny * dnz
-        Dim mask(total - 1) As Boolean
+        ' Long 安全的域体素总数：Boolean 数组长度硬上限 = Int32.MaxValue
+        ' （高分辨率模型 × domainScale 极易超过该上限，此前 Integer 溢出
+        '  会导致 mask 数组分配过小并抛出不可读的 IndexOutOfRangeException）
+        Dim total As Long = CLng(dnx) * dny * dnz
+
+        If total > Integer.MaxValue Then
+            Throw New InvalidOperationException(
+                $"计算域体素数超出上限：{dnx}x{dny}x{dnz} = {total:N0} > {CInt(Integer.MaxValue):N0}。" &
+                $"（模型 {model.Width}x{model.Height}x{model.Depth}，domainScale = {domainScale}）" &
+                "请减小 domainScale，或用更低分辨率重新体素化" &
+                "（Voxelizer CLI：--resolution ≤ 128）后再加载。")
+        End If
+
+        Dim mask(CInt(total - 1)) As Boolean
         ' 先全部置为流体（活动区）
-        For i = 0 To total - 1
-            mask(i) = True
+        For i As Long = 0 To total - 1
+            mask(CInt(i)) = True
         Next
 
         ' 模型固体体素包围盒（若无固体则不放置任何障碍）
@@ -266,6 +278,7 @@ Public Class VoxelModelLoader
         Dim yOffset = groundClearance - b.minY
 
         ' ---- 把模型固体体素写入放大空间（对应位置 False = 障碍）----
+        ' 索引以 Long 中间量计算，杜绝溢出（最终值已由 total 校验保证 < Int32.MaxValue）
         Dim srcShape = model.Shape
         For x = 0 To model.Width - 1
             Dim tx = x + xOffset
@@ -278,7 +291,8 @@ Public Class VoxelModelLoader
                     If Not srcShape.IsActive(x, y, z) Then
                         Dim tz = z + zOffset
                         If tz < 0 OrElse tz >= dnz Then Continue For
-                        mask((tx * dny + ty) * dnz + tz) = False
+                        Dim idx As Long = (CLng(tx) * dny + ty) * dnz + tz
+                        mask(CInt(idx)) = False
                     End If
                 Next
             Next

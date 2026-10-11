@@ -105,22 +105,77 @@ Public Module WindTunnelVoxelJson
     End Function
 
     ''' <summary>
-    ''' 从体素模型 json 一步构建风洞场景：加载 → 放大定位计算域
-    ''' （与 <see cref="WindTunnelSceneBuilder.BuildScene"/> 的下游管线一致）。
+    ''' LBM 模拟可行域体素预算（默认 1 亿格点）：LbmCoreF 的 f/fc 为 19×N 的
+    ''' Single 数组，N 硬上限 ≈ 1.13 亿；1 亿为留有余量的模拟可行预算。
     ''' </summary>
-    ''' <param name="filePath">Voxelizer CLI 导出的 json 文件路径</param>
-    ''' <param name="domainScale">计算空间相对模型 grid 的放大倍数（默认 2）</param>
+    Public Const DefaultDomainBudget As Long = 100_000_000L
+
+    ''' <summary>
+    ''' 从体素模型文件一步构建风洞场景：加载 → 自动收缩 domainScale →
+    ''' 放大定位计算域（与 <see cref="WindTunnelSceneBuilder.BuildScene"/> 的
+    ''' 下游管线一致）。
+    ''' </summary>
+    ''' <param name="filePath">Voxelizer CLI 导出的体素模型文件（.voxel.zip / .json）</param>
+    ''' <param name="domainScale">期望的计算空间放大倍数（默认 2；超出预算时自动收缩）</param>
     ''' <param name="groundClearance">模型最低固体体素离地面 (j=0) 的高度（默认 0，贴地）</param>
+    ''' <param name="budgetVoxels">
+    ''' 计算域体素预算（默认 1 亿）。自动收缩后仍超预算时抛出带指引的异常。
+    ''' </param>
     Public Function BuildSceneFromJson(filePath As String,
                                        Optional domainScale As Double = 2.0,
-                                       Optional groundClearance As Integer = 0) As WindTunnelScene
+                                       Optional groundClearance As Integer = 0,
+                                       Optional budgetVoxels As Long = DefaultDomainBudget) As WindTunnelScene
 
         Dim model = FromVoxelFile(filePath)
-        Dim domain = VoxelModelLoader.BuildDomain(model, domainScale, groundClearance)
+        Dim effectiveScale As Double = ResolveDomainScale(model, domainScale, budgetVoxels)
+        Dim domain = VoxelModelLoader.BuildDomain(model, effectiveScale, groundClearance)
 
-        Return New WindTunnelScene(filePath, model.Width, VoxelizerKind.Standard,
-                                   model, domain, domainScale, groundClearance)
+        Dim scene = New WindTunnelScene(filePath, model.Width, VoxelizerKind.Standard,
+                                        model, domain, effectiveScale, groundClearance)
+        Return scene
 
+    End Function
+
+    ''' <summary>
+    ''' 解析实际可用的 domainScale：从请求值以 0.1 步长下调（下限 1.0），
+    ''' 取使放大后域体素数 ≤ <paramref name="budgetVoxels"/> 的最大倍数。
+    ''' scale = 1.0 仍超预算时抛出带「重新体素化」指引的异常。
+    ''' </summary>
+    Public Function ResolveDomainScale(model As VoxelModel,
+                                       requestedScale As Double,
+                                       budgetVoxels As Long) As Double
+
+        Dim scale As Double = Math.Min(Math.Max(requestedScale, 1.0), 4.0)
+        Dim modelVoxels As Long = CLng(model.Width) * model.Height * model.Depth
+
+        ' 逐步下调（步长 0.1）直到域体素数落入预算
+        While scale > 1.0 + 0.05
+            Dim domainVoxels As Long =
+                CLng(Math.Ceiling(model.Width * scale)) *
+                CLng(Math.Ceiling(model.Height * scale)) *
+                CLng(Math.Ceiling(model.Depth * scale))
+
+            If domainVoxels <= budgetVoxels Then
+                Return scale
+            End If
+
+            scale = Math.Max(1.0, scale - 0.1)
+        End While
+
+        Dim baseVoxels As Long =
+            CLng(Math.Ceiling(model.Width)) *
+            CLng(Math.Ceiling(model.Height)) *
+            CLng(Math.Ceiling(model.Depth))
+
+        If baseVoxels > budgetVoxels Then
+            Throw New InvalidOperationException(
+                $"体素模型格点数超出模拟预算：{model.Width}x{model.Height}x{model.Depth} = " &
+                $"{baseVoxels:N0} > {budgetVoxels:N0}（domainScale 已收缩至下限 1.0）。" &
+                "LBM 求解器内存/数组长度无法承载该规模，" &
+                "请用更低分辨率重新体素化（Voxelizer CLI：--resolution ≤ 128）后再加载。")
+        End If
+
+        Return 1.0
     End Function
 
     ''' <summary>
