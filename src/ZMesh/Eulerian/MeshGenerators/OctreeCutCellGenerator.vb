@@ -146,13 +146,6 @@ Public Class OctreeCutCellGenerator : Implements IMeshGenerator
 
     ''' <summary>对边界叶子单元做切割单元裁剪。</summary>
     Private Shared Sub emitCutCell(mesh As RawCellMesh,
-                                   GeometryPreprocessorFluent As Object,
-                                   leaf As TightOctreeCell(Of Integer),
-                                   gridPoints As Dictionary(Of Long, Integer),
-                                   eps As Double)
-    End Sub
-
-    Private Shared Sub emitCutCell(mesh As RawCellMesh,
                                    domain As GeometryPreprocessor.FluidDomain,
                                    leaf As TightOctreeCell(Of Integer),
                                    gridPoints As Dictionary(Of Long, Integer),
@@ -199,7 +192,8 @@ Public Class OctreeCutCellGenerator : Implements IMeshGenerator
             Dim keep As Double = If(d <= 0, -1.0, 1.0)   ' 保留单元中心所在的一侧
 
             ' 平面去重（法向 + 距离粗量化）
-            Dim planeKey As Long = CLng((n.X * 512.0)) And &H3FF Or
+            Dim planeKey As Long =
+                (CLng(n.X * 512.0) And &H3FF) Or
                 ((CLng(n.Y * 512.0) And &H3FF) << 10) Or
                 ((CLng((d + 1.0) * 4096.0) And &H3FF) << 20)
 
@@ -309,7 +303,7 @@ Public Class PolyhedronClipper
 
         Dim newPoints As New List(Of EulerianVertex)(points)
         Dim newFaces As New List(Of List(Of Integer))
-        ' 封盖有向边：from -> to（沿裁剪平面）
+        ' 封盖有向边：from -> to（沿裁剪平面，方向继承面绕序）
         Dim capEdges As New Dictionary(Of Integer, Integer)
         Dim onPlane As New HashSet(Of Integer)
 
@@ -343,18 +337,26 @@ Public Class PolyhedronClipper
                     newPoints.Add(p)
                     onPlane.Add(idx)
                     clipped.Add(idx)
-
-                    If du > 0 AndAlso dv < 0 Then
-                        capEdges(u) = v
-                    Else
-                        capEdges(v) = u
-                    End If
                 End If
             Next
 
-            If clipped.Count >= 3 Then
-                newFaces.Add(clipped)
+            If clipped.Count < 3 Then
+                Continue For
             End If
+
+            ' 面环上相邻的共面点对 => 封盖边界有向边
+            For j As Integer = 0 To clipped.Count - 1
+                Dim u As Integer = clipped(j)
+                Dim v As Integer = clipped((j + 1) Mod clipped.Count)
+
+                If onPlane.Contains(u) AndAlso onPlane.Contains(v) AndAlso
+                    std.Abs(dist(u)) <= eps AndAlso std.Abs(dist(v)) <= eps Then
+
+                    capEdges(u) = v
+                End If
+            Next
+
+            newFaces.Add(clipped)
         Next
 
         ' ---- 封盖面：沿平面有向边链成环 ----
