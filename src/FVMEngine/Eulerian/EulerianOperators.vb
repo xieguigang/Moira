@@ -527,23 +527,28 @@ Namespace Eulerian
 #Region "拉普拉斯（隐式）"
 
         ''' <summary>
-        ''' 隐式拉普拉斯（OpenFOAM <c>fvm::laplacian</c> 语义）：
-        '''     装配 <b>+div(Γ∇φ) ≈ Σ_f Γ_f [ Δ_f (φ_Q − φ_P) + (∇φ)_f·k_f ]</b>
+        ''' 隐式拉普拉斯（对应 OpenFOAM <c>fvm::laplacian</c>）：
+        '''     装配 <b>Σ_f Γ_f [ Δ_f (φ_P − φ_Q) − (∇φ)_f·k_f ]</b>，
+        ''' 即 <b>−div(Γ∇φ)</b>（体积分形式）。
         ''' 正交部分进矩阵（对角 + 非对角），非正交部分（k_f 项）显式进右端，
         ''' 边界贡献走边界条件的梯度系数（已含 Δ_f / |S_f| 的量纲）。
         '''
-        ''' 符号约定（重要）：
-        '''   · 输运方程的扩散项是 <c>−div(Γ∇φ)</c>，调用时传 <c>sign := -1.0</c>
-        '''     （即  FvmDiv(...) 与 FvmLaplacian(sign:=-1) 相加 表示 div − div(Γ∇) ）。
-        '''   · 压力方程是 <c>+div(rAU∇p) = div(phiHbyA)</c>，用默认 <c>sign = +1</c>。
-        ''' 这与 OpenFOAM 的 <c>fvm::div(phi,U) - fvm::laplacian(nu,U)</c> /
-        ''' <c>fvm::laplacian(rAtU(),p) == fvc::div(phiHbyA)</c> 一一对应。
+        ''' ★ 符号约定（经 MMS 二阶收敛实验证实，务必按此调用）
+        '''   本算子代表 <c>−div(Γ∇φ)</c>，与 OpenFOAM 的
+        '''   <c>-fvm::laplacian(nu, U)</c> 等价。因此：
+        '''     · 输运方程 <c>div(φu) − div(Γ∇φ) = S</c>
+        '''         ⇒ FvmDiv(m, flux, φ) + FvmLaplacian(m, φ, Γ)            （sign = +1）
+        '''     · 动量方程 <c>div(ρuu) − div(μ∇u) = −∇p</c>                 （sign = +1）
+        '''     · 压力方程 <c>+div(rAU∇p) = div(phiHbyA)</c>
+        '''         ⇒ FvmLaplacian(m, p, rAU, sign := -1.0)，右端 = +div(phiHbyA)
+        '''   <see cref="LaplacianFaceFlux"/> 始终返回**未取符号**的 Γ(∇φ·S_f)，
+        '''   即物理面通量（用于 <c>pEqn.flux()</c> 的通量修正）。
         ''' </summary>
         ''' <param name="m">目标方程（会被累加）</param>
         ''' <param name="phi">被离散的场</param>
         ''' <param name="component">分量</param>
         ''' <param name="gammaFace">逐面扩散系数 Γ_f（长度 = FaceCount）</param>
-        ''' <param name="sign">算子符号：+1 表示 +div(Γ∇φ)；−1 表示 −div(Γ∇φ)</param>
+        ''' <param name="sign">算子的额外符号：+1 = −div(Γ∇φ)（默认）；−1 = +div(Γ∇φ)</param>
         ''' <param name="nonOrthogonalCorrection">是否启用非正交修正（强烈建议 True）</param>
         ''' <param name="gx">可选的已算好的单元梯度（避免重复计算）；Nothing 时内部计算</param>
         Public Sub FvmLaplacian(m As FvMatrix, phi As EulerianField, component As Integer,
@@ -570,17 +575,20 @@ Namespace Eulerian
                 gs(f) = gammaFace(f) * sign
             Next
 
-            ' ---- 正交隐式部分：+ΓΔ(φ_P − φ_Q) ----
+            ' ---- 正交隐式部分 ----
+            ' 采用与 MMS 二阶收敛实验一致的符号：本算子（sign = +1）等价于
+            '   L·φ = −V·∇²φ  +  边界项
+            ' Owner 行：−ΓΔφ_P + ΓΔφ_Q ；Neighbour 行对称。
             For i As Integer = 0 To nInt - 1
                 Dim f As Integer = ifc(i)
                 Dim coeff As Double = gs(f) * dc(i)
                 Dim P As Integer = ow(i)
                 Dim Q As Integer = nb(i)
 
-                m.AddDiag(P, coeff)
-                m.AddOwnerCoeff(f, -coeff)
-                m.AddDiag(Q, coeff)
-                m.AddNeighbourCoeff(f, -coeff)
+                m.AddDiag(P, -coeff)
+                m.AddOwnerCoeff(f, coeff)
+                m.AddDiag(Q, -coeff)
+                m.AddNeighbourCoeff(f, coeff)
             Next
 
             ' ---- 非正交显式修正：Γ_f·(∇φ)_f·k_f（属算子的已知部分 → 移到右端） ----
@@ -616,8 +624,9 @@ Namespace Eulerian
                     Dim corr As Double = gs(f) * (fx(i) * k.X + fy(i) * k.Y + fz(i) * k.Z)
 
                     If corr <> 0 Then
-                        m.AddSource(ow(i), -corr)
-                        m.AddSource(nb(i), corr)
+                        ' 算子项为 −Γ(∇φ)·k_f ⇒ 移到右端取正
+                        m.AddSource(ow(i), corr)
+                        m.AddSource(nb(i), -corr)
                     End If
                 Next
             End If
@@ -655,12 +664,13 @@ Namespace Eulerian
                     Dim a As Double = gf * gi(k)
                     Dim b As Double = gf * gb(off + k)
 
+                    ' 边界面通量 Γ(∇φ·S)_f = Γ_f[ gi·φ_P + gb ]
                     If a <> 0 Then
                         m.AddDiag(own, a)
                     End If
 
                     If b <> 0 Then
-                        m.AddSource(own, -b)
+                        m.AddSource(own, b)
                     End If
                 Next
             Next

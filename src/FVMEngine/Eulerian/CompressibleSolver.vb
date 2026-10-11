@@ -1075,16 +1075,13 @@ Namespace Eulerian
 
             Dim dtGlobal As Double = ComputeTimeSteps()
 
-            If Not Options.SteadyState AndAlso Options.FixedDeltaT > 0 Then
-                For c As Integer = 0 To _dt.Length - 1
-                    _dt(c) = Options.FixedDeltaT
-                Next
-
-                dtGlobal = Options.FixedDeltaT
-            End If
-
             If Not Options.SteadyState Then
-                ' 瞬态：全局统一时间步（保证时间精度）
+                ' 瞬态：全局统一时间步（保证时间精度）；
+                ' 显式给定 FixedDeltaT 时使用它，否则用 CFL 推出的全局最小步长。
+                If Options.FixedDeltaT > 0 Then
+                    dtGlobal = Options.FixedDeltaT
+                End If
+
                 For c As Integer = 0 To _dt.Length - 1
                     _dt(c) = dtGlobal
                 Next

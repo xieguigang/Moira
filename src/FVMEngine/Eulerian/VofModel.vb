@@ -136,7 +136,8 @@ Namespace Eulerian
 
             For c As Integer = 0 To n - 1
                 Dim z As Double = cc(c).Z
-                Dim above As Double = If(phase1Below, -1.0, 1.0) * (level - z)
+                ' phase1Below：level 以下为相 1 → (level − z) > 0 时 α = 1
+                Dim above As Double = If(phase1Below, 1.0, -1.0) * (level - z)
                 Dim a As Double
 
                 If sharp Then

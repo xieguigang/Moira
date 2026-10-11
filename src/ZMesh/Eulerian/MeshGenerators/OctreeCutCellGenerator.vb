@@ -349,8 +349,14 @@ Public Class PolyhedronClipper
                 Dim u As Integer = clipped(j)
                 Dim v As Integer = clipped((j + 1) Mod clipped.Count)
 
-                If onPlane.Contains(u) AndAlso onPlane.Contains(v) AndAlso
-                    std.Abs(dist(u)) <= eps AndAlso std.Abs(dist(v)) <= eps Then
+                ' 注意：u / v 可能是本轮新增的交点索引（>= 原始 points.Count），
+                ' 它们必然位于裁剪平面上（dist ≡ 0），因此只对原始顶点查 dist 表。
+                Dim onU As Boolean = onPlane.Contains(u)
+                Dim onV As Boolean = onPlane.Contains(v)
+
+                If onU AndAlso onV AndAlso
+                    (u >= dist.Length OrElse std.Abs(dist(u)) <= eps) AndAlso
+                    (v >= dist.Length OrElse std.Abs(dist(v)) <= eps) Then
 
                     capEdges(u) = v
                 End If

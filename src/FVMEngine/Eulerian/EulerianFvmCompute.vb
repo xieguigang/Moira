@@ -72,7 +72,7 @@ Namespace Eulerian
         ''' 低于此单元数时不启用 GPU（显存搬运与归约同步的开销会盖过收益），
         ''' 直接回落 CPU double 路径。
         ''' </summary>
-        Public Const MinGpuCells As Integer = 20000
+        Public Const MinGpuCells As Integer = 8000
 
         Private Shared _kernelSource As String
 

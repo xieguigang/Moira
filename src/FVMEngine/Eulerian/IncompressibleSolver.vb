@@ -705,7 +705,8 @@ Namespace Eulerian
                 End If
 
                 Call EulerianOperators.FvmDiv(m, _rhoPhi, fields.U, comp, Options.Scheme)
-                Call EulerianOperators.FvmLaplacian(m, fields.U, comp, _muFace, sign:=-1.0)
+                ' div(ρuu) − div(μ∇u) = −∇p + S：FvmLaplacian 即 −div(μ∇u)
+                Call EulerianOperators.FvmLaplacian(m, fields.U, comp, _muFace)
 
                 ' 体力：MRF 科氏 / 离心 + 虚拟桨盘 + 重力 + 表面张力
                 Call MrfModel.AddFrameSource(m, Options.Mrf, fields.U, comp, _rhoCell)
@@ -883,7 +884,8 @@ Namespace Eulerian
 
             mP.Symmetric = True
 
-            Call EulerianOperators.FvmLaplacian(mP, fields.P, 0, _rauFace, sign:=1.0)
+            ' 压力方程：+div(rAU∇p) = div(phiHbyA) ⇒ sign := -1（FvmLaplacian 默认是 −div）
+            Call EulerianOperators.FvmLaplacian(mP, fields.P, 0, _rauFace, sign:=-1.0)
 
             Dim divPhi As Double() = New Double(n - 1) {}
 

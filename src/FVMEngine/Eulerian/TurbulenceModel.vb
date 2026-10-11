@@ -343,7 +343,8 @@ Namespace Eulerian
             End If
 
             Call EulerianOperators.FvmDiv(m, flux, phi, 0, ctx.Scheme)
-            Call EulerianOperators.FvmLaplacian(m, phi, 0, gammaFace, sign:=-1.0)
+            ' div(φu,φ) − div(Γ∇φ)：FvmLaplacian 本身即 −div(Γ∇φ)（见其文档）
+            Call EulerianOperators.FvmLaplacian(m, phi, 0, gammaFace)
             Call EulerianOperators.FvmSp(m, implicitSink, phi, 0)
             Call EulerianOperators.FvcSource(m, explicitSource)
             Call m.Relax(ctx.Relaxation, prev)

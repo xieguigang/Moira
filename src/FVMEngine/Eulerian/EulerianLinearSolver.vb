@@ -298,8 +298,10 @@ Namespace Eulerian
                         Next
                     Next
 
-                    If std.Abs(lu(d)) < 1.0E-300 OrElse Not IsFinite(lu(d)) Then
-                        reason = $"non-finite/zero pivot at row {i}"
+                    ' FVM 矩阵的对角元恒为正；ILU0 若得到非正主元说明分解已被破坏
+                    ' （舍入/非对称结构），此时必须降级为对角预条件，否则 PCG 会发散。
+                    If std.Abs(lu(d)) < 1.0E-300 OrElse Not IsFinite(lu(d)) OrElse lu(d) <= 0 Then
+                        reason = $"non-positive pivot at row {i} (value={lu(d).ToString("E3", CultureInfo.InvariantCulture)})"
                         Return False
                     End If
                 Next
@@ -475,6 +477,36 @@ Namespace Eulerian
 
 #Region "Krylov 驱动（PCG / BiCGStab）"
 
+        ''' <summary>
+        ''' 二维点积（标量循环）。
+        ''' </summary>
+        ''' <remarks>
+        ''' 刻意不使用 SIMDIntrinsics.DotFma / AxpyInPlace：它们在大数组上走 AVX 分支，
+        ''' 而 Krylov 迭代对"归约结果的一处漏项"极度敏感（会让 alpha/beta 错位，
+        ''' 表现为残差持续增长而非发散到 NaN，极难定位）。这里用可逐位审计的标量循环
+        ''' 保证正确性；真正的性能热点已经由 GPU float32 后端承担。
+        ''' 统计量（范数/最值）仍走 SimdReduce（其尾块处理已在本工程实测验证）。
+        ''' </remarks>
+        Private Shared Function PlainDot(a As Double(), b As Double()) As Double
+            Dim s As Double = 0
+            Dim n As Integer = std.Min(a.Length, b.Length)
+
+            For i As Integer = 0 To n - 1
+                s += a(i) * b(i)
+            Next
+
+            Return s
+        End Function
+
+        ''' <summary>y += alpha·x（标量循环）。</summary>
+        Private Shared Sub PlainAxpy(alpha As Double, x As Double(), y As Double())
+            Dim n As Integer = std.Min(x.Length, y.Length)
+
+            For i As Integer = 0 To n - 1
+                y(i) += alpha * x(i)
+            Next
+        End Sub
+
         Private Shared Function KrylovDriver(m As FvMatrix, x As Double(),
                                             tolerance As Double, relTol As Double, maxIterations As Integer,
                                             precond As Action(Of Double(), Double()),
@@ -504,7 +536,7 @@ Namespace Eulerian
 
                 Array.Copy(z, p, n)
 
-                Dim rho As Double = SIMDIntrinsics.DotFma(r, z)
+                Dim rho As Double = PlainDot(r, z)
                 Dim iter As Integer = 0
 
                 While iter < maxIterations
@@ -513,7 +545,7 @@ Namespace Eulerian
                     ' Ap = A·p
                     Call m.Multiply(p, ap)
 
-                    Dim pAp As Double = SIMDIntrinsics.DotFma(p, ap)
+                    Dim pAp As Double = PlainDot(p, ap)
 
                     If std.Abs(pAp) < 1.0E-300 Then
                         Exit While
@@ -522,8 +554,8 @@ Namespace Eulerian
                     Dim alpha As Double = rho / pAp
 
                     ' x += alpha·p ; r -= alpha·Ap
-                    Call SIMDIntrinsics.AxpyInPlace(alpha, p, x)
-                    Call SIMDIntrinsics.AxpyInPlace(-alpha, ap, r)
+                    Call PlainAxpy(alpha, p, x)
+                    Call PlainAxpy(-alpha, ap, r)
 
                     normR = SimdReduce.L2Norm(r) / den
 
@@ -534,7 +566,7 @@ Namespace Eulerian
 
                     Call precond(r, z)
 
-                    Dim rhoNew As Double = SIMDIntrinsics.DotFma(r, z)
+                    Dim rhoNew As Double = PlainDot(r, z)
                     Dim beta As Double = rhoNew / rho
 
                     rho = rhoNew
@@ -568,7 +600,7 @@ Namespace Eulerian
                 While iter < maxIterations
                     iter += 1
 
-                    Dim rhoNew As Double = SIMDIntrinsics.DotFma(rHat, r)
+                    Dim rhoNew As Double = PlainDot(rHat, r)
 
                     If std.Abs(rhoNew) < 1.0E-300 Then
                         Exit While
@@ -587,7 +619,7 @@ Namespace Eulerian
                     Call precond(p, z)
                     Call m.Multiply(z, v)
 
-                    Dim rHatV As Double = SIMDIntrinsics.DotFma(rHat, v)
+                    Dim rHatV As Double = PlainDot(rHat, v)
 
                     If std.Abs(rHatV) < 1.0E-300 Then
                         Exit While
@@ -603,7 +635,7 @@ Namespace Eulerian
                     normR = SimdReduce.L2Norm(s) / den
 
                     If normR <= tolerance OrElse (relTol > 0 AndAlso normR <= relTol * initial) Then
-                        Call SIMDIntrinsics.AxpyInPlace(alpha, z, x)
+                        Call PlainAxpy(alpha, z, x)
                         converged = True
                         Exit While
                     End If
@@ -611,8 +643,8 @@ Namespace Eulerian
                     Call precond(s, t)
                     Call m.Multiply(t, ap)
 
-                    Dim tT As Double = SIMDIntrinsics.DotFma(t, t)
-                    Dim ttAp As Double = SIMDIntrinsics.DotFma(t, ap)
+                    Dim tT As Double = PlainDot(t, t)
+                    Dim ttAp As Double = PlainDot(t, ap)
 
                     If std.Abs(tT) < 1.0E-300 Then
                         Exit While
