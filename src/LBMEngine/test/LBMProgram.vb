@@ -25,6 +25,7 @@ Module LBMProgram
             Case "/float", "--float", "float" : Return FloatDemo(args.Skip(1).ToArray())
             Case "/tunnel", "--tunnel", "tunnel" : Return TunnelDemo(args.Skip(1).ToArray())
             Case "/voxel", "--voxel", "voxel" : Return VoxelDemo(args.Skip(1).ToArray())
+            Case "/voxeljson", "--voxeljson", "voxeljson" : Return VoxelJsonDemo(args.Skip(1).ToArray())
             Case "/help", "--help", "-h", "help"
                 ShowHelp()
                 Return 0
@@ -352,6 +353,60 @@ Module LBMProgram
             End Try
         Next
 
+        Return 0
+    End Function
+
+    ''' <summary>
+    ''' /voxeljson：加载 Voxelizer CLI 导出的体素 json 并直接跑 LBM 风洞冒烟测试
+    ''' （验证「CLI 导出 → json 回读 → 风洞模拟」端到端链路）。
+    ''' </summary>
+    Private Function VoxelJsonDemo(args As String()) As Integer
+        If args.Length = 0 OrElse Not IO.File.Exists(args(0)) Then
+            Console.WriteLine("用法: LbmTank /voxeljson <voxel.json> [--steps N] [--cpu]")
+            Return 1
+        End If
+
+        Dim jsonPath = args(0)
+        Dim steps = 200
+        Dim useGpu = True
+
+        Dim i = 1
+        While i < args.Length
+            Select Case args(i)
+                Case "--steps" : i += 1 : steps = CInt(args(i))
+                Case "--cpu" : useGpu = False
+            End Select
+            i += 1
+        End While
+
+        Console.WriteLine("=== LbmTank /voxeljson 体素 json 回读 + 风洞冒烟测试 ===")
+
+        Dim sw = System.Diagnostics.Stopwatch.StartNew()
+        Dim scene = WindTunnelVoxelJson.BuildSceneFromJson(jsonPath,
+                                                           domainScale:=1.5, groundClearance:=0)
+        Console.WriteLine($"  json 加载: {scene.Describe()}   ({sw.Elapsed.TotalSeconds:F1} s)")
+
+        ' 粘度：ν = U∞·H/Re，取 U∞ = 0.1、Re = 100、H ≈ Ny/2
+        Dim freestream = 0.1R
+        Dim nu = freestream * System.Math.Max(4, scene.Domain.Height \ 2) / 100.0R
+
+        Dim tunnel = WindTunnelSolver.FromVoxelShape(scene.Domain, freestream, nu,
+                                                     groundNoSlip:=True,
+                                                     model:=CollisionModel.TRT,
+                                                     useGpu:=useGpu)
+        Console.WriteLine($"  求解器: 域 {tunnel.Nx}x{tunnel.Ny}x{tunnel.Nz}   流体 {tunnel.FluidCount}   " &
+                          $"路径 = {If(tunnel.UseGpu, "CUDA", "CPU")}")
+
+        Call tunnel.InitializeFlow()
+        sw.Restart()
+
+        For s = 1 To steps
+            tunnel.Advance()
+        Next
+        sw.Stop()
+
+        Console.WriteLine($"  [{steps} steps]  max|u| = {tunnel.ComputeMaxSpeed():F5}  " &
+                          $"Δmass = {tunnel.ComputeMassDrift():E3}  ({sw.Elapsed.TotalMilliseconds / steps:F2} ms/step)")
         Return 0
     End Function
 

@@ -198,8 +198,12 @@ Public Class FormWindTunnel
     End Sub
 
     Private Sub OnFormShown(sender As Object, e As EventArgs)
-        ' Demo 模型存在时自动加载
-        If IO.File.Exists(DefaultModelPath) Then
+        ' Demo 自动加载：优先探测预体素化 json（Voxelizer CLI 产物，跳过 GUI 内体素化）
+        Dim preVoxel As String = IO.Path.ChangeExtension(DefaultModelPath, ".voxel.json")
+
+        If IO.File.Exists(preVoxel) Then
+            Call LoadModel(preVoxel)
+        ElseIf IO.File.Exists(DefaultModelPath) Then
             Call LoadModel(DefaultModelPath)
         End If
     End Sub

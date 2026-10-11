@@ -13,6 +13,8 @@
     <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\gr\Microsoft.VisualBasic.Imaging\imaging.NET5.vbproj" />
     <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\Microsoft.VisualBasic.Core\src\Core.vbproj" />
     <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\mime\text%html\html_netcore5.vbproj" />
+    <!-- GridInfo（Snapshot/JSON/Data.vb）导出契约类型复用 -->
+    <ProjectReference Include="..\CFDEngine\CFDEngine.vbproj" />
   </ItemGroup>
 
 </Project>
