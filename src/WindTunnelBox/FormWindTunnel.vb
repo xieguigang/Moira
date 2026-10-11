@@ -104,8 +104,10 @@ Public Class FormWindTunnel
             m_lblStatus.Text = $"{m_scene.Describe()}   求解路径 = {If(m_solver.UseGpu, "CUDA float32", "CPU float32")}"
 
         Catch ex As Exception
-            MessageBox.Show(Me, $"模型加载失败:{Environment.NewLine}{ex.Message}",
+            MessageBox.Show(Me, $"模型加载失败:{Environment.NewLine}{ex.Message}" & vbCrLf & vbCrLf & ex.StackTrace,
                             "错误", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Clipboard.SetText(ex.ToString)
+
             m_lblStatus.Text = $"加载失败: {ex.Message}"
         Finally
             Cursor = Cursors.Default
