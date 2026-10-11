@@ -100,7 +100,9 @@
   <Project Path="FluidBox/FluidBox.vbproj" Id="eb5e55b1-ecd0-4b6b-ab4f-fbd74a34c2db">
     <Platform Solution="Release|x64" Project="x64" />
   </Project>
-  <Project Path="Voxelizer/Voxelizer.vbproj" Id="a1a0c410-77d6-47c4-acd3-ef5e8a777061" />
+  <Project Path="Voxelizer/Voxelizer.vbproj" Id="a1a0c410-77d6-47c4-acd3-ef5e8a777061">
+    <Platform Solution="Release|x64" Project="x64" />
+  </Project>
   <Project Path="WindTunnelBox/WindTunnelBox.vbproj" Id="3e87cb7e-03ed-4d63-8276-26b45d1f28f4">
     <Platform Solution="Release|x64" Project="x64" />
   </Project>
