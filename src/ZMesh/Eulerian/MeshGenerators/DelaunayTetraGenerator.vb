@@ -55,7 +55,7 @@ Public Class DelaunayTetraGenerator : Implements IMeshGenerator
                     Dim y As Double = dmin.Y + j * res + (jitter.NextDouble - 0.5) * res * 0.2
                     Dim z As Double = dmin.Z + k * res + (jitter.NextDouble - 0.5) * res * 0.2
 
-                    If domain.Solid.IsSolid(x, y, z) Then
+                    If domain.IsSolid(x, y, z) Then
                         Continue For
                     End If
 

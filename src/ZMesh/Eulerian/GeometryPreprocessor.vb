@@ -19,6 +19,24 @@ Imports Moira.CFDEngine.Eulerian
 Imports std = System.Math
 
 ''' <summary>
+''' 计算域语义。
+''' </summary>
+Public Enum DomainMode
+
+    ''' <summary>
+    ''' 外流：模型内部为固体（障碍），包围盒其余部分为流体。
+    ''' 用于 F1 / 飞机 / 城市建筑群的风洞绕流。
+    ''' </summary>
+    External = 0
+
+    ''' <summary>
+    ''' 内流：容器外壳内部为流体，外壳之外与"次级实体（挡板/桨叶/轴）"内部为固体。
+    ''' 用于发酵罐、管道、泵等内流问题。
+    ''' </summary>
+    Internal = 1
+End Enum
+
+''' <summary>
 ''' 几何预处理器：将三维模型文件转换为 Eulerian 网格生成所需的
 ''' 流体域描述 <see cref="FluidDomain"/>。
 ''' </summary>
@@ -77,6 +95,72 @@ Public Class GeometryPreprocessor
     End Class
 
     ''' <summary>
+    ''' 域固体分类器：按 <see cref="DomainMode"/> 组合"主实体"与"次级实体"的体素场。
+    '''
+    '''   External：固体 = 主实体内部（模型即为障碍）。
+    '''   Internal：固体 = (主实体之外) ∪ (任一 次级实体内部)。
+    '''             即"容器外壳内部才是流体，其余都是固体"。
+    ''' </summary>
+    Public Class DomainClassifier
+
+        ''' <summary>域语义。</summary>
+        Public ReadOnly Mode As DomainMode
+
+        Private ReadOnly _primary As SolidField
+        Private ReadOnly _secondary As List(Of SolidField)
+
+        Public Sub New(mode As DomainMode, primary As SolidField,
+                       Optional secondary As IEnumerable(Of SolidField) = Nothing)
+
+            Me.Mode = mode
+            _primary = primary
+
+            If secondary IsNot Nothing Then
+                _secondary = New List(Of SolidField)(secondary)
+            End If
+        End Sub
+
+        ''' <summary>点是否位于主实体（容器外壳）内部。</summary>
+        Public Function IsInsidePrimary(x As Double, y As Double, z As Double) As Boolean
+            Return _primary.IsSolid(x, y, z)
+        End Function
+
+        ''' <summary>点是否属于固体（不含流体）。</summary>
+        Public Function IsSolid(x As Double, y As Double, z As Double) As Boolean
+            If Mode = DomainMode.External Then
+                Return _primary.IsSolid(x, y, z)
+            End If
+
+            ' Internal：外壳之外 → 固体
+            If Not _primary.IsSolid(x, y, z) Then
+                Return True
+            End If
+
+            ' Internal：次级实体（挡板 / 桨叶 / 轴）内部 → 固体
+            If _secondary IsNot Nothing Then
+                For Each s As SolidField In _secondary
+                    If s.IsSolid(x, y, z) Then
+                        Return True
+                    End If
+                Next
+            End If
+
+            Return False
+        End Function
+
+        ''' <summary>次级实体数量。</summary>
+        Public ReadOnly Property SecondaryCount As Integer
+            Get
+                Return If(_secondary Is Nothing, 0, _secondary.Count)
+            End Get
+        End Property
+
+        Public Overrides Function ToString() As String
+            Return $"DomainClassifier({Mode.ToString()}, secondary={SecondaryCount})"
+        End Function
+    End Class
+
+    ''' <summary>
     ''' 流体计算域：预处理结果，供各网格生成器消费。
     ''' </summary>
     Public Class FluidDomain
@@ -90,11 +174,17 @@ Public Class GeometryPreprocessor
         ''' <summary>模型包围盒（原始模型坐标）。</summary>
         Public ModelMin, ModelMax As EulerianVertex
 
-        ''' <summary>流体计算域包围盒（放大后的外层风场域）。</summary>
+        ''' <summary>流体计算域包围盒（外流 = 放大后的风场域；内流 = 容器包围盒）。</summary>
         Public DomainMin, DomainMax As EulerianVertex
 
-        ''' <summary>固体/流体分类场。</summary>
-        Public Solid As SolidField
+        ''' <summary>域语义（外流 / 内流）。</summary>
+        Public Mode As DomainMode = DomainMode.External
+
+        ''' <summary>固体/流体分类器。</summary>
+        Public Solid As DomainClassifier
+
+        ''' <summary>次级实体模型文件（挡板 / 桨叶 / 轴；仅内流使用）。</summary>
+        Public InternalSolids As String()
 
         ''' <summary>源模型文件路径。</summary>
         Public SourceFile As String
@@ -109,9 +199,14 @@ Public Class GeometryPreprocessor
             End Get
         End Property
 
-        ''' <summary>点是否在固体内部（基于体素场）。</summary>
+        ''' <summary>点是否在固体内部（基于体素场 + 域语义）。</summary>
         Public Function IsSolid(p As EulerianVertex) As Boolean
             Return Solid.IsSolid(p.X, p.Y, p.Z)
+        End Function
+
+        ''' <summary>点是否在固体内部（基于体素场 + 域语义）。</summary>
+        Public Function IsSolid(x As Double, y As Double, z As Double) As Boolean
+            Return Solid.IsSolid(x, y, z)
         End Function
 
         Public Overrides Function ToString() As String
@@ -127,11 +222,18 @@ Public Class GeometryPreprocessor
     ''' <param name="groundClearance">地面净空（模型底部与计算域底面的间距比例，相对模型高度）。</param>
     ''' <param name="voxelResolution">固体分类场的体素分辨率（最长边）。</param>
     ''' <param name="stitchTolerance">容差缝合容差（相对模型最大边长的比例，0 关闭缝合）。</param>
+    ''' <param name="mode">域语义：外流（默认）或内流。</param>
+    ''' <param name="internalSolids">
+    ''' 内流模式的次级实体模型文件（挡板 / 桨叶 / 轴）。这些实体的内部被视为固体，
+    ''' 与"容器外壳内部"共同定义流体域。外流模式下忽略。
+    ''' </param>
     Public Shared Function FromModelFile(filePath As String,
                                          Optional domainScale As Double = 2.0,
                                          Optional groundClearance As Double = 0.1,
                                          Optional voxelResolution As Integer = 128,
-                                         Optional stitchTolerance As Double = 0.0001) As FluidDomain
+                                         Optional stitchTolerance As Double = 0.0001,
+                                         Optional mode As DomainMode = DomainMode.External,
+                                         Optional internalSolids As String() = Nothing) As FluidDomain
 
         If Not File.Exists(filePath) Then
             Throw New FileNotFoundException($"找不到模型文件：{filePath}", filePath)
@@ -165,27 +267,69 @@ Public Class GeometryPreprocessor
 
         domain.ModelMin = bmin
         domain.ModelMax = bmax
+        domain.Mode = mode
+        domain.InternalSolids = internalSolids
 
-        ' ---- 3. 计算域：绕中心放大 + 地面净空 ----
+        ' ---- 3. 计算域包围盒 ----
         Dim size As EulerianVertex = bmax - bmin
         Dim center As EulerianVertex = (bmin + bmax) * 0.5
-        Dim half As EulerianVertex = New EulerianVertex(
-            size.X * domainScale * 0.5,
-            size.Y * domainScale * 0.5,
-            size.Z * domainScale * 0.5)
-        Dim ground As Double = size.Y * groundClearance
 
-        domain.DomainMin = New EulerianVertex(center.X - half.X, bmin.Y - ground, center.Z - half.Z)
-        domain.DomainMax = New EulerianVertex(center.X + half.X, bmax.Y + size.Y * 0.5, center.Z + half.Z)
+        If mode = DomainMode.Internal Then
+            ' 内流：计算域 = 容器包围盒（外扩 2% 保证外壳严格落在八叉树根盒内部）
+            Dim margin As Double = 0.02 * std.Max(std.Max(size.X, size.Y), size.Z)
 
-        ' ---- 4. 固体分类场（Landscape 体素化，True = 固体）----
+            domain.DomainMin = New EulerianVertex(bmin.X - margin, bmin.Y - margin, bmin.Z - margin)
+            domain.DomainMax = New EulerianVertex(bmax.X + margin, bmax.Y + margin, bmax.Z + margin)
+        Else
+            ' 外流：绕中心放大 + 地面净空
+            Dim half As EulerianVertex = New EulerianVertex(
+                size.X * domainScale * 0.5,
+                size.Y * domainScale * 0.5,
+                size.Z * domainScale * 0.5)
+            Dim ground As Double = size.Y * groundClearance
+
+            domain.DomainMin = New EulerianVertex(center.X - half.X, bmin.Y - ground, center.Z - half.Z)
+            domain.DomainMax = New EulerianVertex(center.X + half.X, bmax.Y + size.Y * 0.5, center.Z + half.Z)
+        End If
+
+        ' ---- 4. 固体分类场（Landscape 体素化，True = 实体内部）----
         Dim lx As LxVoxel = LxVoxelizer.Voxelize(scene, voxelResolution)
 
         If lx Is Nothing OrElse lx.Shape Is Nothing Then
             Throw New InvalidDataException($"模型体素化失败：{filePath}")
         End If
 
-        domain.Solid = New SolidField(lx)
+        Dim primary As New SolidField(lx)
+        Dim secondary As List(Of SolidField) = Nothing
+
+        ' ---- 5. 内流的次级实体（挡板 / 桨叶 / 轴）----
+        If mode = DomainMode.Internal AndAlso internalSolids IsNot Nothing Then
+            secondary = New List(Of SolidField)
+
+            For Each extra As String In internalSolids
+                If String.IsNullOrEmpty(extra) OrElse Not File.Exists(extra) Then
+                    Continue For
+                End If
+
+                Dim extraScene As SceneModel
+
+                If ModelLoader.DetectFormat(extra) = ModelFormat._3MF Then
+                    extraScene = Load3mfScene(extra)
+                Else
+                    extraScene = extra.LoadModel
+                End If
+
+                ' 与主实体使用**同一体素尺寸**，保证分类精度一致
+                Dim extraVoxel As LxVoxel = LxVoxelizer.Voxelize(extraScene, primary.VoxelSize)
+
+                If extraVoxel IsNot Nothing AndAlso extraVoxel.Shape IsNot Nothing Then
+                    secondary.Add(New SolidField(extraVoxel))
+                End If
+            Next
+        End If
+
+        domain.Solid = New DomainClassifier(mode, primary, secondary)
+
         Return domain
     End Function
 

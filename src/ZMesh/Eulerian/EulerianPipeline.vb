@@ -49,6 +49,8 @@ Public Class EulerianPipeline
     ''' <param name="poissonIterations">结构化网格 Poisson 平滑轮数。</param>
     ''' <param name="smoothLaplacian">是否对四面体网格做 Laplacian 平滑。</param>
     ''' <param name="rules">用户 Patch 覆盖规则。</param>
+    ''' <param name="mode">域语义：外流（默认，风洞绕流）/ 内流（发酵罐等容器内流）。</param>
+    ''' <param name="internalSolids">内流模式的次级实体模型文件（挡板 / 桨叶 / 轴）。</param>
     Public Shared Function Convert(modelFile As String,
                                    outputZip As String,
                                    type As MeshType,
@@ -57,13 +59,23 @@ Public Class EulerianPipeline
                                    Optional cutCells As Boolean = False,
                                    Optional poissonIterations As Integer = 0,
                                    Optional smoothLaplacian As Boolean = True,
-                                   Optional rules As List(Of PatchRule) = Nothing) As PipelineReport
+                                   Optional rules As List(Of PatchRule) = Nothing,
+                                   Optional mode As DomainMode = DomainMode.External,
+                                   Optional internalSolids As String() = Nothing) As PipelineReport
 
         Dim watch As Stopwatch = Stopwatch.StartNew()
 
         ' ---- 1. 几何预处理 ----
+        ' 内流模式的计算域就是容器包围盒，不做放大与地面净空
+        Dim effectiveScale As Double = If(mode = DomainMode.Internal, 1.0, domainScale)
+        Dim effectiveClearance As Double = If(mode = DomainMode.Internal, 0.0, 0.1)
+
         Dim domain As GeometryPreprocessor.FluidDomain =
-            GeometryPreprocessor.FromModelFile(modelFile, domainScale:=domainScale)
+            GeometryPreprocessor.FromModelFile(modelFile,
+                                               domainScale:=effectiveScale,
+                                               groundClearance:=effectiveClearance,
+                                               mode:=mode,
+                                               internalSolids:=internalSolids)
         Dim modelExtent As Double = (domain.ModelMax - domain.ModelMin).Length
 
         ' resolution 语义：相对模型最大对角线长度的比例（0.05 = 模型跨越约 20 个单元）

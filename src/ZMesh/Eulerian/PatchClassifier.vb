@@ -19,6 +19,10 @@ End Class
 ''' 默认按计算域包围盒位置自动推断（Y 下 = Wall 地面、X 极值 = Inlet/Outlet、
 ''' Z 极值 = Symmetry、Y 上 = Outlet 顶面），用户规则（<see cref="PatchRule"/>）
 ''' 按面片名优先覆盖。
+'''
+''' 内流模式（<see cref="DomainMode.Internal"/>）：容器外表面的所有面一律归为
+''' 壁面（发酵罐的罐壁 / 挡板 / 桨叶 / 轴），不再做 inlet/outlet/ground 的位置推断 ——
+''' 否则罐顶会被误判成出口、罐底被误判成地面。
 ''' </summary>
 Public Class PatchClassifier
 
@@ -33,6 +37,7 @@ Public Class PatchClassifier
         Call mesh.GetBounds(bmin, bmax)
         Dim size As EulerianVertex = bmax - bmin
         Dim tol As Double = FaceTolerance * std.Max(std.Max(size.X, size.Y), size.Z)
+        Dim internal As Boolean = domain IsNot Nothing AndAlso domain.Mode = DomainMode.Internal
 
         Dim patches As New Dictionary(Of String, EulerianPatch)
 
@@ -44,8 +49,17 @@ Public Class PatchClassifier
             End If
 
             Dim centroid As EulerianVertex = mesh.FaceCentroids(fi)
-            Dim name As String = AutoPatchName(centroid, bmin, bmax, tol)
-            Dim type As EulerianPatchType = AutoPatchType(name)
+            Dim name As String
+            Dim type As EulerianPatchType
+
+            If internal Then
+                ' 内流：默认全部为壁面（容器外壳 + 次级实体表面）
+                name = "wall"
+                type = EulerianPatchType.Wall
+            Else
+                name = AutoPatchName(centroid, bmin, bmax, tol)
+                type = AutoPatchType(name)
+            End If
 
             ' 用户规则覆盖（按盒面位置匹配）
             If rules IsNot Nothing Then
@@ -116,13 +130,26 @@ Public Class PatchClassifier
         Return best
     End Function
 
-    ''' <summary>按 Patch 名自动推断边界类型。</summary>
+    ''' <summary>
+    ''' 按 Patch 名自动推断边界类型。
+    ''' 除位置推断出的名字外，还识别搅拌罐 / 旋转机械的常见部件命名
+    ''' （vessel / baffle / impeller / blade / shaft / headspace），这些一律为壁面；
+    ''' 其中 impeller / blade / shaft 由调用方（<c>IncompressibleSolverOptions.RotatingWallPatches</c>）
+    ''' 进一步升级为"随 MRF 区旋转"的运动壁面。
+    ''' </summary>
     Public Shared Function AutoPatchType(name As String) As EulerianPatchType
-        Select Case name
-            Case "inlet" : Return EulerianPatchType.Inlet
-            Case "outlet", "top" : Return EulerianPatchType.Outlet
-            Case "ground", "wall" : Return EulerianPatchType.Wall
-            Case Else : Return EulerianPatchType.Symmetry
+        If name Is Nothing Then Return EulerianPatchType.Symmetry
+
+        Select Case name.ToLowerInvariant
+            Case "inlet"
+                Return EulerianPatchType.Inlet
+            Case "outlet", "top"
+                Return EulerianPatchType.Outlet
+            Case "ground", "wall", "vessel", "baffle", "impeller", "blade", "shaft",
+                 "headspace", "wall-impeller", "wall-shaft", "wall-baffle"
+                Return EulerianPatchType.Wall
+            Case Else
+                Return EulerianPatchType.Symmetry
         End Select
     End Function
 End Class
