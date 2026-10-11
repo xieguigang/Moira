@@ -41,11 +41,6 @@ Public Class FormWindTunnel
 
 #Region "构造与 UI 构建"
 
-    Public Sub New()
-        ' 此调用是设计器所必需的。
-        InitializeComponent()
-    End Sub
-
     Private Sub OnFormShown(sender As Object, e As EventArgs) Handles MyBase.Shown
         ' Demo 自动加载：优先探测预体素化产物（Voxelizer CLI，跳过 GUI 内体素化）：
         ' .voxel.zip 二进制体素包 → .voxel.json（旧格式）→ 原始模型
