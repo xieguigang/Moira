@@ -1,6 +1,5 @@
 Imports Microsoft.VisualBasic.MachineLearning.TensorFlow
 Imports Microsoft.VisualBasic.MachineLearning.TensorFlow.Compute
-Imports std = System.Math
 
 ''' <summary>
 ''' 结构化网格 Poisson（椭圆型 PDE）平滑器 —— 基于 TensorF 算子。
@@ -20,7 +19,7 @@ Public Class StructuredPoissonSmoother
     ''' 平滑结构化网格节点坐标。
     ''' </summary>
     ''' <param name="coords">节点坐标 [ni*nj*nk]，索引 (i*nj + j)*nk + k。</param>
-    ''' <param name="ni, nj, nk">三向节点数。</param>
+    ''' <param name="ni"></param><param name="nj"></param><param name="nk">三向节点数。</param>
     ''' <param name="iterations">外层迭代轮数（每轮内部 K 次 Jacobi）。</param>
     Public Shared Sub Smooth(coords As Double(), ni As Integer, nj As Integer, nk As Integer,
                              Optional iterations As Integer = 30)
