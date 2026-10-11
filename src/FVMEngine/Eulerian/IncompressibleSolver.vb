@@ -224,6 +224,27 @@ Namespace Eulerian
         ''' <summary>归一化初始残差历史（每轮外迭代末尾追加）。</summary>
         Public ReadOnly Property ResidualHistory As New List(Of Double)()
 
+        ''' <summary>逐面有效运动粘度 ν_eff = ν + νt（供后处理做黏性力积分）。</summary>
+        Public ReadOnly Property NuEffFace As Double()
+            Get
+                Return _nuEffFace
+            End Get
+        End Property
+
+        ''' <summary>逐面密度（供后处理做流量与黏性力积分）。</summary>
+        Public ReadOnly Property RhoFaceArray As Double()
+            Get
+                Return _rhoFace
+            End Get
+        End Property
+
+        ''' <summary>逐面质量通量 ρ·φ。</summary>
+        Public ReadOnly Property MassFluxFace As Double()
+            Get
+                Return _rhoPhi
+            End Get
+        End Property
+
         Private ReadOnly _flux As Double()
         Private ReadOnly _phiHbyA As Double()
         Private ReadOnly _rauCell As Double()

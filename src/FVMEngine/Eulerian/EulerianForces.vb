@@ -146,7 +146,7 @@ Namespace Eulerian
         ''' <param name="referenceDensity">参考密度</param>
         ''' <param name="referenceVelocity">参考速度</param>
         ''' <param name="momentOrigin">力矩参考点（默认原点 = (0,0,0)）</param>
-        Public Shared Function Compute(mesh As EulerianFvMesh,
+        Public Function Compute(mesh As EulerianFvMesh,
                                        fields As EulerianFieldSet,
                                        nuEffFace As Double(),
                                        rhoFace As Double(),
@@ -179,8 +179,7 @@ Namespace Eulerian
                 Next
             End If
 
-            Dim origin As Moira.CFDEngine.Eulerian.EulerianVertex =
-                If(momentOrigin, New Moira.CFDEngine.Eulerian.EulerianVertex())
+            Dim origin As Moira.CFDEngine.Eulerian.EulerianVertex = momentOrigin
 
             Dim report As New EulerianForceReport With {
                 .ReferenceArea = referenceArea,

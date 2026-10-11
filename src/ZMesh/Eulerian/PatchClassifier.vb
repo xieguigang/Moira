@@ -10,8 +10,50 @@ Public Class PatchRule
     ''' <summary>边界类型。</summary>
     Public Type As EulerianPatchType
 
-    ''' <summary>计算域包围盒面：XMin/XMax/YMin/YMax/ZMin/ZMax。</summary>
+    ''' <summary>计算域包围盒面：XMin/XMax/YMin/YMax/ZMin/ZMax（位置匹配）。</summary>
     Public BoxFace As String
+
+    ''' <summary>是否按"几何区域盒"匹配（优先级高于 <see cref="BoxFace"/>）。</summary>
+    Public Property RegionBox As Boolean
+
+    ' ---- 区域盒（RegionBox = True 时生效）：面形心落入盒内即命中 ----
+
+    Public Property MinX As Double = 0
+    Public Property MinY As Double = 0
+    Public Property MinZ As Double = 0
+    Public Property MaxX As Double = 0
+    Public Property MaxY As Double = 0
+    Public Property MaxZ As Double = 0
+
+    ''' <summary>
+    ''' 构造一条"区域盒 → patch"规则。
+    ''' 用于内流域中区分搅拌桨叶 / 挡板 / 罐壁（它们都在同一套边界面上，
+    ''' 无法用包围盒面位置区分）。
+    ''' </summary>
+    Public Shared Function Region(name As String, type As EulerianPatchType,
+                                  minX As Double, minY As Double, minZ As Double,
+                                  maxX As Double, maxY As Double, maxZ As Double) As PatchRule
+
+        Return New PatchRule With {
+            .Name = name,
+            .Type = type,
+            .RegionBox = True,
+            .MinX = minX,
+            .MinY = minY,
+            .MinZ = minZ,
+            .MaxX = maxX,
+            .MaxY = maxY,
+            .MaxZ = maxZ}
+    End Function
+
+    ''' <summary>面形心是否落在区域盒内。</summary>
+    Public Function MatchesRegion(p As EulerianVertex, tol As Double) As Boolean
+        If Not RegionBox Then Return False
+
+        Return p.X >= MinX - tol AndAlso p.X <= MaxX + tol AndAlso
+               p.Y >= MinY - tol AndAlso p.Y <= MaxY + tol AndAlso
+               p.Z >= MinZ - tol AndAlso p.Z <= MaxZ + tol
+    End Function
 End Class
 
 ''' <summary>
@@ -61,15 +103,28 @@ Public Class PatchClassifier
                 type = AutoPatchType(name)
             End If
 
-            ' 用户规则覆盖（按盒面位置匹配）
+            ' 用户规则覆盖：区域盒优先（内流域区分桨叶 / 挡板 / 罐壁），其次盒面位置
             If rules IsNot Nothing Then
+                Dim matched As Boolean = False
+
                 For Each rule As PatchRule In rules
-                    If MatchBoxFace(rule.BoxFace, centroid, bmin, bmax, tol) Then
+                    If rule.MatchesRegion(centroid, tol) Then
                         name = rule.Name
                         type = rule.Type
+                        matched = True
                         Exit For
                     End If
                 Next
+
+                If Not matched Then
+                    For Each rule As PatchRule In rules
+                        If MatchBoxFace(rule.BoxFace, centroid, bmin, bmax, tol) Then
+                            name = rule.Name
+                            type = rule.Type
+                            Exit For
+                        End If
+                    Next
+                End If
             End If
 
             If Not patches.ContainsKey(name) Then
