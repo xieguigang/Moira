@@ -1,6 +1,7 @@
 Imports System.IO
 Imports System.Text.Json
 Imports Moira.CFDEngine
+Imports Moira.CFDEngine.Snapshot
 Imports Moira.CFDEngine.Snapshot.JSON
 
 ' /********************************************************************************/

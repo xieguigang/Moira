@@ -198,11 +198,15 @@ Public Class FormWindTunnel
     End Sub
 
     Private Sub OnFormShown(sender As Object, e As EventArgs)
-        ' Demo 自动加载：优先探测预体素化 json（Voxelizer CLI 产物，跳过 GUI 内体素化）
-        Dim preVoxel As String = IO.Path.ChangeExtension(DefaultModelPath, ".voxel.json")
+        ' Demo 自动加载：优先探测预体素化产物（Voxelizer CLI，跳过 GUI 内体素化）：
+        ' .voxel.zip 二进制体素包 → .voxel.json（旧格式）→ 原始模型
+        Dim preVoxelZip As String = IO.Path.ChangeExtension(DefaultModelPath, ".voxel.zip")
+        Dim preVoxelJson As String = IO.Path.ChangeExtension(DefaultModelPath, ".voxel.json")
 
-        If IO.File.Exists(preVoxel) Then
-            Call LoadModel(preVoxel)
+        If IO.File.Exists(preVoxelZip) Then
+            Call LoadModel(preVoxelZip)
+        ElseIf IO.File.Exists(preVoxelJson) Then
+            Call LoadModel(preVoxelJson)
         ElseIf IO.File.Exists(DefaultModelPath) Then
             Call LoadModel(DefaultModelPath)
         End If
@@ -215,7 +219,7 @@ Public Class FormWindTunnel
     Private Sub OnLoadModel(sender As Object, e As EventArgs)
         Using dlg As New OpenFileDialog With {
             .Title = "选择 3D 模型文件 (STL / 3MF / OBJ ...) 或预体素化 json",
-            .Filter = "3D 模型|*.stl;*.3mf;*.obj;*.dae;*.3ds|体素模型 json|*.voxel.json;*.json|所有文件|*.*",
+            .Filter = "3D 模型|*.stl;*.3mf;*.obj;*.dae;*.3ds|体素模型文件|*.voxel.zip;*.voxel.json;*.json|所有文件|*.*",
             .InitialDirectory = If(IO.File.Exists(DefaultModelPath),
                 IO.Path.GetDirectoryName(DefaultModelPath), Environment.CurrentDirectory)
         }
@@ -239,9 +243,11 @@ Public Class FormWindTunnel
             Dim voxelSize As Double = If(voxelizer = VoxelizerKind.Physical, CDbl(m_numVoxelSize.Value), 0.0R)
 
             ' ---- 1. 加载 + 体素化/直载 + 放大定位 ----
-            If IO.Path.GetExtension(path).ToLowerInvariant() = ".json" Then
-                ' 预体素化 json 直载（Voxelizer CLI 产物）
-                m_lblStatus.Text = $"正在加载体素模型 json: {IO.Path.GetFileName(path)}..."
+            Dim ext As String = IO.Path.GetExtension(path).ToLowerInvariant()
+
+            If ext = ".json" OrElse ext = ".zip" Then
+                ' 预体素化产物直载（Voxelizer CLI：.voxel.zip 二进制包 / .json 旧格式）
+                m_lblStatus.Text = $"正在加载体素模型文件: {IO.Path.GetFileName(path)}..."
                 m_scene = WindTunnelVoxelJson.BuildSceneFromJson(path, domainScale:=2.0, groundClearance:=0)
             Else
                 m_lblStatus.Text = $"正在加载并体素化: {IO.Path.GetFileName(path)} ({voxelizer})..."
