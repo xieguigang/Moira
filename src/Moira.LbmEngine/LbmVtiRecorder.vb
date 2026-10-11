@@ -22,9 +22,8 @@ Option Explicit On
 
 Imports System.IO
 Imports System.Text
-Imports Microsoft.VisualBasic.MachineLearning.TensorFlow
-Imports Moira.LbmEngine.Snapshot
-Imports Moira.LbmEngine.Snapshot.JSON
+Imports Moira.CFDEngine.Snapshot
+Imports Moira.CFDEngine.Snapshot.JSON
 
 ''' <summary>LBM 仿真的 VTI 逐帧记录器。</summary>
 Public Class LbmVtiRecorder

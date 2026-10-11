@@ -28,6 +28,7 @@ Option Explicit On
 ' /********************************************************************************/
 
 Imports Microsoft.VisualBasic.MachineLearning.TensorFlow
+Imports Moira.CFDEngine
 Imports tfMath = Microsoft.VisualBasic.MachineLearning.TensorFlow.Math
 
 ''' <summary>
@@ -182,28 +183,28 @@ Public Class LbmSolver
         Me.Re = re
 
         ' ---- 几何：外层固体壳，z = nz−1 平面为运动顶盖 ----
-        Dim shape(Nx * Ny * Nz - 1) As Boolean
-        Dim solids(Nx * Ny * Nz - 1) As Boolean
-        Dim lid(Nx * Ny * Nz - 1) As Boolean
-        Dim plane = Ny * Nz, row = Nz
-        For i = 0 To Nx - 1
-            For j = 0 To Ny - 1
-                For k = 0 To Nz - 1
+        Dim shape(nx * ny * nz - 1) As Boolean
+        Dim solids(nx * ny * nz - 1) As Boolean
+        Dim lid(nx * ny * nz - 1) As Boolean
+        Dim plane = ny * nz, row = nz
+        For i = 0 To nx - 1
+            For j = 0 To ny - 1
+                For k = 0 To nz - 1
                     Dim idx = i * plane + j * row + k
-                    Dim isShell = (i = 0 OrElse i = Nx - 1 OrElse
-                                   j = 0 OrElse j = Ny - 1 OrElse
-                                   k = 0 OrElse k = Nz - 1)
+                    Dim isShell = (i = 0 OrElse i = nx - 1 OrElse
+                                   j = 0 OrElse j = ny - 1 OrElse
+                                   k = 0 OrElse k = nz - 1)
                     shape(idx) = Not isShell
                     solids(idx) = isShell
-                    lid(idx) = isShell AndAlso k = Nz - 1
+                    lid(idx) = isShell AndAlso k = nz - 1
                 Next
             Next
         Next
 
-        Fluid = TensorGrid.MaskTensor(shape, Nx, Ny, Nz)
-        Solid = TensorGrid.MaskTensor(solids, Nx, Ny, Nz)
-        LidSolid = TensorGrid.MaskTensor(lid, Nx, Ny, Nz)
-        FluidShape = New VoxelShape(Nx, Ny, Nz, shape, solids, Nothing, Nothing)
+        Fluid = TensorGrid.MaskTensor(shape, nx, ny, nz)
+        Solid = TensorGrid.MaskTensor(solids, nx, ny, nz)
+        LidSolid = TensorGrid.MaskTensor(lid, nx, ny, nz)
+        FluidShape = New VoxelShape(nx, ny, nz, shape, solids, Nothing, Nothing)
 
         Dim n = 0
         For Each b In shape : If b Then n += 1
@@ -211,7 +212,7 @@ Public Class LbmSolver
         FluidCount = n
 
         ' ---- 物理参数：H = 两半程壁间距 = Nz − 3 格子单位 ----
-        H = Nz - 3
+        H = nz - 3
         _model = model
         _mrtM = MrtBasisD3Q19.BuildMatrix()
         _mrtMinv = MrtBasisD3Q19.Invert(_mrtM)
@@ -236,13 +237,13 @@ Public Class LbmSolver
 
         ' ---- 分布函数与宏观场 ----
         For a = 0 To Q - 1
-            F(a) = New Tensor(Nx, Ny, Nz)
+            F(a) = New Tensor(nx, ny, nz)
         Next
-        Rho = New Tensor(Nx, Ny, Nz)
-        Ux = New Tensor(Nx, Ny, Nz)
-        Uy = New Tensor(Nx, Ny, Nz)
-        Uz = New Tensor(Nx, Ny, Nz)
-        _ones = TensorGrid.Filled(Nx, Ny, Nz, 1.0R)
+        Rho = New Tensor(nx, ny, nz)
+        Ux = New Tensor(nx, ny, nz)
+        Uy = New Tensor(nx, ny, nz)
+        Uz = New Tensor(nx, ny, nz)
+        _ones = TensorGrid.Filled(nx, ny, nz, 1.0R)
 
         ' ---- 预计算反弹掩膜：_pull(a)(x) = solid(x − e_α) ----
         ' ShiftX(t,off)(x) = t(x+off) → 取 x−e 处值需 off = −e
@@ -286,7 +287,7 @@ Public Class LbmSolver
         Next
         Array.Copy(r.Data, Rho.Data, r.Length)
 
-        Dim invRho = tfMath.reciprocal(tfMath.add(r, tfMath.multiply_scalar(_ones, 1e-12R)))
+        Dim invRho = tfMath.reciprocal(tfMath.add(r, tfMath.multiply_scalar(_ones, 0.000000000001R)))
         Array.Copy(tfMath.multiply(mx, invRho).Data, Ux.Data, Ux.Length)
         Array.Copy(tfMath.multiply(my, invRho).Data, Uy.Data, Uy.Length)
         Array.Copy(tfMath.multiply(mz, invRho).Data, Uz.Data, Uz.Length)
