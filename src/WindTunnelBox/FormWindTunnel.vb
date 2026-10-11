@@ -20,10 +20,6 @@ Public Class FormWindTunnel
 
 #Region "默认 Demo 资源"
 
-    ''' <summary>默认加载的 demo 模型（city_seed42.stl）。</summary>
-    Public Shared ReadOnly DefaultModelPath As String =
-        "G:\Moira\src\ZMesh\CityBlender\samples\city_seed42.stl"
-
     ''' <summary>风洞粘度（格子单位；τ = ν/cs² + 1/2 ≈ 0.515，TRT 稳定）。</summary>
     Const DefaultViscosity As Double = 0.005
 
@@ -39,33 +35,12 @@ Public Class FormWindTunnel
 
 #End Region
 
-#Region "构造与 UI 构建"
-
-    Private Sub OnFormShown(sender As Object, e As EventArgs) Handles MyBase.Shown
-        ' Demo 自动加载：优先探测预体素化产物（Voxelizer CLI，跳过 GUI 内体素化）：
-        ' .voxel.zip 二进制体素包 → .voxel.json（旧格式）→ 原始模型
-        Dim preVoxelZip As String = IO.Path.ChangeExtension(DefaultModelPath, ".voxel.zip")
-        Dim preVoxelJson As String = IO.Path.ChangeExtension(DefaultModelPath, ".voxel.json")
-
-        If IO.File.Exists(preVoxelZip) Then
-            Call LoadModel(preVoxelZip)
-        ElseIf IO.File.Exists(preVoxelJson) Then
-            Call LoadModel(preVoxelJson)
-        ElseIf IO.File.Exists(DefaultModelPath) Then
-            Call LoadModel(DefaultModelPath)
-        End If
-    End Sub
-
-#End Region
-
 #Region "模型加载与求解器生命周期"
 
     Private Sub OnLoadModel(sender As Object, e As EventArgs) Handles m_btnLoad.Click
         Using dlg As New OpenFileDialog With {
             .Title = "选择 3D 模型文件 (STL / 3MF / OBJ ...) 或预体素化 json",
-            .Filter = "3D 模型|*.stl;*.3mf;*.obj;*.dae;*.3ds|体素模型文件|*.voxel.zip;*.voxel.json;*.json|所有文件|*.*",
-            .InitialDirectory = If(IO.File.Exists(DefaultModelPath),
-                IO.Path.GetDirectoryName(DefaultModelPath), Environment.CurrentDirectory)
+            .Filter = "3D 模型|*.stl;*.3mf;*.obj;*.dae;*.3ds|体素模型文件|*.voxel.zip;*.voxel.json;*.json|所有文件|*.*"
         }
             If dlg.ShowDialog(Me) = DialogResult.OK Then
                 Call LoadModel(dlg.FileName)
