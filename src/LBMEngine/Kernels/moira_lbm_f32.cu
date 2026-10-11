@@ -222,10 +222,8 @@ extern "C" __global__ void moira_lbm_moments(
         ux[idx] = 0.0f; uy[idx] = 0.0f; uz[idx] = 0.0f;
         return;
     }
-    if (bt == 2) {
-        // 入口矩量由宿主写入 uinx 等，这里保持不动
-        return;
-    }
+    // 入口 (btype=2) 与出口 (btype=3) 同样从 f 直接计算矩量：
+    // 入口 f 恒为平衡态，计算结果即 (1, uin, 0, 0)。
 
     float r = 0.0f, mx = 0.0f, my = 0.0f, mz = 0.0f;
     for (int a = 0; a < 19; ++a) {

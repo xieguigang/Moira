@@ -37,6 +37,8 @@ Imports Microsoft.VisualBasic.Imaging.Landscape.ThreeMF
 Imports LxVoxel = Microsoft.VisualBasic.Imaging.Landscape.Voxelization.VoxelModel
 Imports LxVoxelizer = Microsoft.VisualBasic.Imaging.Landscape.Voxelization.Voxelizer
 Imports LxSDFVoxelizer = Microsoft.VisualBasic.Imaging.Landscape.Voxelization.SDFVoxelizer
+Imports LxSDFVolume = Microsoft.VisualBasic.Imaging.Landscape.Voxelization.SDFVolume
+Imports LxPoint3D = Microsoft.VisualBasic.Imaging.Drawing3D.Point3D
 
 ''' <summary>
 ''' 风洞试验场景构建器。
@@ -57,10 +59,16 @@ Public Module WindTunnelSceneBuilder
     ''' <param name="resolution">最长边上的体素分辨率（建议 32~64，避免放大后计算域过大）</param>
     ''' <param name="voxelizer">体素化器实现（默认标准 Voxelizer）</param>
     ''' <param name="subSamples">SDF 体素化器的每轴亚采样数（仅 voxelizer=Sdf 时生效）</param>
+    ''' <param name="voxelSize">
+    ''' 物理体素尺寸（世界坐标单位，仅 voxelizer=Physical 时生效；
+    ''' 0 时按 resolution 量化）。取任意小值即可获得任意高的网格分辨率，
+    ''' 绕开 resolution 的整数量化限制。
+    ''' </param>
     Public Function FromModelFile(filePath As String,
                                   Optional resolution As Integer = 48,
                                   Optional voxelizer As VoxelizerKind = VoxelizerKind.Standard,
-                                  Optional subSamples As Integer = 2) As VoxelModel
+                                  Optional subSamples As Integer = 2,
+                                  Optional voxelSize As Double = 0) As VoxelModel
 
         If String.IsNullOrEmpty(filePath) Then
             Throw New ArgumentException("模型文件路径不能为空", NameOf(filePath))
@@ -92,6 +100,15 @@ Public Module WindTunnelSceneBuilder
         Select Case voxelizer
             Case VoxelizerKind.Sdf
                 lx = LxSDFVoxelizer.Voxelize(scene, resolution, subSamples)
+            Case VoxelizerKind.Physical
+                ' 物理尺寸直接体素化：不经过 resolution 整数量化
+                If voxelSize > 0 Then
+                    lx = LxVoxelizer.Voxelize(scene, voxelSize)
+                Else
+                    lx = LxVoxelizer.Voxelize(scene, resolution)
+                End If
+            Case VoxelizerKind.SdfRaw
+                lx = VoxelizeSdfRaw(scene, resolution, subSamples)
             Case Else
                 lx = LxVoxelizer.Voxelize(scene, resolution)
         End Select
@@ -103,6 +120,83 @@ Public Module WindTunnelSceneBuilder
         ' ---- 3. 语义反转：Landscape True(固体) → CFDEngine False(障碍) ----
         Return ToCfdVoxelModel(lx, filePath)
 
+    End Function
+
+    ''' <summary>
+    ''' SDF 连续场重采样体素化（<see cref="VoxelizerKind.SdfRaw"/> 的实现）。
+    '''
+    ''' 先以内部基准分辨率计算连续符号距离场（<see cref="LxSDFVolume"/>，
+    ''' 体素中心的带符号距离携带亚体素表面位置），再以任意目标分辨率
+    ''' <paramref name="targetResolution"/> 对连续场做三线性插值重采样，
+    ''' 以 SDF &lt; 0 判定固体。目标网格分辨率与 SDF 计算分辨率完全解耦：
+    ''' 目标网格可以比 SDF 网格更细，边界精度由连续距离场保证。
+    ''' </summary>
+    ''' <param name="scene">已加载的三维场景模型</param>
+    ''' <param name="targetResolution">目标体素网格的最长边分辨率（可任意高）</param>
+    ''' <param name="subSamples">SDF 计算的每轴亚采样数</param>
+    ''' <param name="sdfResolution">
+    ''' SDF 计算基准分辨率；0（默认）时自动取 max(targetResolution, 128)。
+    ''' SDF 计算成本与该值的立方成正比，且其精度决定了重采样边界的质量上限。
+    ''' </param>
+    Friend Function VoxelizeSdfRaw(scene As SceneModel,
+                                   targetResolution As Integer,
+                                   Optional subSamples As Integer = 2,
+                                   Optional sdfResolution As Integer = 0) As LxVoxel
+
+        If targetResolution < 4 Then
+            Throw New ArgumentException("targetResolution 不能小于 4", NameOf(targetResolution))
+        End If
+        If sdfResolution <= 0 Then
+            sdfResolution = Math.Max(targetResolution, 128)
+        End If
+
+        ' ---- 1. 计算连续 SDF 场（覆盖模型包围盒）----
+        Dim sdf As LxSDFVolume = LxSDFVoxelizer.ComputeSDF(scene, sdfResolution, subSamples)
+        If sdf Is Nothing OrElse sdf.SDF Is Nothing OrElse sdf.SDF.Length = 0 Then
+            Throw New InvalidDataException("SDF 连续场计算失败（返回空场）")
+        End If
+
+        ' ---- 2. 目标网格：与 SDF 场覆盖同一包围盒，最长边 = targetResolution ----
+        Dim extX = sdf.Width * sdf.VoxelSize
+        Dim extY = sdf.Height * sdf.VoxelSize
+        Dim extZ = sdf.Depth * sdf.VoxelSize
+        Dim maxExt = Math.Max(extX, Math.Max(extY, extZ))
+        Dim cell = maxExt / targetResolution
+
+        Dim w = CInt(Math.Ceiling(extX / cell))
+        Dim h = CInt(Math.Ceiling(extY / cell))
+        Dim d = CInt(Math.Ceiling(extZ / cell))
+
+        ' ---- 3. 对连续场重采样：目标体素中心处 SDF < 0 即固体 ----
+        Dim shape(w * h * d - 1) As Boolean
+
+        For x = 0 To w - 1
+            For y = 0 To h - 1
+                For z = 0 To d - 1
+                    ' 目标体素中心的世界坐标（与 SDF 场的体素中心网格约定一致）
+                    Dim px = sdf.MinX + (x + 0.5) * cell
+                    Dim py = sdf.MinY + (y + 0.5) * cell
+                    Dim pz = sdf.MinZ + (z + 0.5) * cell
+
+                    ' 三线性插值查询连续距离场（真正的亚体素精度）
+                    If sdf.SampleSDF(New LxPoint3D(px, py, pz)) < 0 Then
+                        shape((x * h + y) * d + z) = True
+                    End If
+                Next
+            Next
+        Next
+
+        ' ---- 4. 组装 Landscape 语义体素模型（True = 固体）----
+        Return New LxVoxel With {
+            .Shape = shape,
+            .Width = w,
+            .Height = h,
+            .Depth = d,
+            .MinX = sdf.MinX,
+            .MinY = sdf.MinY,
+            .MinZ = sdf.MinZ,
+            .VoxelSize = cell
+        }
     End Function
 
     ''' <summary>
@@ -198,14 +292,18 @@ Public Module WindTunnelSceneBuilder
     ''' <param name="subSamples">SDF 体素化器的每轴亚采样数（仅 voxelizer=Sdf 时生效）</param>
     ''' <param name="domainScale">计算空间相对模型 grid 的放大倍数（默认 2）</param>
     ''' <param name="groundClearance">模型最低固体体素离地面 (j=0) 的高度（默认 0，贴地）</param>
+    ''' <param name="voxelSize">
+    ''' 物理体素尺寸（仅 voxelizer=Physical 时生效；0 时按 resolution 量化）
+    ''' </param>
     Public Function BuildScene(filePath As String,
                                Optional resolution As Integer = 48,
                                Optional voxelizer As VoxelizerKind = VoxelizerKind.Standard,
                                Optional subSamples As Integer = 2,
                                Optional domainScale As Double = 2.0,
-                               Optional groundClearance As Integer = 0) As WindTunnelScene
+                               Optional groundClearance As Integer = 0,
+                               Optional voxelSize As Double = 0) As WindTunnelScene
 
-        Dim model = FromModelFile(filePath, resolution, voxelizer, subSamples)
+        Dim model = FromModelFile(filePath, resolution, voxelizer, subSamples, voxelSize)
         Dim domain = VoxelModelLoader.BuildDomain(model, domainScale, groundClearance)
 
         Return New WindTunnelScene(filePath, resolution, voxelizer, model, domain, domainScale, groundClearance)
