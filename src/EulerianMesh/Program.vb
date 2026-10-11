@@ -13,6 +13,7 @@
 ' /********************************************************************************/
 
 Imports System.IO
+Imports Moira.CFDEngine
 Imports Moira.CFDEngine.Eulerian
 Imports Moira.ZMesh
 
