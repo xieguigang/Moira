@@ -6,6 +6,7 @@ CFD is applied to a wide range of research and engineering problems in many fiel
 
 <img src="./docs/CFD.PNG" width="400px" />
 
+![](./docs/FluidBox.PNG)
 ![](./docs/Desktop.PNG)
 
 + View [help page](vignettes/index.html)
