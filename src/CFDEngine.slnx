@@ -97,7 +97,9 @@
   <Project Path="CFDEngine/test/test.vbproj" Id="f44f484f-ca15-4bfe-b49d-cdf30ef9a673">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
-  <Project Path="EulerianMesh/EulerianMesh.vbproj" Id="1db7bf8b-741c-411f-8305-1c27806fdd9e" />
+  <Project Path="EulerianMesh/EulerianMesh.vbproj" Id="1db7bf8b-741c-411f-8305-1c27806fdd9e">
+    <Platform Solution="Debug|x64" Project="x64" />
+  </Project>
   <Project Path="FluidBox/FluidBox.vbproj" Id="eb5e55b1-ecd0-4b6b-ab4f-fbd74a34c2db">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
