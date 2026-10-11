@@ -76,7 +76,7 @@ Namespace My
 
                 Call log.AppendLine($"mapped       : {mapper.Count} points, stride={mapper.Stride}")
                 Call log.AppendLine($"speed range  : {mapper.MinSpeed:F4} .. {mapper.MaxSpeed:F4}")
-                Call log.AppendLine($"palette      : {mapper.SchemeName()}, {mapper.Colors(256).Length} colors")
+                Call log.AppendLine($"palette      : {mapper.Palette.Description}, {mapper.Colors(256).Length} colors")
                 Call log.AppendLine("SELFTEST OK")
             Catch ex As Exception
                 Call log.AppendLine("SELFTEST FAILED")

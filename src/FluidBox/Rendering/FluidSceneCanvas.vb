@@ -240,7 +240,7 @@ Namespace Rendering
 
             ' the palette texture of the gpu is built from this name, it is the
             ' same table that the mapper gives to the legend
-            ColorScheme = mapper.SchemeName()
+            ColorScheme = mapper.Palette
 
             Call UploadBoxLines(True)
             Call FitView()
@@ -257,11 +257,12 @@ Namespace Rendering
         ''' the palette has been changed by the user
         ''' </summary>
         Public Sub ApplyPalette()
-            If m_mapper Is Nothing Then Return
+            If m_mapper IsNot Nothing Then
+                ColorScheme = m_mapper.Palette
+                m_dirty = True
 
-            ColorScheme = m_mapper.SchemeName()
-            m_dirty = True
-            Call Invalidate()
+                Call Invalidate()
+            End If
         End Sub
 
         ''' <summary>

@@ -1,6 +1,3 @@
-Imports System.Drawing
-Imports System.Threading
-Imports System.Threading.Tasks
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
 Imports Microsoft.VisualBasic.Imaging.Physics
 Imports std = System.Math
@@ -85,46 +82,6 @@ Namespace Simulation
         ''' </summary>
         Public Function Colors(Optional levels As Integer = 256) As Color()
             Return Designer.FromSchema(Palette, levels)
-        End Function
-
-        ''' <summary>
-        ''' the name of the color scheme of the scene canvas, the gpu palette
-        ''' texture of the canvas is built from exactly this name
-        ''' </summary>
-        Public Function SchemeName() As String
-            Return GetSchemeName(Palette)
-        End Function
-
-        ''' <summary>
-        ''' the color table name of a <see cref="ScalerPalette"/> member, the
-        ''' string is what <see cref="Designer.GetColors(String, Integer, Integer)"/>
-        ''' and the scene canvas both accept
-        ''' </summary>
-        Public Shared Function GetSchemeName(palette As ScalerPalette) As String
-            Select Case palette
-                Case ScalerPalette.Jet : Return "jet"
-                Case ScalerPalette.Hot : Return "hot"
-                Case ScalerPalette.Cool : Return "cool"
-                Case ScalerPalette.Gray : Return "grays"
-                Case ScalerPalette.Autumn : Return "autumn"
-                Case ScalerPalette.Spring : Return "spring"
-                Case ScalerPalette.Summer : Return "summer"
-                Case ScalerPalette.Winter : Return "winter"
-                Case ScalerPalette.Rainbow : Return "rainbow"
-                Case ScalerPalette.Typhoon : Return "typhoon"
-                Case ScalerPalette.Icefire : Return "icefire"
-                Case ScalerPalette.Seismic : Return "seismic"
-                Case ScalerPalette.FlexImaging : Return "fleximaging"
-                Case ScalerPalette.viridis : Return "viridis"
-                Case ScalerPalette.magma : Return "viridis:magma"
-                Case ScalerPalette.inferno : Return "viridis:inferno"
-                Case ScalerPalette.plasma : Return "viridis:plasma"
-                Case ScalerPalette.cividis : Return "viridis:cividis"
-                Case ScalerPalette.turbo : Return "viridis:turbo"
-                Case ScalerPalette.mako : Return "viridis:mako"
-                Case ScalerPalette.rocket : Return "viridis:rocket"
-                Case Else : Return "jet"
-            End Select
         End Function
 
         ''' <summary>
