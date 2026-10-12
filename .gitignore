@@ -408,3 +408,4 @@ src/FVMEngine/test/cmp_d/metadata.json
 /test/f1_bl.zip
 /test/f1_delaunay.zip
 /src/ZMesh/CityBlender/samples/city_seed42.eulerian.zip
+/test/mesh/city_seed42_current.eulerian.zip
