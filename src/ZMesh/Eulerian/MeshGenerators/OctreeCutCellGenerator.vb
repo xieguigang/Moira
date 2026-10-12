@@ -4,6 +4,49 @@ Imports Moira.CFDEngine.Eulerian
 Imports std = System.Math
 
 ''' <summary>
+''' 切割平面去重键（法向三元组 + 平面到参考点的有符号距离）。
+'''
+''' 取代原先"法向 10bit + 距离 10bit 打包成单个 Long"的做法：原键把
+''' 不同距离（甚至不同法向）的平面折叠成同一个键，导致本应裁剪的三角形被
+''' 判为"重复平面"而跳过 —— 几何边界因而漏切割。此处用全精度量化键消除该类误判。
+''' </summary>
+Public Structure PlaneKey4 : Implements IEquatable(Of PlaneKey4)
+
+    Public ReadOnly NX As Long
+    Public ReadOnly NY As Long
+    Public ReadOnly NZ As Long
+    Public ReadOnly D As Long
+
+    Sub New(nx As Long, ny As Long, nz As Long, d As Long)
+        Me.NX = nx
+        Me.NY = ny
+        Me.NZ = nz
+        Me.D = d
+    End Sub
+
+    Public Overloads Function Equals(other As PlaneKey4) As Boolean Implements IEquatable(Of PlaneKey4).Equals
+        Return NX = other.NX AndAlso NY = other.NY AndAlso NZ = other.NZ AndAlso D = other.D
+    End Function
+
+    Public Overrides Function Equals(obj As Object) As Boolean
+        If TypeOf obj Is PlaneKey4 Then
+            Return Equals(DirectCast(obj, PlaneKey4))
+        End If
+
+        Return False
+    End Function
+
+    Public Overrides Function GetHashCode() As Integer
+        Dim h As Long = NX Xor (NY << 21) Xor (NY >> 5) Xor (NZ << 42) Xor (NZ >> 7) Xor (D << 11) Xor (D >> 13)
+        Return CInt(h And &H7FFFFFFF) Xor CInt(h >> 32)
+    End Function
+
+    Public Overrides Function ToString() As String
+        Return $"({NX}, {NY}, {NZ}; {D})"
+    End Function
+End Structure
+
+''' <summary>
 ''' 笛卡尔八叉树网格生成器。
 '''
 ''' 流程：
@@ -71,10 +114,14 @@ Public Class OctreeCutCellGenerator : Implements IMeshGenerator
 
         ' ---- 3/4. 叶子单元 → 网格单元 ----
         Dim mesh As New RawCellMesh
-        Dim gridPoints As New Dictionary(Of Long, Integer)
+        Dim gridPoints As New Dictionary(Of GridKey3, Integer)
         Dim leaves As List(Of TightOctreeCell(Of Integer)) = octree.Leaves
         Dim cellSize As Double = maxExtent / (1L << targetDepth)
         Dim eps As Double = cellSize * 0.001
+        ' 顶点焊接基准：以域原点为参考、以极小比例（1e-6 单元）量化。
+        ' 相邻八叉树单元计算的共享角点在双精度下可能相差若干 ulp，
+        ' 量化焊接把这种差异吸收掉；1e-6 单元的容差远小于任何真实顶点间距。
+        Dim weld As New PointWelding(domain.DomainMin, cellSize * 1.0E-6)
 
         For Each leaf As TightOctreeCell(Of Integer) In leaves
             Dim b As BoundingBox3D = leaf.Bounds
@@ -85,62 +132,82 @@ Public Class OctreeCutCellGenerator : Implements IMeshGenerator
 
             If leaf.IsBoundaryCell Then
                 If options.CutCells Then
-                    Call emitCutCell(mesh, domain, leaf, gridPoints, eps)
+                    Call emitCutCell(mesh, domain, leaf, gridPoints, weld, eps)
                 Else
                     ' IBM 模式：完整六面体，中心在固体内则丢弃
                     If domain.IsSolid(center) Then
                         Continue For
                     End If
 
-                    Call emitHex(mesh, gridPoints, b, "wall")
+                    Call emitHex(mesh, gridPoints, weld, b, "wall")
                 End If
             Else
                 If domain.IsSolid(center) Then
                     Continue For
                 End If
 
-                Call emitHex(mesh, gridPoints, b, "fluid")
+                Call emitHex(mesh, gridPoints, weld, b, "fluid")
             End If
         Next
 
         Return mesh
     End Function
 
-    ''' <summary>按均匀网格索引登记共享角点（保证相邻单元的面顶点一致焊接）。</summary>
-    Private Shared Function InternGridPoint(mesh As RawCellMesh,
-                                            gridPoints As Dictionary(Of Long, Integer),
-                                            x As Double, y As Double, z As Double) As Integer
-        Dim key As Long = QuantPoint(x, y, z)
+    ''' <summary>
+    ''' 顶点焊接器：按"相对域原点 + 固定物理容差"把空间坐标量化为去重键。
+    ''' 所有相邻的六面体/切割单元共享同一张哈希表，保证相邻单元的公共面
+    ''' 得到完全相同的顶点环，从而被 <see cref="FvmTopologyBuilder"/> 识别为内部面。
+    ''' </summary>
+    Private Structure PointWelding
+
+        Private ReadOnly _ox, _oy, _oz As Double
+        Private ReadOnly _inv As Double
+
+        Sub New(origin As EulerianVertex, tolerance As Double)
+            _ox = origin.X
+            _oy = origin.Y
+            _oz = origin.Z
+            _inv = 1.0 / tolerance
+        End Sub
+
+        Public Function Key(x As Double, y As Double, z As Double) As GridKey3
+            Return New GridKey3(
+                CLng(std.Round((x - _ox) * _inv)),
+                CLng(std.Round((y - _oy) * _inv)),
+                CLng(std.Round((z - _oz) * _inv)))
+        End Function
+    End Structure
+
+    ''' <summary>按量化键登记/复用共享顶点。</summary>
+    Private Shared Function InternPoint(mesh As RawCellMesh,
+                                        gridPoints As Dictionary(Of GridKey3, Integer),
+                                        weld As PointWelding,
+                                        p As EulerianVertex) As Integer
+
+        Dim key As GridKey3 = weld.Key(p.X, p.Y, p.Z)
 
         If gridPoints.ContainsKey(key) Then
             Return gridPoints(key)
         End If
 
-        Dim idx As Integer = mesh.AddVertex(New EulerianVertex(x, y, z))
+        Dim idx As Integer = mesh.AddVertex(p)
         gridPoints(key) = idx
         Return idx
     End Function
 
-    Private Shared Function QuantPoint(x As Double, y As Double, z As Double) As Long
-        ' 以量化坐标位打包（坐标值先缩放以便 21bit 覆盖常见范围）
-        Dim ux As Long = CLng(x * 4096.0) And &H1FFFFF
-        Dim uy As Long = CLng(y * 4096.0) And &H1FFFFF
-        Dim uz As Long = CLng(z * 4096.0) And &H1FFFFF
-        Return ux Or (uy << 21) Or (uz << 42)
-    End Function
-
     Private Shared Sub emitHex(mesh As RawCellMesh,
-                               gridPoints As Dictionary(Of Long, Integer),
+                               gridPoints As Dictionary(Of GridKey3, Integer),
+                               weld As PointWelding,
                                b As BoundingBox3D, tag As String)
         Dim c As Integer() = {
-            InternGridPoint(mesh, gridPoints, b.MinX, b.MinY, b.MinZ),
-            InternGridPoint(mesh, gridPoints, b.MaxX, b.MinY, b.MinZ),
-            InternGridPoint(mesh, gridPoints, b.MaxX, b.MaxY, b.MinZ),
-            InternGridPoint(mesh, gridPoints, b.MinX, b.MaxY, b.MinZ),
-            InternGridPoint(mesh, gridPoints, b.MinX, b.MinY, b.MaxZ),
-            InternGridPoint(mesh, gridPoints, b.MaxX, b.MinY, b.MaxZ),
-            InternGridPoint(mesh, gridPoints, b.MaxX, b.MaxY, b.MaxZ),
-            InternGridPoint(mesh, gridPoints, b.MinX, b.MaxY, b.MaxZ)}
+            InternPoint(mesh, gridPoints, weld, New EulerianVertex(b.MinX, b.MinY, b.MinZ)),
+            InternPoint(mesh, gridPoints, weld, New EulerianVertex(b.MaxX, b.MinY, b.MinZ)),
+            InternPoint(mesh, gridPoints, weld, New EulerianVertex(b.MaxX, b.MaxY, b.MinZ)),
+            InternPoint(mesh, gridPoints, weld, New EulerianVertex(b.MinX, b.MaxY, b.MinZ)),
+            InternPoint(mesh, gridPoints, weld, New EulerianVertex(b.MinX, b.MinY, b.MaxZ)),
+            InternPoint(mesh, gridPoints, weld, New EulerianVertex(b.MaxX, b.MinY, b.MaxZ)),
+            InternPoint(mesh, gridPoints, weld, New EulerianVertex(b.MaxX, b.MaxY, b.MaxZ)),
+            InternPoint(mesh, gridPoints, weld, New EulerianVertex(b.MinX, b.MaxY, b.MaxZ))}
         Call mesh.AddHex(tag, c)
     End Sub
 
@@ -148,7 +215,8 @@ Public Class OctreeCutCellGenerator : Implements IMeshGenerator
     Private Shared Sub emitCutCell(mesh As RawCellMesh,
                                    domain As GeometryPreprocessor.FluidDomain,
                                    leaf As TightOctreeCell(Of Integer),
-                                   gridPoints As Dictionary(Of Long, Integer),
+                                   gridPoints As Dictionary(Of GridKey3, Integer),
+                                   weld As PointWelding,
                                    eps As Double)
 
         Dim b As BoundingBox3D = leaf.Bounds
@@ -169,8 +237,13 @@ Public Class OctreeCutCellGenerator : Implements IMeshGenerator
 
         ' 依次以相交三角面片的平面裁剪（保留流体侧）
         Dim center As New EulerianVertex((b.MinX + b.MaxX) * 0.5, (b.MinY + b.MaxY) * 0.5, (b.MinZ + b.MaxZ) * 0.5)
-        Dim usedPlanes As New List(Of Long)
+        Dim usedPlanes As New HashSet(Of PlaneKey4)
         Dim clipCount As Integer = 0
+        ' 单元外接球半径：平面到单元中心的距离超过该值时，平面与该单元不可能相交
+        Dim cellRadius As Double = 0.5 * New EulerianVertex(
+            b.MaxX - b.MinX, b.MaxY - b.MinY, b.MaxZ - b.MinZ).Length
+        ' 距离量化精度：1e-9 单元尺度（远高于任何真实平面间距，可避免误去重）
+        Dim planeInv As Double = 1.0 / (eps * 1.0E-6)
 
         For Each item As TightOctreeItem(Of Integer) In leaf.Items
             Dim tri As Integer() = domain.Triangles(item.Value)
@@ -189,19 +262,28 @@ Public Class OctreeCutCellGenerator : Implements IMeshGenerator
 
             n = n * (1.0 / nl)
             Dim d As Double = EulerianVertex.Dot(center - a, n)
+
+            ' 仅当平面确实穿过本单元时才参与裁剪。
+            ' 大三角形（如贯穿模型的细长面）的 AABB 会登记到大量与之无关的叶子上，
+            ' 若直接用其无限平面裁剪，会把远处单元错误地切掉。
+            If std.Abs(d) > cellRadius + eps Then
+                Continue For
+            End If
+
             Dim keep As Double = If(d <= 0, -1.0, 1.0)   ' 保留单元中心所在的一侧
 
-            ' 平面去重（法向 + 距离粗量化）
-            Dim planeKey As Long =
-                (CLng(n.X * 512.0) And &H3FF) Or
-                ((CLng(n.Y * 512.0) And &H3FF) << 10) Or
-                ((CLng((d + 1.0) * 4096.0) And &H3FF) << 20)
+            ' 平面去重（法向 + 有符号距离，全精度量化键）
+            Dim planeKey As New PlaneKey4(
+                CLng(std.Round(n.X * 1000000000.0)),
+                CLng(std.Round(n.Y * 1000000000.0)),
+                CLng(std.Round(n.Z * 1000000000.0)),
+                CLng(std.Round(d * planeInv)))
 
             If usedPlanes.Contains(planeKey) Then
                 Continue For
             End If
 
-            usedPlanes.Add(planeKey)
+            Call usedPlanes.Add(planeKey)
 
             If clipCount >= 64 Then
                 Exit For
@@ -219,36 +301,15 @@ Public Class OctreeCutCellGenerator : Implements IMeshGenerator
             clipCount += 1
         Next
 
-        ' 输出多面体单元（局部点映射为全局点：角点走栅格焊接，交点新建）
+        ' 输出多面体单元（局部点映射为全局点）。
+        ' 关键：角点与切割交点**统一走全局焊接**。相邻切割单元沿共享棱计算的交点
+        ' 若各自登记为新顶点，两个单元的公共面顶点索引不同，拓扑上会被判成两个
+        ' 边界面（网格不连通，流场被壁面割裂）。焊接后它们才是真正的内部面。
         Dim cell As New RawCell With {.Tag = "wall-cut"}
         Dim localMap As New Dictionary(Of Integer, Integer)
 
         For i As Integer = 0 To lp.Count - 1
-            localMap(i) = -1
-        Next
-
-        ' 角点（与原始 8 角点量化位置一致的点）走栅格焊接
-        Dim corners As EulerianVertex() = {
-            New EulerianVertex(b.MinX, b.MinY, b.MinZ), New EulerianVertex(b.MaxX, b.MinY, b.MinZ),
-            New EulerianVertex(b.MaxX, b.MaxY, b.MinZ), New EulerianVertex(b.MinX, b.MaxY, b.MinZ),
-            New EulerianVertex(b.MinX, b.MinY, b.MaxZ), New EulerianVertex(b.MaxX, b.MinY, b.MaxZ),
-            New EulerianVertex(b.MaxX, b.MaxY, b.MaxZ), New EulerianVertex(b.MinX, b.MaxY, b.MaxZ)}
-
-        For i As Integer = 0 To lp.Count - 1
-            For k As Integer = 0 To 7
-                Dim dv As EulerianVertex = lp(i) - corners(k)
-
-                If std.Abs(dv.X) < eps AndAlso std.Abs(dv.Y) < eps AndAlso std.Abs(dv.Z) < eps Then
-                    localMap(i) = InternGridPoint(mesh, gridPoints, lp(i).X, lp(i).Y, lp(i).Z)
-                    Exit For
-                End If
-            Next
-        Next
-
-        For i As Integer = 0 To lp.Count - 1
-            If localMap(i) < 0 Then
-                localMap(i) = mesh.AddVertex(lp(i))
-            End If
+            localMap(i) = InternPoint(mesh, gridPoints, weld, lp(i))
         Next
 
         For Each f As List(Of Integer) In lf

@@ -460,16 +460,8 @@ Public Class GeometryPreprocessor
                     Continue For
                 End If
 
-                Dim extraScene As SceneModel
+                Dim extraScene As SceneModel = LoadScene(extra)
                 Dim extraVoxel As LxVoxel
-
-                If voxel > 0 AndAlso Double.IsFinite(voxel) Then
-                    ' 与主实体使用**同一体素尺寸**，保证分类精度一致
-                    extraVoxel = LxVoxelizer.Voxelize(extraScene, voxel)
-                    extraScene = LoadScene(extra)
-                End If
-
-                extraScene = If(extraScene, LoadScene(extra))
 
                 If voxel > 0 AndAlso Double.IsFinite(voxel) Then
                     ' 与主实体使用**同一体素尺寸**，保证分类精度一致
@@ -490,7 +482,7 @@ Public Class GeometryPreprocessor
     ''' <summary>从场景抽取三角面片并做容差缝合。</summary>
     Private Shared Sub ExtractTriangles(scene As SceneModel, domain As FluidDomain, stitchTolerance As Double)
         ' 顶点哈希缝合表：量化坐标 -> 顶点索引
-        Dim quant As New Dictionary(Of Long, Integer)
+        Dim quant As New Dictionary(Of GridKey3, Integer)
 
         For Each surface As Surface In scene.Surfaces
             If surface.vertices Is Nothing OrElse surface.vertices.Length < 3 Then
@@ -515,7 +507,7 @@ Public Class GeometryPreprocessor
 
     ''' <summary>登记顶点（容差缝合：量化栅格内已存在的点复用索引）。</summary>
     Private Shared Function InternVertex(domain As FluidDomain,
-                                         quant As Dictionary(Of Long, Integer),
+                                         quant As Dictionary(Of GridKey3, Integer),
                                          x As Double, y As Double, z As Double,
                                          stitchTolerance As Double) As Integer
 
@@ -537,12 +529,15 @@ Public Class GeometryPreprocessor
         End If
     End Function
 
-    ''' <summary>坐标量化为哈希键（容差缝合的近似最近查找）。</summary>
-    Private Shared Function QuantKey(x As Double, y As Double, z As Double, tol As Double) As Long
+    ''' <summary>
+    ''' 坐标量化为去重键（容差缝合的近似最近查找）。
+    ''' 注意：不再做 21bit 位打包 —— 打包键在 |x·s| ≥ 2^21 时静默丢位，会把相距很远的点合并。
+    ''' </summary>
+    Private Shared Function QuantKey(x As Double, y As Double, z As Double, tol As Double) As GridKey3
         Dim s As Double = 1.0 / tol
-        Dim ux As Long = CLng(std.Round(x * s)) And &H1FFFFF
-        Dim uy As Long = CLng(std.Round(y * s)) And &H1FFFFF
-        Dim uz As Long = CLng(std.Round(z * s)) And &H1FFFFF
-        Return ux Or (uy << 21) Or (uz << 42)
+        Return New GridKey3(
+            CLng(std.Round(x * s)),
+            CLng(std.Round(y * s)),
+            CLng(std.Round(z * s)))
     End Function
 End Class
