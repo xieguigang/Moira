@@ -220,6 +220,20 @@ Public Class OctreeCutCellGenerator : Implements IMeshGenerator
                                    eps As Double)
 
         Dim b As BoundingBox3D = leaf.Bounds
+        Dim center As New EulerianVertex((b.MinX + b.MaxX) * 0.5, (b.MinY + b.MaxY) * 0.5, (b.MinZ + b.MaxZ) * 0.5)
+
+        ' 单元中心位于固体内部：整单元剔除。
+        '
+        ' 切割单元的正确语义是"切掉本单元落在固体内部的那一部分"。
+        ' 若中心已经在固体内，保留的部分只是一层极薄的碎片壳体 —— 把它当作流体单元
+        ' 输出会让整个障碍物的内部重新变成流体（模型等于没有被挖掉）。
+        ' cut-cell 的标准做法是整单元丢弃（代价是固体侧出现半个单元的阶梯）。
+        '
+        ' 注意这也让裁剪不依赖模型的三角面片绕序：被保留下来的单元中心一定在流体侧，
+        ' 因此"保留中心所在的一侧"（见下方 keep）对它们恒为正确解。
+        If domain.IsSolid(center) Then
+            Return
+        End If
 
         ' 局部点表（8 角点）+ 面表（外法向绕序，与 AddHex 一致）
         Dim lp As New List(Of EulerianVertex) From {
@@ -236,7 +250,6 @@ Public Class OctreeCutCellGenerator : Implements IMeshGenerator
             New List(Of Integer) From {3, 7, 6, 2}}
 
         ' 依次以相交三角面片的平面裁剪（保留流体侧）
-        Dim center As New EulerianVertex((b.MinX + b.MaxX) * 0.5, (b.MinY + b.MaxY) * 0.5, (b.MinZ + b.MaxZ) * 0.5)
         Dim usedPlanes As New HashSet(Of PlaneKey4)
         Dim clipCount As Integer = 0
         ' 单元外接球半径：平面到单元中心的距离超过该值时，平面与该单元不可能相交
@@ -300,14 +313,6 @@ Public Class OctreeCutCellGenerator : Implements IMeshGenerator
             lf = result.Faces
             clipCount += 1
         Next
-
-        If clipCount = 0 Then
-            ' 没有任何平面真正穿过本单元（大型三角形的 AABB 登记到了不相邻的叶子上）。
-            ' 此时退回 IBM 判据：单元中心位于固体内部则丢弃。
-            If domain.IsSolid(center) Then
-                Return
-            End If
-        End If
 
         ' 输出多面体单元（局部点映射为全局点）。
         ' 关键：角点与切割交点**统一走全局焊接**。相邻切割单元沿共享棱计算的交点
