@@ -4,7 +4,7 @@
     <Platform Name="x64" />
   </Configurations>
   <Folder Name="/CFD/">
-    <Project Path="CDFDxCanvas/CDFDxCanvas.vbproj" Id="dceb9a7f-7f8a-4f0a-93b0-914f72014854">
+    <Project Path="CDFDxCanvas/CFDDxCanvas.vbproj" Id="dceb9a7f-7f8a-4f0a-93b0-914f72014854">
       <BuildType Solution="Release|x64" Project="nuget_release" />
       <Platform Solution="*|x64" Project="x64" />
     </Project>

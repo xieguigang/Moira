@@ -30,7 +30,7 @@
     <ProjectReference Include="..\..\..\GCModeller\src\runtime\sciBASIC#\vs_solutions\dev\VisualStudio\VisualStudio.NET5.vbproj" />
     <ProjectReference Include="..\..\..\Microsoft.VisualBasic.Drawing\src\DXApi\DXApi.vbproj" />
     <ProjectReference Include="..\..\..\Microsoft.VisualBasic.Drawing\src\DxCanvas\DxCanvas.vbproj" />
-    <ProjectReference Include="..\CDFDxCanvas\CDFDxCanvas.vbproj" />
+    <ProjectReference Include="..\CDFDxCanvas\CFDDxCanvas.vbproj" />
     <ProjectReference Include="..\CFDEngine\CFDEngine.vbproj" />
     <!-- 计算引擎：Eulerian 网格 FVM（替换原 LBMEngine 体素 LBM；
          ZMesh 已不再需要 —— 网格由 src\EulerianMesh 命令行工具预生成 *.eulerian.zip） -->

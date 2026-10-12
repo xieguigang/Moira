@@ -33,7 +33,7 @@
     <ProjectReference Include="..\..\..\..\GCModeller\src\runtime\sciBASIC#\vs_solutions\dev\VisualStudio\VisualStudio.NET5.vbproj" />
     <ProjectReference Include="..\..\..\..\Microsoft.VisualBasic.Drawing\src\DXApi\DXApi.vbproj" />
     <ProjectReference Include="..\..\..\..\Microsoft.VisualBasic.Drawing\src\DxCanvas\DxCanvas.vbproj" />
-    <ProjectReference Include="..\..\CDFDxCanvas\CDFDxCanvas.vbproj" />
+    <ProjectReference Include="..\..\CDFDxCanvas\CFDDxCanvas.vbproj" />
     <ProjectReference Include="..\..\MeshGraph\MeshGraph.vbproj" />
     <ProjectReference Include="..\..\SPHEngine\SPHEngine.vbproj" />
     <ProjectReference Include="..\..\ZMesh\ZMesh.vbproj" />
