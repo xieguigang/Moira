@@ -512,7 +512,7 @@ Public Class GeometryPreprocessor
                                          stitchTolerance As Double) As Integer
 
         If stitchTolerance > 0 Then
-            Dim key As Long = QuantKey(x, y, z, stitchTolerance)
+            Dim key As GridKey3 = QuantKey(x, y, z, stitchTolerance)
 
             If quant.ContainsKey(key) Then
                 domain.MergedVertices += 1

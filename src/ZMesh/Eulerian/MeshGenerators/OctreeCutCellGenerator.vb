@@ -301,6 +301,14 @@ Public Class OctreeCutCellGenerator : Implements IMeshGenerator
             clipCount += 1
         Next
 
+        If clipCount = 0 Then
+            ' 没有任何平面真正穿过本单元（大型三角形的 AABB 登记到了不相邻的叶子上）。
+            ' 此时退回 IBM 判据：单元中心位于固体内部则丢弃。
+            If domain.IsSolid(center) Then
+                Return
+            End If
+        End If
+
         ' 输出多面体单元（局部点映射为全局点）。
         ' 关键：角点与切割交点**统一走全局焊接**。相邻切割单元沿共享棱计算的交点
         ' 若各自登记为新顶点，两个单元的公共面顶点索引不同，拓扑上会被判成两个
