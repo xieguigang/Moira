@@ -19,6 +19,55 @@ Imports Moira.CFDEngine.Eulerian
 Imports std = System.Math
 
 ''' <summary>
+''' 整数栅格量化键（XYZ 三元组）：按物理容差对空间点做去重 / 焊接使用。
+'''
+''' 取代原先"三个分量各自 <c>And &amp;H1FFFFF</c> 位打包成一个 Long"的做法：
+''' 位打包在大坐标（x·scale ≥ 2^21）或负坐标下会静默丢位，
+''' 把相距很远的两个点判为同一个点（顶点错误合并 → 退化三角面 / 错误拓扑）。
+''' </summary>
+Public Structure GridKey3 : Implements IEquatable(Of GridKey3)
+
+    Public ReadOnly X As Long
+    Public ReadOnly Y As Long
+    Public ReadOnly Z As Long
+
+    Sub New(x As Long, y As Long, z As Long)
+        Me.X = x
+        Me.Y = y
+        Me.Z = z
+    End Sub
+
+    Public Overloads Function Equals(other As GridKey3) As Boolean Implements IEquatable(Of GridKey3).Equals
+        Return X = other.X AndAlso Y = other.Y AndAlso Z = other.Z
+    End Function
+
+    Public Overrides Function Equals(obj As Object) As Boolean
+        If TypeOf obj Is GridKey3 Then
+            Return Equals(DirectCast(obj, GridKey3))
+        End If
+
+        Return False
+    End Function
+
+    Public Overrides Function GetHashCode() As Integer
+        Dim h As Long = X Xor (Y << 21) Xor (Y >> 11) Xor (Z << 42) Xor (Z >> 23)
+        Return CInt(h And &H7FFFFFFF) Xor CInt(h >> 32)
+    End Function
+
+    Public Shared Operator =(a As GridKey3, b As GridKey3) As Boolean
+        Return a.Equals(b)
+    End Operator
+
+    Public Shared Operator <>(a As GridKey3, b As GridKey3) As Boolean
+        Return Not a.Equals(b)
+    End Operator
+
+    Public Overrides Function ToString() As String
+        Return $"({X}, {Y}, {Z})"
+    End Function
+End Structure
+
+''' <summary>
 ''' 计算域语义。
 ''' </summary>
 Public Enum DomainMode
@@ -155,6 +204,13 @@ Public Class GeometryPreprocessor
             End Get
         End Property
 
+        ''' <summary>主实体分类场的体素物理尺寸（世界坐标单位）。</summary>
+        Public ReadOnly Property VoxelSize As Double
+            Get
+                Return If(_primary Is Nothing, 0.0, _primary.VoxelSize)
+            End Get
+        End Property
+
         Public Overrides Function ToString() As String
             Return $"DomainClassifier({Mode.ToString()}, secondary={SecondaryCount})"
         End Function
@@ -215,26 +271,51 @@ Public Class GeometryPreprocessor
     End Class
 
     ''' <summary>
-    ''' 从三维模型文件构建流体计算域。
+    ''' 从三维模型文件构建流体计算域（加载 → 几何预处理 → 固体分类场）。
     ''' </summary>
     ''' <param name="filePath">模型文件（STL/OBJ/glTF/GLB/DAE/3DS/3MF）。</param>
     ''' <param name="domainScale">计算域相对模型包围盒的放大倍数（&gt;= 1）。</param>
     ''' <param name="groundClearance">地面净空（模型底部与计算域底面的间距比例，相对模型高度）。</param>
     ''' <param name="voxelResolution">固体分类场的体素分辨率（最长边）。</param>
-    ''' <param name="stitchTolerance">容差缝合容差（相对模型最大边长的比例，0 关闭缝合）。</param>
+    ''' <param name="stitchTolerance">容差缝合容差（绝对世界坐标单位，0 关闭缝合 = 保留全部原始顶点）。</param>
     ''' <param name="mode">域语义：外流（默认）或内流。</param>
     ''' <param name="internalSolids">
     ''' 内流模式的次级实体模型文件（挡板 / 桨叶 / 轴）。这些实体的内部被视为固体，
     ''' 与"容器外壳内部"共同定义流体域。外流模式下忽略。
     ''' </param>
+    ''' <param name="targetVoxelSize">
+    ''' &gt; 0 时按该物理体素尺寸构建分类场（高分辨率网格必须用：保证分类场不粗于单元尺度，
+    ''' 否则"单元中心是否在固体内"的判定会被低分辨率体素场失真）；0 = 使用 <paramref name="voxelResolution"/>。
+    ''' </param>
+    ''' <param name="maxVoxels">分类场体素总数上限（内存保护上限，超出时自动放大体素尺寸）。</param>
     Public Shared Function FromModelFile(filePath As String,
                                          Optional domainScale As Double = 2.0,
                                          Optional groundClearance As Double = 0.1,
                                          Optional voxelResolution As Integer = 128,
                                          Optional stitchTolerance As Double = 0.0001,
                                          Optional mode As DomainMode = DomainMode.External,
-                                         Optional internalSolids As String() = Nothing) As FluidDomain
+                                         Optional internalSolids As String() = Nothing,
+                                         Optional targetVoxelSize As Double = 0,
+                                         Optional maxVoxels As Long = 134217728) As FluidDomain
 
+        Dim scene As SceneModel = LoadScene(filePath)
+
+        Return FromSceneModel(scene, filePath,
+                              domainScale:=domainScale,
+                              groundClearance:=groundClearance,
+                              voxelResolution:=voxelResolution,
+                              stitchTolerance:=stitchTolerance,
+                              mode:=mode,
+                              internalSolids:=internalSolids,
+                              buildSolidField:=True,
+                              targetVoxelSize:=targetVoxelSize,
+                              maxVoxels:=maxVoxels)
+    End Function
+
+    ''' <summary>
+    ''' 加载三维模型文件为场景模型（自动识别格式，含 3MF 特判）。
+    ''' </summary>
+    Public Shared Function LoadScene(filePath As String) As SceneModel
         If Not File.Exists(filePath) Then
             Throw New FileNotFoundException($"找不到模型文件：{filePath}", filePath)
         End If
@@ -250,6 +331,28 @@ Public Class GeometryPreprocessor
         If scene Is Nothing OrElse scene.Surfaces Is Nothing OrElse scene.Surfaces.Length = 0 Then
             Throw New InvalidDataException($"模型加载失败或不含几何表面：{filePath}")
         End If
+
+        Return scene
+    End Function
+
+    ''' <summary>
+    ''' 从已加载的场景模型构建流体计算域。
+    ''' </summary>
+    ''' <param name="buildSolidField">
+    ''' False 时跳过体素化，只做三角化与域盒计算（用于"先规划网格尺度、再生成"的高精度流水线），
+    ''' 之后可用 <see cref="FillSolidField"/> 补齐分类场。
+    ''' </param>
+    Public Shared Function FromSceneModel(scene As SceneModel,
+                                          filePath As String,
+                                          Optional domainScale As Double = 2.0,
+                                          Optional groundClearance As Double = 0.1,
+                                          Optional voxelResolution As Integer = 128,
+                                          Optional stitchTolerance As Double = 0.0001,
+                                          Optional mode As DomainMode = DomainMode.External,
+                                          Optional internalSolids As String() = Nothing,
+                                          Optional buildSolidField As Boolean = True,
+                                          Optional targetVoxelSize As Double = 0,
+                                          Optional maxVoxels As Long = 134217728) As FluidDomain
 
         Dim domain As New FluidDomain With {.SourceFile = filePath}
 
@@ -292,35 +395,88 @@ Public Class GeometryPreprocessor
             domain.DomainMax = New EulerianVertex(center.X + half.X, bmax.Y + size.Y * 0.5, center.Z + half.Z)
         End If
 
-        ' ---- 4. 固体分类场（Landscape 体素化，True = 实体内部）----
-        Dim lx As LxVoxel = LxVoxelizer.Voxelize(scene, voxelResolution)
+        ' ---- 4. 固体分类场 ----
+        If buildSolidField Then
+            Call FillSolidField(domain, scene, targetVoxelSize, voxelResolution, maxVoxels)
+        End If
+
+        Return domain
+    End Function
+
+    ''' <summary>
+    ''' 为计算域构建固体/流体分类场（Landscape 体素化，True = 实体内部）。
+    ''' </summary>
+    ''' <param name="domain"><see cref="FromSceneModel"/> 产出的计算域（几何与包围盒已就绪）。</param>
+    ''' <param name="scene">已加载的场景模型。</param>
+    ''' <param name="targetVoxelSize">
+    ''' &gt; 0 时按该物理尺寸体素化；0 表示使用 <paramref name="voxelResolution"/>（最长边格数）。
+    ''' </param>
+    ''' <param name="voxelResolution">目标体素尺寸为 0 时使用的固定分辨率（最长边格数）。</param>
+    ''' <param name="maxVoxels">体素总数上限，超出时按比例放大体素尺寸（防止内存爆炸）。</param>
+    Public Shared Sub FillSolidField(domain As FluidDomain,
+                                     scene As SceneModel,
+                                     Optional targetVoxelSize As Double = 0,
+                                     Optional voxelResolution As Integer = 128,
+                                     Optional maxVoxels As Long = 134217728)
+
+        Dim voxel As Double = targetVoxelSize
+
+        If voxel > 0 AndAlso maxVoxels > 0 Then
+            ' 体素预算保护：总数 = 包围盒体积 / voxel^3
+            Dim size As EulerianVertex = domain.ModelMax - domain.ModelMin
+            Dim vol As Double = size.X * size.Y * size.Z
+
+            If vol > 0 AndAlso vol / (voxel * voxel * voxel) > maxVoxels Then
+                voxel = std.Pow(vol / maxVoxels, 1.0 / 3.0)
+            End If
+        End If
+
+        Dim lx As LxVoxel
+
+        If voxel > 0 AndAlso Double.IsFinite(voxel) Then
+            lx = LxVoxelizer.Voxelize(scene, voxel)
+        Else
+            If voxelResolution < 8 Then
+                voxelResolution = 8
+            End If
+
+            lx = LxVoxelizer.Voxelize(scene, voxelResolution)
+        End If
 
         If lx Is Nothing OrElse lx.Shape Is Nothing Then
-            Throw New InvalidDataException($"模型体素化失败：{filePath}")
+            Throw New InvalidDataException($"模型体素化失败：{domain.SourceFile}")
         End If
 
         Dim primary As New SolidField(lx)
         Dim secondary As List(Of SolidField) = Nothing
+        Dim extras As String() = If(domain.InternalSolids, New String() {})
 
-        ' ---- 5. 内流的次级实体（挡板 / 桨叶 / 轴）----
-        If mode = DomainMode.Internal AndAlso internalSolids IsNot Nothing Then
+        ' ---- 内流的次级实体（挡板 / 桨叶 / 轴）----
+        If domain.Mode = DomainMode.Internal AndAlso extras.Length > 0 Then
             secondary = New List(Of SolidField)
 
-            For Each extra As String In internalSolids
+            For Each extra As String In extras
                 If String.IsNullOrEmpty(extra) OrElse Not File.Exists(extra) Then
                     Continue For
                 End If
 
                 Dim extraScene As SceneModel
+                Dim extraVoxel As LxVoxel
 
-                If ModelLoader.DetectFormat(extra) = ModelFormat._3MF Then
-                    extraScene = Load3mfScene(extra)
-                Else
-                    extraScene = extra.LoadModel
+                If voxel > 0 AndAlso Double.IsFinite(voxel) Then
+                    ' 与主实体使用**同一体素尺寸**，保证分类精度一致
+                    extraVoxel = LxVoxelizer.Voxelize(extraScene, voxel)
+                    extraScene = LoadScene(extra)
                 End If
 
-                ' 与主实体使用**同一体素尺寸**，保证分类精度一致
-                Dim extraVoxel As LxVoxel = LxVoxelizer.Voxelize(extraScene, primary.VoxelSize)
+                extraScene = If(extraScene, LoadScene(extra))
+
+                If voxel > 0 AndAlso Double.IsFinite(voxel) Then
+                    ' 与主实体使用**同一体素尺寸**，保证分类精度一致
+                    extraVoxel = LxVoxelizer.Voxelize(extraScene, voxel)
+                Else
+                    extraVoxel = LxVoxelizer.Voxelize(extraScene, primary.VoxelSize)
+                End If
 
                 If extraVoxel IsNot Nothing AndAlso extraVoxel.Shape IsNot Nothing Then
                     secondary.Add(New SolidField(extraVoxel))
@@ -328,10 +484,8 @@ Public Class GeometryPreprocessor
             Next
         End If
 
-        domain.Solid = New DomainClassifier(mode, primary, secondary)
-
-        Return domain
-    End Function
+        domain.Solid = New DomainClassifier(domain.Mode, primary, secondary)
+    End Sub
 
     ''' <summary>从场景抽取三角面片并做容差缝合。</summary>
     Private Shared Sub ExtractTriangles(scene As SceneModel, domain As FluidDomain, stitchTolerance As Double)
