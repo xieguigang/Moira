@@ -118,10 +118,12 @@ Public Class OctreeCutCellGenerator : Implements IMeshGenerator
         Dim leaves As List(Of TightOctreeCell(Of Integer)) = octree.Leaves
         Dim cellSize As Double = maxExtent / (1L << targetDepth)
         Dim eps As Double = cellSize * 0.001
-        ' 顶点焊接基准：以域原点为参考、以极小比例（1e-6 单元）量化。
-        ' 相邻八叉树单元计算的共享角点在双精度下可能相差若干 ulp，
-        ' 量化焊接把这种差异吸收掉；1e-6 单元的容差远小于任何真实顶点间距。
-        Dim weld As New PointWelding(domain.DomainMin, cellSize * 1.0E-6)
+        ' 顶点焊接基准：以域原点为参考、按 1e-4 单元尺度量化。
+        ' 相邻八叉树单元各自计算出的共享角点在双精度下可能相差若干 ulp，
+        ' 量化焊接把这种差异吸收掉（不焊接 ⇒ 相邻单元的公共面被判成两个边界面，
+        ' 网格拓扑断裂）；容差取 1e-4 单元：比任何真实顶点间距小 4 个数量级，
+        ' 又比双精度舍入误差大 6 个数量级，兼顾"不误合并"与"不漏焊接"。
+        Dim weld As New PointWelding(domain.DomainMin, cellSize * 0.0001)
 
         For Each leaf As TightOctreeCell(Of Integer) In leaves
             Dim b As BoundingBox3D = leaf.Bounds
