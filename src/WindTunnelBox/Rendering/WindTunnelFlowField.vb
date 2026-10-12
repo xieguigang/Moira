@@ -1,4 +1,4 @@
-Imports Moira.CDFDxCanvas.Rendering
+Imports Moira.CFDDxCanvas.Rendering
 
 ' /********************************************************************************/
 '

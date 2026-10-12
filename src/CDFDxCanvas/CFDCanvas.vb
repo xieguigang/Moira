@@ -20,8 +20,8 @@ Imports Microsoft.VisualBasic.Drawing.DirectX
 Imports Microsoft.VisualBasic.Drawing.DirectX.Scene3D
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
 Imports Microsoft.VisualBasic.Imaging.Drawing3D
-Imports Moira.CDFDxCanvas.Data
-Imports Moira.CDFDxCanvas.Rendering
+Imports Moira.CFDDxCanvas.Data
+Imports Moira.CFDDxCanvas.Rendering
 
 ''' <summary>
 ''' CFD 结果三维可视化视口控件。

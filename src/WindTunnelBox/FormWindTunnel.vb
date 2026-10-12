@@ -1,4 +1,4 @@
-﻿Imports Moira.CDFDxCanvas.Rendering
+﻿Imports Moira.CFDDxCanvas.Rendering
 Imports Moira.CFDEngine.Eulerian
 Imports Moira.FVMEngine.Eulerian
 Imports Math = System.Math

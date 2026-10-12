@@ -27,9 +27,9 @@ Imports System.Drawing.Drawing2D
 Imports System.Windows.Forms
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
 Imports Microsoft.VisualBasic.My.JavaScript
-Imports Moira.CDFDxCanvas
-Imports Moira.CDFDxCanvas.Data
-Imports Moira.CDFDxCanvas.Rendering
+Imports Moira.CFDDxCanvas
+Imports Moira.CFDDxCanvas.Data
+Imports Moira.CFDDxCanvas.Rendering
 
 Public Class DemoTestForm
 

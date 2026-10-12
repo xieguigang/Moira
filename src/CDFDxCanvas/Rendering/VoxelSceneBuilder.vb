@@ -28,7 +28,7 @@
 
 Imports Microsoft.VisualBasic.Drawing.DirectX.Scene3D
 Imports Microsoft.VisualBasic.Imaging.Drawing3D
-Imports Moira.CDFDxCanvas.Data
+Imports Moira.CFDDxCanvas.Data
 
 Namespace Rendering
 

@@ -1,13 +1,11 @@
 Imports System.ComponentModel
 Imports System.Numerics
-Imports Math = System.Math
 Imports Microsoft.VisualBasic.Drawing.DirectX
 Imports Microsoft.VisualBasic.Drawing.DirectX.Scene3D
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
-Imports Microsoft.VisualBasic.Imaging.Drawing3D
-Imports Microsoft.VisualBasic.MachineLearning.TensorFlow
-Imports Moira.CDFDxCanvas.Rendering
+Imports Moira.CFDDxCanvas.Rendering
 Imports Font = Microsoft.VisualBasic.Imaging.Font
+Imports Math = System.Math
 Imports SolidBrush = Microsoft.VisualBasic.Imaging.SolidBrush
 
 ' /********************************************************************************/

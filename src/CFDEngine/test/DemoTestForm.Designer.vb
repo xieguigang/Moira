@@ -2,7 +2,8 @@ Imports System.ComponentModel
 Imports System.Drawing
 Imports System.Windows.Forms
 Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
-Imports Moira.CDFDxCanvas
+Imports Moira.CFDDxCanvas
+Imports Moira.CFDDxCanvas.Rendering
 
 <Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()>
 Partial Public Class DemoTestForm
@@ -114,7 +115,7 @@ Partial Public Class DemoTestForm
         m_canvas.SectionEnabled = False
         m_canvas.SectionPosition = 0
         m_canvas.SelectedVoxel = -1
-        m_canvas.Visualization = Moira.CDFDxCanvas.Rendering.VisualizationMode.Heatmap
+        m_canvas.Visualization = VisualizationMode.Heatmap
         m_canvas.ShowDebugInfo = False
         m_canvas.ShowHoverTooltip = False
         m_canvas.Size = New Size(802, 757)
