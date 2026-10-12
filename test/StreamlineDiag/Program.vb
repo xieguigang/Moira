@@ -52,6 +52,7 @@ Module Program
     Private _log As StreamWriter
     Private _started As Stopwatch
     Private _gpuReady As Boolean
+    Private _snapOverride As List(Of Integer)
 
     ' ============================================================================
     '  入口
@@ -88,6 +89,19 @@ Module Program
                 Case "solve"
                     If args.Length < 2 Then Throw New ArgumentException("solve 需要 <eulerian.zip> [steps]")
                     Dim steps As Integer = If(args.Length > 2, Integer.Parse(args(2), CI), 200)
+
+                    For Each a As String In args
+                        If a.StartsWith("--snap=") Then
+                            Dim list As New List(Of Integer)
+
+                            For Each s As String In a.Substring(7).Split(","c)
+                                list.Add(Integer.Parse(s, CI))
+                            Next
+
+                            _snapOverride = list
+                        End If
+                    Next
+
                     code = RunSolve(args(1), steps)
 
                 Case "compare"
@@ -105,6 +119,14 @@ Module Program
                     Dim psteps As Integer = If(args.Length > 2, Integer.Parse(args(2), CI), 20)
                     Dim pgpu As Boolean = If(args.Length > 3, Boolean.Parse(args(3)), True)
                     code = RunPressureDiag(args(1), psteps, pgpu)
+
+                Case "il"
+                    If args.Length < 4 Then Throw New ArgumentException("il 需要 <dll> <类型全名> <方法名>")
+                    code = RunIlDump(args(1), args(2), args(3))
+
+                Case "resampler"
+                    If args.Length < 2 Then Throw New ArgumentException("resampler 需要 <eulerian.zip>")
+                    code = RunResamplerProbe(args(1))
 
                 Case "all"
                     If args.Length < 3 Then Throw New ArgumentException("all 需要 <model.stl> <out.zip> [steps]")
@@ -501,6 +523,8 @@ Module Program
 
         ' 缓存若干步的快照，用于观察流线形态随收敛的演化
         Dim snapSteps As New List(Of Integer) From {1, Math.Max(1, steps \ 4), Math.Max(1, steps \ 2), steps}
+
+        If _snapOverride IsNot Nothing Then snapSteps = _snapOverride
         Dim snapshots As New List(Of Tuple(Of Integer, BoxSnapshot))
 
         For Each s As Integer In snapSteps.Distinct().OrderBy(Function(x) x)
@@ -583,6 +607,23 @@ Module Program
         Call Line("  【步长敏感性】同一条零阶场，仅把 RK2 弧长步长从 0.7 缩小到 0.2：")
 
         Call TraceAndAnalyze("step=final 零阶 h=0.2", final, 4, 0.2F, 0.0F)
+
+        Call Line("")
+        Call Line("  【重采样方式对照】注意：下面用的是**最终帧**的速度场（与上面各 step 不同）；")
+        Call Line("  同一帧、同一流线追踪器，只把『最近单元（零阶）』")
+        Call Line("  换成『单元中心反距离平方插值』，看 Straightness 是否显著变化：")
+
+        For Each tup As Tuple(Of Integer, BoxSnapshot) In snapshots
+            Dim interp As BoxSnapshot = sampler.SampleInterpolated(testCase)
+            Dim oc As Integer = 0
+
+            For q As Integer = 0 To interp.Outside.Length - 1
+                If interp.Outside(q) <> 0 Then oc += 1
+            Next
+
+
+            Call TraceAndAnalyze($"step={tup.Item1} 反距离插值重采样", interp, 4, 0.7F, 0.0F)
+        Next
 
         Call Line("")
         Call Line("  【阈值敏感性】同一条零阶场，种子步长 8（种子更稀）：")
@@ -850,6 +891,142 @@ Module Program
     Private Function IsNumeric(s As String) As Boolean
         Dim v As Double
         Return Double.TryParse(s, NumberStyles.Float, CI, v)
+    End Function
+
+    ' ============================================================================
+    '  [F] EulerianToCartesianResampler.AutoConfigure 探针
+    ' ============================================================================
+
+    Private Function RunResamplerProbe(zipPath As String) As Integer
+        Call Section($"[F] EulerianToCartesianResampler.AutoConfigure 探针：{IO.Path.GetFileName(zipPath)}")
+
+        Dim mesh As EulerianFvMesh = EulerianFvMesh.FromFile(zipPath)
+
+        Dim bmin As EulerianVertex = Nothing
+        Dim bmax As EulerianVertex = Nothing
+
+        Call mesh.Mesh.GetBounds(bmin, bmax)
+
+        Dim ex As Double = bmax.X - bmin.X
+        Dim ey As Double = bmax.Y - bmin.Y
+        Dim ez As Double = bmax.Z - bmin.Z
+        Dim h0 As Double = Math.Pow(Math.Max(mesh.Mesh.TotalVolume, 1.0E-300) / Math.Max(1, mesh.CellCount), 1.0 / 3.0)
+
+        Call Line($"  网格：cells={mesh.CellCount}, totalVolume={mesh.Mesh.TotalVolume:G6}")
+        Call Line($"  bounds：min=({bmin.X:G6}, {bmin.Y:G6}, {bmin.Z:G6})  max=({bmax.X:G6}, {bmax.Y:G6}, {bmax.Z:G6})")
+        Call Line($"  extent = ({ex:G6}, {ey:G6}, {ez:G6})")
+        Call Line($"  平均单元尺度 h0 = (V/N)^(1/3) = {h0:G6}")
+        Call Line($"  手算 nx = floor({ex:G6}/{h0:G6})+1 = {Math.Max(1, CInt(Math.Floor(ex / h0)) + 1)}")
+
+        ' ---- 手工复算 AutoConfigure 的内部算术 ----
+        Dim e2 As EulerianVertex = bmax - bmin
+
+        Call Line($"  手工复算：extent = bmax - bmin = ({e2.X:G6}, {e2.Y:G6}, {e2.Z:G6})")
+        Call Line($"    (V/N)^(1/3) = {h0:G6}")
+        Call Line($"    floor(extent.X/h0)+1 = {Math.Floor(e2.X / h0) + 1}")
+        Call Line($"    floor(extent.Y/h0)+1 = {Math.Floor(e2.Y / h0) + 1}")
+        Call Line($"    floor(extent.Z/h0)+1 = {Math.Floor(e2.Z / h0) + 1}")
+        Call Line($"    → 期望 {Math.Max(1, CInt(Math.Floor(e2.X / h0)) + 1)}x" &
+                  $"{Math.Max(1, CInt(Math.Floor(e2.Y / h0)) + 1)}x" &
+                  $"{Math.Max(1, CInt(Math.Floor(e2.Z / h0)) + 1)}")
+
+        ' ---- 默认 maxCells = 4_000_000 ----
+        Dim rs As New EulerianToCartesianResampler(mesh.Mesh)
+
+        Call Line($"  构造后（AutoConfigure 之前）：{rs.Nx}x{rs.Ny}x{rs.Nz}, h={rs.SpacingX}, " &
+                  $"origin=({rs.OriginX}, {rs.OriginY}, {rs.OriginZ})")
+
+        Call rs.AutoConfigure()
+
+        Call Line($"  AutoConfigure 之后（立即读）：{rs.Nx}x{rs.Ny}x{rs.Nz}")
+        Call Line($"  类型 = {rs.GetType().AssemblyQualifiedName}")
+        Call Line($"  AutoConfigure 方法 = {rs.GetType().GetMethod("AutoConfigure").ToString()}")
+
+        ' 用反射读 Nx / Ny / Nz 的编译期后备字段（自动属性 ⇒ <Nx>k__BackingField）
+        For Each f As Reflection.FieldInfo In rs.GetType().GetFields(
+                Reflection.BindingFlags.Instance Or Reflection.BindingFlags.NonPublic Or Reflection.BindingFlags.Public)
+            Call Line($"    字段 {f.Name,-40} {f.FieldType.Name,-10} = {f.GetValue(rs)}")
+        Next
+
+        For Each pi As Reflection.PropertyInfo In rs.GetType().GetProperties(Reflection.BindingFlags.Instance Or Reflection.BindingFlags.Public)
+            If pi.Name = "Nx" OrElse pi.Name = "Ny" OrElse pi.Name = "Nz" Then
+                Call Line($"    属性 {pi.Name} CanWrite={pi.CanWrite} 值={pi.GetValue(rs)}")
+            End If
+        Next
+
+        ' 用 Reflection.Emit 无从取得中间量 → 直接内联复算（与源码逐行等价）
+        Dim bx As Double = ex / h0
+        Call Line($"    内联复算：extent.X/h0 = {bx:G17}")
+        Call Line($"              Floor = {Math.Floor(bx):G17}")
+        Call Line($"              CInt(Floor) = {CInt(Math.Floor(bx))}")
+        Call Line($"              Math.Max(1, CInt+1) = {Math.Max(1, CInt(Math.Floor(bx)) + 1)}")
+
+        ' 直接从 AutoConfigure 源码逐行复算一个局部实例（对照）
+        Dim rtest As New EulerianToCartesianResampler(mesh.Mesh)
+        Dim tbmin As EulerianVertex = Nothing
+        Dim tbmax As EulerianVertex = Nothing
+
+        Call rtest.Mesh.GetBounds(tbmin, tbmax)
+
+        Dim text2 As EulerianVertex = tbmax - tbmin
+        Dim th As Double = Math.Pow(Math.Max(rtest.Mesh.TotalVolume, 1.0E-300) / Math.Max(1, rtest.Mesh.CellCount), 1.0 / 3.0)
+        Dim tnx As Integer = Math.Max(1, CInt(Math.Floor(text2.X / th)) + 1)
+        Dim tny As Integer = Math.Max(1, CInt(Math.Floor(text2.Y / th)) + 1)
+        Dim tnz As Integer = Math.Max(1, CInt(Math.Floor(text2.Z / th)) + 1)
+
+        Call Line($"  逐行复算（同源码）：{tnx}x{tny}x{tnz}  (h={th:G6})")
+
+        Dim rtest2 As New EulerianToCartesianResampler(mesh.Mesh)
+
+        rtest2.Nx = tnx : rtest2.Ny = tny : rtest2.Nz = tnz
+        Call Line($"  直接给属性赋值后读回：{rtest2.Nx}x{rtest2.Ny}x{rtest2.Nz}")
+
+        Dim rtest3 As New EulerianToCartesianResampler(mesh.Mesh)
+
+        rtest3.AutoConfigure(th)
+        Call Line($"  AutoConfigure(cellSize=逐行复算的 h={th:G6}) -> {rtest3.Nx}x{rtest3.Ny}x{rtest3.Nz}, h={rtest3.SpacingX:G6}")
+
+        Call Line($"")
+        Call Line($"  AutoConfigure()（默认 maxCells=4000000）→ {rs.Nx}x{rs.Ny}x{rs.Nz}, " &
+                  $"h={rs.SpacingX:G6}, origin=({rs.OriginX:G6}, {rs.OriginY:G6}, {rs.OriginZ:G6})")
+        Call Line($"    CellCount = {rs.CellCount}")
+
+        ' ---- 显式 maxCells 扫描 ----
+        For Each mc As Integer In New Integer() {1000000, 4000000, 10000000}
+            Dim r2 As New EulerianToCartesianResampler(mesh.Mesh)
+
+            Call r2.AutoConfigure(0.0R, mc)
+
+            Call Line($"  AutoConfigure(cellSize=0, maxCells={mc}) → {r2.Nx}x{r2.Ny}x{r2.Nz}, h={r2.SpacingX:G6}")
+        Next
+
+        ' ---- 显式 cellSize 扫描 ----
+        For Each cs As Double In New Double() {8.0R, 16.0R, 33.0R}
+            Dim r3 As New EulerianToCartesianResampler(mesh.Mesh)
+
+            Call r3.AutoConfigure(cs)
+
+            Call Line($"  AutoConfigure(cellSize={cs:G4}) → {r3.Nx}x{r3.Ny}x{r3.Nz}, h={r3.SpacingX:G6}")
+        Next
+
+        ' ---- Resample 抽样（看是否真的找得到单元）----
+        Dim rs2 As New EulerianToCartesianResampler(mesh.Mesh)
+
+        Call rs2.AutoConfigure()
+
+        Dim n As Integer = rs2.CellCount
+        Dim u As Double() = New Double(3 * mesh.CellCount - 1) {}
+        Dim sampled As Single() = rs2.Resample(u, 3)
+        Dim nz As Integer = 0
+
+        For i As Integer = 0 To sampled.Length - 1
+            If sampled(i) <> 0 Then nz += 1
+        Next
+
+        Call Line($"")
+        Call Line($"  Resample 输出长度 = {sampled.Length}（={n} 节点 × 3 分量），非零项 = {nz}")
+
+        Return 0
     End Function
 
     ' ============================================================================

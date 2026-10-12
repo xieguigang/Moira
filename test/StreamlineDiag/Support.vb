@@ -303,6 +303,72 @@ Public NotInheritable Class BoxSampler
         Return SameCellFraction(0, 0, 1)
     End Function
 
+    ''' <summary>
+    ''' 对照实验用的重采样：把单元中心速度按**反距离平方加权**插值到结构格节点，
+    ''' 而不是取最近单元（零阶）。用于区分"网格太粗导致速度场本身近乎均匀"
+    ''' 与"零阶重采样制造分片常数"这两种可能。
+    ''' </summary>
+    Public Function SampleInterpolated(c As EulerianWindTunnelCase) As BoxSnapshot
+        Dim gx As Integer = _resampler.Nx, gy As Integer = _resampler.Ny, gz As Integer = _resampler.Nz
+        Dim n As Integer = gx * gy * gz
+        Dim nCells As Integer = _mesh.CellCount
+        Dim u As Double() = c.Fields.U.Values
+        Dim ux(n - 1) As Single, uy(n - 1) As Single, uz(n - 1) As Single
+        Dim outside(n - 1) As Byte
+
+        ' 8 近邻结构格节点 → 单元映射（含其世界坐标）
+        Dim ox As Double = _ox, oy As Double = _oy, oz As Double = _oz
+        Dim h As Double = _resampler.SpacingX
+
+        For i As Integer = 0 To gx - 1
+            For j As Integer = 0 To gy - 1
+                For k As Integer = 0 To gz - 1
+                    Dim idx As Integer = (i * gy + j) * gz + k
+                    Dim x As Double = ox + i * h
+                    Dim y As Double = oy + j * h
+                    Dim z As Double = oz + k * h
+
+                    Dim sw As Double = 0, sx As Double = 0, sy As Double = 0, sz As Double = 0
+                    Dim found As Boolean = False
+
+                    For di As Integer = 0 To 1
+                        For dj As Integer = 0 To 1
+                            For dk As Integer = 0 To 1
+                                Dim q As Integer = _resampler.NearestCell(x + di * h, y + dj * h, z + dk * h)
+
+                                If q < 0 Then Continue For
+
+                                Dim cc As EulerianVertex = _mesh.Mesh.CellCentroids(q)
+                                Dim d2 As Double = (cc.X - x) ^ 2 + (cc.Y - y) ^ 2 + (cc.Z - z) ^ 2
+
+                                If d2 < 1.0E-12 Then d2 = 1.0E-12
+
+                                Dim w As Double = 1.0 / d2
+
+                                sw += w
+                                sx += w * u(q)
+                                sy += w * u(nCells + q)
+                                sz += w * u(2 * nCells + q)
+                                found = True
+                            Next
+                        Next
+                    Next
+
+                    If Not found OrElse sw <= 0 Then
+                        outside(idx) = 1
+                        Continue For
+                    End If
+
+                    ux(idx) = CSng(sx / sw)
+                    uy(idx) = CSng(sy / sw)
+                    uz(idx) = CSng(sz / sw)
+                Next
+            Next
+        Next
+
+        Return New BoxSnapshot(gx, gy, gz, ux, uy, uz, outside)
+    End Function
+
     Private Function SameCellFraction(di As Integer, dj As Integer, dk As Integer) As Double
         Dim same As Long = 0, total As Long = 0
 
