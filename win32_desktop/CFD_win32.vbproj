@@ -141,6 +141,10 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Tools\" />
+  </ItemGroup>
+
   <Import Project="..\..\GCModeller\src\runtime\Darwinism\src\networking\TcpRequest\TcpRequest.projitems" Label="Shared" /> 
 
 </Project>
