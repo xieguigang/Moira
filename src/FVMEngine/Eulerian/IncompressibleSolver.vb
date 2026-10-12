@@ -38,8 +38,6 @@
 '
 ' /********************************************************************************/
 
-Imports System
-Imports System.Collections.Generic
 Imports System.Globalization
 Imports System.Text
 Imports Moira.CFDEngine.Eulerian
@@ -81,7 +79,7 @@ Namespace Eulerian
         '''   （逐次力采样 7e2 → 2e4 → 7e5 → 1e21 → 1e113 → NaN）。
         '''   取 0.3 后该反馈被阻尼，稳态收敛稍慢但稳健。
         '''   盒式正交网格上 0.3 与 1.0 的最终解一致，仅迭代数不同。
-        ''' </summary>
+        ''' </remarks>
         Public Property RelaxP As Double = 0.3
 
         ''' <summary>动量预测的平滑扫描次数（OpenFOAM smoothSolver nSweeps 等价物）。</summary>

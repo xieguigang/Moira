@@ -253,8 +253,8 @@ Namespace Eulerian
             Next
         End Sub
 
-        ''' <summary>残差向量 r = A·x − b（长度 = CellCount）。</summary>
         ''' <summary>
+        ''' 残差向量 r = A·x − b（长度 = CellCount）。
         ''' 标准残差 r = b − A·x。
         ''' </summary>
         ''' <remarks>
