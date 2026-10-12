@@ -12,6 +12,24 @@
     <RemoveIntegerOverflowChecks>true</RemoveIntegerOverflowChecks>
     <UseWPF>True</UseWPF>
     <ApplicationIcon>CFD.ico</ApplicationIcon>
+      <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>    
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>G:\Moira\assembly\bin</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutputPath>G:\Moira\assembly\bin</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <OutputPath>G:\Moira\assembly\bin</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutputPath>G:\Moira\assembly\bin</OutputPath>
   </PropertyGroup>
 
   <ItemGroup>
