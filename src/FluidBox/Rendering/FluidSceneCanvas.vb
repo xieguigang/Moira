@@ -648,7 +648,7 @@ Namespace Rendering
         ''' axis of the solver is the axis of the gravity) and is rotated by
         ''' the very same tilt as the wire frame, so it follows the shake and
         ''' always shows where the box rests on the ground.
-        ''' </summary>
+        ''' </remarks>>
         Private Function BuildGroundGrid(r As Single(),
                                          hx As Single, hy As Single, hz As Single) As List(Of LineSegment)
 

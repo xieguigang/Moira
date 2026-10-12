@@ -149,12 +149,6 @@ Namespace Simulation
         ''' <param name="state">the live state of the solver</param>
         ''' <param name="count">how many particles of the state are active</param>
         ''' <param name="budget">the largest number of points that may be drawn</param>
-        ''' <summary>
-        ''' sample the particles and pack them into the instance buffer
-        ''' </summary>
-        ''' <param name="state">the live state of the solver</param>
-        ''' <param name="count">how many particles of the state are active</param>
-        ''' <param name="budget">the largest number of points that may be drawn</param>
         Public Sub Build(state As SphState3D, count As Integer, budget As Integer)
             If budget < 1 Then budget = 1
             If m_instances.Length < budget * FloatsPerPoint Then
