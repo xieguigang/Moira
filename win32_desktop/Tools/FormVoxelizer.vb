@@ -34,7 +34,7 @@ Friend Class FormVoxelizer
         cboKind.SelectedIndex = 0
         txtExe.Text = CliArg.ResolveTool(ToolExeName)
 
-        Call CliToolLayout.WirePreviewRefresh(Me, AddressOf OnParamChanged)
+        Call CliToolLayout.WirePreviewRefresh(Me, AddressOf OnParamChanged, txtCommand, txtLog)
         Call SyncOptions()
         Call RefreshCommand()
         Call SetStatus("就绪")

@@ -88,30 +88,6 @@ Friend Module CliToolLayout
         Return row
     End Function
 
-    ''' <summary>分组标题（蓝色小标题条）。</summary>
-    Friend Function MakeGroupHeader(title As String) As Panel
-        Dim box As New Panel() With {
-            .BackColor = ColorAccentSoft,
-            .Size = New Size(RowWidth, 26),
-            .Margin = New Padding(0, 8, 0, 3),
-            .Padding = New Padding(0)
-        }
-
-        Dim label As New Label() With {
-            .Text = title,
-            .AutoSize = False,
-            .Location = New Point(10, 2),
-            .Size = New Size(RowWidth - 20, 21),
-            .ForeColor = ColorPrimaryDark,
-            .Font = _fontUIBold,
-            .TextAlign = ContentAlignment.MiddleLeft
-        }
-
-        box.Controls.Add(label)
-
-        Return box
-    End Function
-
     ''' <summary>行内灰色提示文字。</summary>
     Friend Function MakeNote(text As String) As Label
         Return New Label() With {
@@ -192,9 +168,11 @@ Friend Module CliToolLayout
     ''' <summary>
     ''' 批量接线：参数区内所有输入控件的变更事件 → 同一个刷新回调。
     ''' </summary>
-    Friend Sub WirePreviewRefresh(container As Control, handler As EventHandler)
+    Friend Sub WirePreviewRefresh(container As Control, handler As EventHandler, ParamArray exclude As Control())
         For Each child As Control In container.Controls
-            If TypeOf child Is TextBox Then
+            Dim skip As Boolean = (exclude IsNot Nothing) AndAlso exclude.Contains(child)
+
+            If Not skip AndAlso TypeOf child Is TextBox Then
                 AddHandler DirectCast(child, TextBox).TextChanged, handler
             ElseIf TypeOf child Is ComboBox Then
                 AddHandler DirectCast(child, ComboBox).SelectedIndexChanged, handler

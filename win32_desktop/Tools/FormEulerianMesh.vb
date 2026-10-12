@@ -39,7 +39,8 @@ Friend Class FormEulerianMesh
         cboPatchFace.SelectedIndex = 0
         txtExe.Text = CliArg.ResolveTool(ToolExeName)
 
-        Call CliToolLayout.WirePreviewRefresh(Me, AddressOf OnParamChanged)
+        ' 命令行预览框与日志框不参与「变更 → 刷新预览」的接线（避免自触发递归）
+        Call CliToolLayout.WirePreviewRefresh(Me, AddressOf OnParamChanged, txtCommand, txtLog)
         Call SyncCommandPages()
         Call RefreshCommand()
         Call SetStatus("就绪")

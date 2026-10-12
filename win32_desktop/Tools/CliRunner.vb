@@ -268,33 +268,6 @@ Friend Module CliArg
         Return Num(CDbl(value))
     End Function
 
-    ''' <summary>开关型参数：启用时输出该开关，否则输出空串。</summary>
-    Public Function Flag(name As String, enabled As Boolean) As String
-        Return If(enabled, name, "")
-    End Function
-
-    ''' <summary>"选项名 值"型参数：值为空时整体不输出。</summary>
-    Public Function Opt(name As String, value As String) As String
-        If String.IsNullOrWhiteSpace(value) Then Return ""
-
-        Return name & " " & Quote(value)
-    End Function
-
-    ''' <summary>把若干片段用空格连接起来（自动跳过空片段）。</summary>
-    Public Function Join(ParamArray parts As String()) As String
-        Dim sb As New StringBuilder()
-
-        For Each part As String In parts
-            If String.IsNullOrWhiteSpace(part) Then Continue For
-
-            If sb.Length > 0 Then sb.Append(" "c)
-
-            sb.Append(part)
-        Next
-
-        Return sb.ToString()
-    End Function
-
     ''' <summary>
     ''' 在候选目录中查找工具 exe：优先应用目录（与 CFD_win32.exe 同目录的 assembly\bin），
     ''' 其次约定的 G:\Moira\assembly\bin。
