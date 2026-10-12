@@ -10,10 +10,10 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <!-- CFDCanvas 的公开属性均为运行时驱动，不参与设计器序列化 -->
     <NoWarn>$(NoWarn);WFO1000</NoWarn>
-    <AssemblyName>Moira.CDFDxCanvas</AssemblyName>
-    <RootNamespace>Moira.CDFDxCanvas</RootNamespace>
+    <AssemblyName>Moira.CFDDxCanvas</AssemblyName>
+    <RootNamespace>Moira.CFDDxCanvas</RootNamespace>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <PackageId>Moira.CDFDxCanvas</PackageId>
+    <PackageId>Moira.CFDDxCanvas</PackageId>
     <Title>Moira.CDFDxCanvas - DirectX CFD Voxel Visualization WinForms Control</Title>
     <Description>
       Interactive 3D visualization WinForms control for CFD voxel simulation results produced by Moira.CFDEngine.
