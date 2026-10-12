@@ -90,6 +90,22 @@ Module Program
                     Dim steps As Integer = If(args.Length > 2, Integer.Parse(args(2), CI), 200)
                     code = RunSolve(args(1), steps)
 
+                Case "compare"
+                    If args.Length < 2 Then Throw New ArgumentException("compare 需要 <eulerian.zip> [steps] [key=value ...]")
+                    Dim steps As Integer = 100
+
+                    If args.Length > 2 AndAlso IsNumeric(args(2)) Then
+                        steps = Integer.Parse(args(2), CI)
+                    End If
+
+                    code = RunCompare(args(1), steps, args)
+
+                Case "pressurediag"
+                    If args.Length < 2 Then Throw New ArgumentException("pressurediag 需要 <eulerian.zip> [steps] [gpu]")
+                    Dim psteps As Integer = If(args.Length > 2, Integer.Parse(args(2), CI), 20)
+                    Dim pgpu As Boolean = If(args.Length > 3, Boolean.Parse(args(3)), True)
+                    code = RunPressureDiag(args(1), psteps, pgpu)
+
                 Case "all"
                     If args.Length < 3 Then Throw New ArgumentException("all 需要 <model.stl> <out.zip> [steps]")
                     Dim steps As Integer = If(args.Length > 3, Integer.Parse(args(3), CI), 200)
@@ -652,6 +668,473 @@ Module Program
         Array.Copy(a, b, a.Length)
         Array.Sort(b)
         Return b(b.Length \ 2)
+    End Function
+
+    ' ============================================================================
+    '  [D] 求解稳定性对照矩阵
+    ' ============================================================================
+
+    ''' <summary>一组求解参数（覆盖 GUI 默认值）。</summary>
+    Private Class CaseSpec
+
+        Public Title As String
+        Public RelaxU As Double = 0.7
+        Public RelaxP As Double = 0.3
+        Public PseudoCourant As Double = 0.5
+        Public TurbLengthScale As Double = 0.0        ' 0 = 用 EulerianWindTunnelOptions 默认值 0.05
+        Public Turb As WindTunnelTurbulence = WindTunnelTurbulence.KEpsilon
+        Public UseGpu As Boolean = True
+        Public Scheme As EulerianConvectionScheme = EulerianConvectionScheme.Upwind
+        Public Transient As Boolean = False
+        Public InletSpeed As Double = 30.0
+        Public PseudoOverride As Boolean = False
+        Public PressureIterations As Integer = 200
+        Public PressureTolerance As Double = 1.0E-9
+        Public PressureRelTol As Double = 0.01
+
+    End Class
+
+    Private Function RunCompare(zipPath As String, steps As Integer, args As String()) As Integer
+        Call Section($"[D] 求解稳定性对照矩阵：{IO.Path.GetFileName(zipPath)}（每例 {steps} 步）")
+
+        If Not File.Exists(zipPath) Then
+            Call Line($"[FAIL] 找不到网格包：{zipPath}")
+            Return 1
+        End If
+
+        Call EnableGpu()
+
+        Dim mesh As EulerianFvMesh = EulerianFvMesh.FromFile(zipPath)
+        Call Line(mesh.Diagnostics.TrimEnd())
+
+        ' ---- 对照矩阵 ----
+        Dim cases As New List(Of CaseSpec) From {
+            New CaseSpec With {.Title = "① GUI 默认（基线：k-ε, RelaxU=0.7, L=0.05, 伪瞬态 Co=0.5, GPU）"},
+            New CaseSpec With {.Title = "② 层流（Turbulence=Laminar）",
+                               .Turb = WindTunnelTurbulence.Laminar},
+            New CaseSpec With {.Title = "③ 关闭 GPU（CPU double 路径）", .UseGpu = False},
+            New CaseSpec With {.Title = "④ 湍流长度尺度 = 域尺度自动值（≈115 m 而非 0.05 m）",
+                               .TurbLengthScale = 115.0R},
+            New CaseSpec With {.Title = "⑤ 湍流长度尺度 = 0.05 → 2000 m 量级（= 域尺寸）",
+                               .TurbLengthScale = 2000.0R},
+            New CaseSpec With {.Title = "⑥ 速度欠松弛 0.3（更稳）", .RelaxU = 0.3R},
+            New CaseSpec With {.Title = "⑦ 速度欠松弛 0.9（更激进）", .RelaxU = 0.9R},
+            New CaseSpec With {.Title = "⑧ 压力欠松弛 0.1", .RelaxP = 0.1R},
+            New CaseSpec With {.Title = "⑨ 压力欠松弛 0.7", .RelaxP = 0.7R},
+            New CaseSpec With {.Title = "⑩ 关闭伪瞬态（Co=0）", .PseudoCourant = 0.0R, .PseudoOverride = True},
+            New CaseSpec With {.Title = "⑪ 伪瞬态 Co=0.1", .PseudoCourant = 0.1R, .PseudoOverride = True},
+            New CaseSpec With {.Title = "⑫ 来流 5 m/s（低雷诺数）", .InletSpeed = 5.0R},
+            New CaseSpec With {.Title = "⑬ 稳态 → 瞬态 PIMPLE", .Transient = True},
+            New CaseSpec With {.Title = "⑭ 一阶迎风 → 中心/高阶（若支持）",
+                               .Scheme = EulerianConvectionScheme.Upwind},
+            New CaseSpec With {.Title = "⑮ CPU double + 压力迭代 2000", .UseGpu = False,
+                               .PressureIterations = 2000},
+            New CaseSpec With {.Title = "⑯ GPU + 压力迭代 5000", .PressureIterations = 5000},
+            New CaseSpec With {.Title = "⑰ CPU + 压力迭代 2000 + RelaxU=0.5", .UseGpu = False,
+                               .PressureIterations = 2000, .RelaxU = 0.5R},
+            New CaseSpec With {.Title = "⑱ CPU + 压力迭代 2000 + 压力容差 1e-6", .UseGpu = False,
+                               .PressureIterations = 2000, .PressureTolerance = 0.000001R},
+            New CaseSpec With {.Title = "⑲ CPU + 压力迭代 2000 + 层流", .UseGpu = False,
+                               .PressureIterations = 2000, .Turb = WindTunnelTurbulence.Laminar}}
+
+        Call Line("")
+        Call Line("  例                                          max|U|        residual     continuity    NaN  流线(直线度 max)  用时")
+        Call Line("  " & New String("-"c, 130))
+
+        Dim onlyNew As Boolean = args.Contains("only-new")
+
+        For Each spec As CaseSpec In cases
+            If onlyNew AndAlso Not spec.Title.StartsWith("⑮") AndAlso Not spec.Title.StartsWith("⑯") AndAlso
+               Not spec.Title.StartsWith("⑰") AndAlso Not spec.Title.StartsWith("⑱") AndAlso
+               Not spec.Title.StartsWith("⑲") Then
+                Continue For
+            End If
+
+            Call RunOneCase(mesh, spec, steps)
+        Next
+
+        Return 0
+    End Function
+
+    Private Sub RunOneCase(mesh As EulerianFvMesh, spec As CaseSpec, steps As Integer)
+        Dim title As String = If(spec.Title.Length > 42, spec.Title.Substring(0, 42), spec.Title.PadRight(42))
+
+        Try
+            Dim opts As New EulerianWindTunnelOptions With {
+                .InletSpeed = spec.InletSpeed,
+                .InletDirection = New EulerianVertex(1.0R, 0.0R, 0.0R),
+                .Density = 1.225R,
+                .KinematicViscosity = 0.000015R,
+                .Turbulence = spec.Turb,
+                .TurbulenceIntensity = 0.02R,
+                .Compressible = False,
+                .UseGpu = spec.UseGpu AndAlso _gpuReady,
+                .ReferenceArea = 1.0R,
+                .PressureMaxIterations = spec.PressureIterations,
+                .Transient = spec.Transient,
+                .Scheme = spec.Scheme,
+                .RelaxU = spec.RelaxU}
+
+            If spec.TurbLengthScale > 0 Then opts.TurbulenceLengthScale = spec.TurbLengthScale
+
+            Dim sw As Stopwatch = Stopwatch.StartNew()
+            Dim testCase As New EulerianWindTunnelCase(mesh, opts)
+
+            Call testCase.Configure()
+
+            ' 覆盖伪瞬态 Courant（EulerianWindTunnelOptions 未暴露 → 直接改求解器选项）
+            If spec.PseudoOverride AndAlso testCase.Incompressible IsNot Nothing Then
+                testCase.Incompressible.Options.PseudoTransientCourant = spec.PseudoCourant
+            End If
+
+            If testCase.Incompressible IsNot Nothing Then
+                testCase.Incompressible.Options.RelaxP = spec.RelaxP
+                testCase.Incompressible.Options.PressureTolerance = spec.PressureTolerance
+            End If
+
+            Call testCase.Run(steps)
+            sw.Stop()
+
+            Dim u As Double() = testCase.Fields.U.Values
+            Dim n As Integer = mesh.CellCount
+            Dim umax As Double = 0, nan As Integer = 0
+
+            For c As Integer = 0 To n - 1
+                Dim s2 As Double = u(c) * u(c) + u(n + c) * u(n + c) + u(2 * n + c) * u(2 * n + c)
+
+                If Double.IsNaN(s2) OrElse Double.IsInfinity(s2) Then
+                    nan += 1
+                ElseIf s2 > umax Then
+                    umax = s2
+                End If
+            Next
+
+            ' 流线形态（用与 WindTunnelBox 相同的零阶重采样）
+            Dim sampler As New BoxSampler(mesh, 250000)
+            Dim snap As BoxSnapshot = sampler.Sample(testCase)
+            Dim straightText As String = "n/a"
+
+            Try
+                Dim set1 As StreamlineSet = StreamlineTracer.Trace(New DiagFlowField(snap), New StreamlineOptions With {
+                    .SeedStride = 4, .StepLength = 0.7F, .MaxSteps = 3000})
+
+                Dim smax As Double = 0, smin As Double = 1.0E+30, cnt As Integer = 0
+
+                For Each pl As StreamlinePolyline In set1.Polylines
+                    If pl Is Nothing OrElse pl.VertexCount < 2 Then Continue For
+
+                    smax = Math.Max(smax, pl.Straightness)
+                    smin = Math.Min(smin, pl.Straightness)
+                    cnt += 1
+                Next
+
+                straightText = $"n={cnt} min={smin:G3} max={smax:G3}"
+            Catch ex As Exception
+                straightText = $"ERR {ex.Message}"
+            End Try
+
+            Dim res As Double = LastResidual(testCase)
+
+            Dim preport As String = If(testCase.Incompressible IsNot Nothing,
+                                       testCase.Incompressible.PressureReport.Iterations.ToString(),
+                                       "n/a")
+
+            Call Line($"  {title} {Math.Sqrt(umax),-13:E3} {res,-13:E3} {Continuity(testCase),-13:E3} " &
+                      $"{nan,-5} {straightText,-24} pIt={preport,-6} {sw.Elapsed.TotalSeconds:F1} s")
+
+        Catch ex As Exception
+            Call Line($"  {title} 异常：{ex.GetType().Name}: {ex.Message}")
+        End Try
+    End Sub
+
+    Private Function IsNumeric(s As String) As Boolean
+        Dim v As Double
+        Return Double.TryParse(s, NumberStyles.Float, CI, v)
+    End Function
+
+    ' ============================================================================
+    '  [E] 压力方程线性求解探针
+    ' ============================================================================
+
+    Private Function RunPressureDiag(zipPath As String, steps As Integer, gpu As Boolean) As Integer
+        Call Section($"[E] 压力方程线性求解探针：{IO.Path.GetFileName(zipPath)}（先推进 {steps} 步）")
+
+        Call EnableGpu()
+
+        Dim mesh As EulerianFvMesh = EulerianFvMesh.FromFile(zipPath)
+        Dim opts As New EulerianWindTunnelOptions With {
+            .InletSpeed = 30.0R,
+            .InletDirection = New EulerianVertex(1.0R, 0.0R, 0.0R),
+            .Density = 1.225R,
+            .KinematicViscosity = 0.000015R,
+            .Turbulence = WindTunnelTurbulence.KEpsilon,
+            .TurbulenceIntensity = 0.02R,
+            .Compressible = False,
+            .UseGpu = gpu,
+            .PressureMaxIterations = 200}
+
+        Dim testCase As New EulerianWindTunnelCase(mesh, opts)
+        Call testCase.Configure()
+
+        ' ---- 逐步诊断：看清在哪一步开始崩坏（pressure / continuity / max|U|）----
+        Sub_("逐步诊断（每步打印 U / p / 连续性 / 压力求解器）")
+
+        Call Line("  step    max|U|        max|p|       cont           pIt  pRes(init->final)         RauCell(max)")
+
+        For s As Integer = 1 To Math.Max(1, steps)
+            Call testCase.Run(1)
+
+            Dim inc0 As IncompressibleSolver = testCase.Incompressible
+            Dim rc As Double() = PrivateArray(inc0, "_rauCell")
+            Dim rcPeak As Double = 0
+
+            For i As Integer = 0 To rc.Length - 1
+                If rc(i) > rcPeak Then rcPeak = rc(i)
+            Next
+
+            Dim pr As EulerianSolverReport = inc0.PressureReport
+
+            Call Line($"  {s,4}    {SafeMax(testCase.Fields.U.Values),-13:E3} " &
+                      $"{SafeMax(testCase.Fields.P.Values),-13:E3} {inc0.ContinuityError,-13:E3} " &
+                      $"{pr.Iterations,-4} {pr.InitialResidual:E3}->{pr.FinalResidual:E3}   {rcPeak:E3}")
+
+            If s >= Math.Max(1, steps) Then Exit For
+        Next
+
+        Dim inc As IncompressibleSolver = testCase.Incompressible
+        Dim n As Integer = mesh.CellCount
+        Dim nF As Integer = mesh.FaceCount
+
+        Call Line($"  推进 {testCase.StepCount} 步后：max|U|={SafeMax(testCase.Fields.U.Values):E3}，" &
+                  $"continuity={inc.ContinuityError:E3}")
+        Call Line($"  速度方程最近报告数 = {inc.MomentumReports.Count}")
+
+        For i As Integer = Math.Max(0, inc.MomentumReports.Count - 6) To inc.MomentumReports.Count - 1
+            Call Line($"    {inc.MomentumReports(i).ToString()}")
+        Next
+
+        Call Line($"  压力方程最近报告：{inc.PressureReport.ToString()}")
+
+        ' ---- 重建压力方程（与 IncompressibleSolver.PressureCorrection 完全一致）----
+        Sub_("重建压力方程 mP 并逐一求解")
+
+        Dim p As EulerianField = testCase.Fields.P
+        Dim mP As New FvMatrix(mesh, "p")
+
+        mP.Symmetric = True
+
+        ' IncompressibleSolver 未公开 rAU 面值 / phiHbyA → 用反射取私有字段
+        Dim rauFace As Double() = PrivateArray(inc, "_rauFace")
+        Dim phiHbyA As Double() = PrivateArray(inc, "_phiHbyA")
+
+        Call Line($"  反射取得 _rauFace(len={rauFace.Length}) 与 _phiHbyA(len={phiHbyA.Length})")
+
+        ' ---- rAU 量级（决定压力方程对角元）----
+        Dim rauMin As Double = Double.MaxValue, rauMax As Double = Double.MinValue, rauSum As Double = 0
+
+        For i As Integer = 0 To rauFace.Length - 1
+            Dim v As Double = rauFace(i)
+
+            rauMin = Math.Min(rauMin, v) : rauMax = Math.Max(rauMax, v) : rauSum += Math.Abs(v)
+        Next
+
+        Dim rauCell As Double() = PrivateArray(inc, "_rauCell")
+        Dim rcMin As Double = Double.MaxValue, rcMax As Double = Double.MinValue
+
+        For i As Integer = 0 To rauCell.Length - 1
+            rcMin = Math.Min(rcMin, rauCell(i)) : rcMax = Math.Max(rcMax, rauCell(i))
+        Next
+
+        Call Line($"  _rauCell 范围 = [{rcMin:E4}, {rcMax:E4}]  （= 1/a_P，动量方程对角元的倒数）")
+        Call Line($"  _rauFace 范围 = [{rauMin:E4}, {rauMax:E4}]，均值 |rAU| = {rauSum / rauFace.Length:E4}")
+        Call Line($"  → 动量方程对角元 a_P ≈ [{SafeDiv(1.0, rcMax):E4}, {SafeDiv(1.0, rcMin):E4}]")
+        Call Line($"  → 压力方程对角元 ≈ a_P × 面积(≈{Median(mesh.Mesh.FaceAreas):E4}) " &
+                  $"= [{SafeDiv(Median(mesh.Mesh.FaceAreas), rcMax):E4}, {SafeDiv(Median(mesh.Mesh.FaceAreas), rcMin):E4}]")
+
+        ' ---- phiHbyA 量级（连续性的散度源）----
+        Dim phMin As Double = Double.MaxValue, phMax As Double = Double.MinValue, phAbs As Double = 0
+
+        For i As Integer = 0 To phiHbyA.Length - 1
+            phMin = Math.Min(phMin, phiHbyA(i)) : phMax = Math.Max(phMax, phiHbyA(i))
+            phAbs += Math.Abs(phiHbyA(i))
+        Next
+
+        Call Line($"  _phiHbyA 范围 = [{phMin:E4}, {phMax:E4}]，Σ|phiHbyA| = {phAbs:E4}")
+
+        Call EulerianOperators.FvmLaplacian(mP, p, 0, rauFace, sign:=-1.0)
+
+        Dim divPhi As Double() = New Double(n - 1) {}
+
+        Call EulerianOperators.FvcDiv(mesh, phiHbyA, divPhi)
+        Call mP.AddSourceField(divPhi)
+
+        ' 参考单元（全 Neumann 时）
+        Dim hasFixedValue As Boolean = False
+
+        For pi As Integer = 0 To mesh.PatchCount - 1
+            If TypeOf p.Boundaries(pi).Condition Is FixedValueBc Then hasFixedValue = True
+        Next
+
+        Call Line($"  压力边界是否含 FixedValue（定压）：{hasFixedValue}")
+
+        If Not hasFixedValue Then
+            Call mP.SetReference(0, 0.0)
+            Call Line("  → 已注入 SetReference(0, 0)（与 NeedsPressureReference 分支一致）")
+        End If
+
+        Dim p0 As Double() = p.ToComponent(0)
+        Dim rpt0 As New EulerianSolverReport With {
+            .Equation = "mP", .Solver = EulerianLinearSolverKind.Pcg,
+            .InitialResidual = mP.NormalisedResidual(p0),
+            .FinalResidual = mP.NormalisedResidual(p0)}
+        Dim m0 As New StringBuilder()
+
+        Call Line($"  |b| (L2) = {mP.SourceNorm():E6}，对角元范围 = {DiagRange(mesh, mP)}")
+        Call Line($"  初始解 p 的归一化残差 = {rpt0.InitialResidual:E6}")
+
+        ' ---- 不同迭代上限 ----
+        For Each it As Integer In New Integer() {1, 2, 5, 20, 100, 500, 2000}
+            Dim x As Double() = Nothing
+            Dim sw As Stopwatch = Stopwatch.StartNew()
+            Dim r As EulerianSolverReport = EulerianLinearSolve.Solve(
+                mP, x, EulerianLinearSolverKind.Pcg, 1.0E-9, 0.0, it, 0, gpu)
+            sw.Stop()
+
+            Call Line($"  maxIter={it,-5} → {r.ToString()}")
+        Next
+
+        ' ---- 相对容差 0.01（求解器实际使用的值）----
+        Sub_("相对容差 relTol = 0.01（PressureCorrection 实际调用参数）")
+
+        For Each it As Integer In New Integer() {1, 5, 50, 500}
+            For Each useGpu As Boolean In New Boolean() {gpu, False}
+                Dim x As Double() = Nothing
+                Dim r As EulerianSolverReport = EulerianLinearSolve.Solve(
+                    mP, x, EulerianLinearSolverKind.Pcg, 1.0E-9, 0.01, it, 0, useGpu)
+
+                Call Line($"  maxIter={it,-5} useGpu={useGpu,-6} → {r.ToString()}")
+            Next
+        Next
+
+        ' ---- 手工 PCG 残差历史（CPU double，纯 FvMatrix API）----
+        Sub_("手工 PCG 残差历史（CPU double）")
+
+        Dim xm(n - 1) As Double
+        Dim rm(n - 1) As Double
+        Dim pm(n - 1) As Double
+        Dim apm(n - 1) As Double
+        Dim zm(n - 1) As Double
+        Dim de As Integer() = mesh.DiagEntry
+
+        Array.Copy(p0, xm, n)
+        Call mP.ResidualVector(xm, rm)
+
+        Dim rnorm As Double = mP.NormalisedResidual(xm)
+        Dim den As Double = 1.0E-30 + mP.SourceNorm()
+
+        Call Line($"  iter=0   normRes={rnorm:E4}")
+
+        For c As Integer = 0 To n - 1
+            zm(c) = rm(c) / mP.Values(de(c))
+        Next
+
+        Array.Copy(zm, pm, n)
+
+        Dim rho As Double = Dot(rm, zm)
+
+        For iter As Integer = 1 To 200
+            Call mP.Multiply(pm, apm)
+
+            Dim pAp As Double = Dot(pm, apm)
+
+            If Math.Abs(pAp) < 1.0E-300 Then
+                Call Line($"  iter={iter}  pAp≈0（矩阵奇异/预条件失效），终止")
+                Exit For
+            End If
+
+            Dim alpha As Double = rho / pAp
+
+            For c As Integer = 0 To n - 1
+                xm(c) += alpha * pm(c)
+                rm(c) -= alpha * apm(c)
+            Next
+
+            rnorm = Math.Sqrt(Dot(rm, rm)) / den
+
+            If iter <= 5 OrElse iter Mod 20 = 0 Then
+                Call Line($"  iter={iter,-5} normRes={rnorm:E4}  alpha={alpha:E3}  rho={rho:E3}")
+            End If
+
+            For c As Integer = 0 To n - 1
+                zm(c) = rm(c) / mP.Values(de(c))
+            Next
+
+            Dim rhoNew As Double = Dot(rm, zm)
+
+            If Math.Abs(rho) < 1.0E-300 Then Exit For
+
+            Dim beta As Double = rhoNew / rho
+
+            rho = rhoNew
+
+            For c As Integer = 0 To n - 1
+                pm(c) = zm(c) + beta * pm(c)
+            Next
+        Next
+
+        Return 0
+    End Function
+
+    Private Function SafeDiv(a As Double, b As Double) As Double
+        If Math.Abs(b) < 1.0E-300 Then Return 0
+        Return a / b
+    End Function
+
+    ''' <summary>用反射读取对象的私有 Double() 字段（诊断用，绕过内部封装）。</summary>
+    Private Function PrivateArray(obj As Object, fieldName As String) As Double()
+        Dim f As Reflection.FieldInfo = obj.GetType().GetField(
+            fieldName, Reflection.BindingFlags.Instance Or Reflection.BindingFlags.NonPublic)
+
+        If f Is Nothing Then
+            Throw New MissingFieldException($"{obj.GetType().Name} 上找不到字段 {fieldName}")
+        End If
+
+        Return CType(f.GetValue(obj), Double())
+    End Function
+
+    Private Function Dot(a As Double(), b As Double()) As Double
+        Dim s As Double = 0
+
+        For i As Integer = 0 To a.Length - 1
+            s += a(i) * b(i)
+        Next
+
+        Return s
+    End Function
+
+    Private Function SafeMax(a As Double()) As Double
+        Dim m As Double = 0
+
+        For i As Integer = 0 To a.Length - 1
+            If Double.IsNaN(a(i)) OrElse Double.IsInfinity(a(i)) Then Return Double.NaN
+
+            If Math.Abs(a(i)) > m Then m = Math.Abs(a(i))
+        Next
+
+        Return m
+    End Function
+
+    Private Function DiagRange(mesh As EulerianFvMesh, m As FvMatrix) As String
+        Dim de As Integer() = mesh.DiagEntry
+        Dim mn As Double = Double.MaxValue, mx As Double = Double.MinValue
+
+        For c As Integer = 0 To mesh.CellCount - 1
+            Dim v As Double = m.Values(de(c))
+
+            mn = Math.Min(mn, v) : mx = Math.Max(mx, v)
+        Next
+
+        Return $"[{mn:E3}, {mx:E3}]"
     End Function
 
     ' ============================================================================
