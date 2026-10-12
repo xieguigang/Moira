@@ -446,10 +446,17 @@ Namespace Snapshot
         End Function
 
         ''' <summary>最近单元编号（未找到返回 −1）。</summary>
+        ''' <remarks>
+        ''' ★ 箱号必须用**绝对坐标**计算：分箱索引 _binIndex 是构造时按
+        '''   BuildBins(mesh, _binSize) 建立的，与 Origin 无关（即等价于 Origin = 0）。
+        '''   若这里写成 (x − Origin)，一旦调用方用 AutoConfigure 把 Origin 设成
+        '''   包围盒最小角，两侧就相差 |Origin|/binSize 个箱子，
+        '''   绝大多数查询会落空 → 实测 F1 网格 81% 的格点被误判为"域外"。
+        ''' </remarks>
         Public Function NearestCell(x As Double, y As Double, z As Double) As Integer
-            Dim bx As Integer = CInt(Math.Floor((x - OriginX) / _binSize))
-            Dim by As Integer = CInt(Math.Floor((y - OriginY) / _binSize))
-            Dim bz As Integer = CInt(Math.Floor((z - OriginZ) / _binSize))
+            Dim bx As Integer = CInt(Math.Floor(x / _binSize))
+            Dim by As Integer = CInt(Math.Floor(y / _binSize))
+            Dim bz As Integer = CInt(Math.Floor(z / _binSize))
             Dim best As Integer = -1
             Dim bestD As Double = Double.MaxValue
 

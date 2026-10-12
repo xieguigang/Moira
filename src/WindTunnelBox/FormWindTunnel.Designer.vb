@@ -402,6 +402,180 @@ Partial Class FormWindTunnel
         m_chkClipSolid.Size = New Size(96, 17)
         m_chkClipSolid.Text = "裁剪模型本体"
 
+        '
+        ' ---- FVM 物理参数（新增行 m_rowP 的叶子控件）----
+        '
+
+        ' 
+        ' m_btnStop
+        ' 
+        m_btnStop = New Button()
+        m_btnStop.Enabled = False
+        m_btnStop.Name = "m_btnStop"
+        m_btnStop.Size = New Size(56, 23)
+        m_btnStop.Text = "停止"
+
+        ' 
+        ' m_progress
+        ' 
+        m_progress = New ProgressBar()
+        m_progress.Margin = New Padding(6, 6, 0, 0)
+        m_progress.Name = "m_progress"
+        m_progress.Size = New Size(200, 20)
+        m_progress.Style = ProgressBarStyle.Continuous
+        m_progress.Visible = False
+
+        ' 
+        ' m_lblDensity
+        ' 
+        m_lblDensity = New Label()
+        m_lblDensity.AutoSize = True
+        m_lblDensity.Margin = New Padding(6, 8, 0, 0)
+        m_lblDensity.Name = "m_lblDensity"
+        m_lblDensity.Size = New Size(48, 12)
+        m_lblDensity.Text = "密度ρ:"
+
+        ' 
+        ' m_numDensity（kg/m³）
+        ' 
+        m_numDensity = New NumericUpDown()
+        m_numDensity.DecimalPlaces = 3
+        m_numDensity.Increment = New Decimal(New Integer() {1, 0, 0, 131072})
+        m_numDensity.Maximum = New Decimal(New Integer() {10, 0, 0, 0})
+        m_numDensity.Minimum = New Decimal(New Integer() {1, 0, 0, 131072})
+        m_numDensity.Name = "m_numDensity"
+        m_numDensity.Size = New Size(72, 23)
+        m_numDensity.Value = New Decimal(New Integer() {1225, 0, 0, 196608})
+
+        ' 
+        ' m_lblViscosity
+        ' 
+        m_lblViscosity = New Label()
+        m_lblViscosity.AutoSize = True
+        m_lblViscosity.Margin = New Padding(6, 8, 0, 0)
+        m_lblViscosity.Name = "m_lblViscosity"
+        m_lblViscosity.Size = New Size(64, 12)
+        m_lblViscosity.Text = "ν(m²/s):"
+
+        ' 
+        ' m_numViscosity（运动粘度，默认空气 1.5e-5）
+        ' 
+        m_numViscosity = New NumericUpDown()
+        m_numViscosity.DecimalPlaces = 7
+        m_numViscosity.Increment = New Decimal(New Integer() {1, 0, 0, 393216})
+        m_numViscosity.Maximum = New Decimal(New Integer() {1, 0, 0, 0})
+        m_numViscosity.Minimum = New Decimal(New Integer() {1, 0, 0, 589824})
+        m_numViscosity.Name = "m_numViscosity"
+        m_numViscosity.Size = New Size(88, 23)
+        m_numViscosity.Value = New Decimal(New Integer() {15, 0, 0, 393216})
+
+        ' 
+        ' m_lblTurb
+        ' 
+        m_lblTurb = New Label()
+        m_lblTurb.AutoSize = True
+        m_lblTurb.Margin = New Padding(6, 8, 0, 0)
+        m_lblTurb.Name = "m_lblTurb"
+        m_lblTurb.Size = New Size(48, 12)
+        m_lblTurb.Text = "湍流:"
+
+        ' 
+        ' m_cmbTurb（Laminar / 标准 k-ε / k-ω SST）
+        ' 
+        m_cmbTurb = New ComboBox()
+        m_cmbTurb.DropDownStyle = ComboBoxStyle.DropDownList
+        m_cmbTurb.Items.AddRange(New Object() {"层流", "标准 k-ε", "k-ω SST"})
+        m_cmbTurb.Name = "m_cmbTurb"
+        m_cmbTurb.Size = New Size(88, 21)
+        m_cmbTurb.SelectedIndex = 1
+
+        ' 
+        ' m_lblTi
+        ' 
+        m_lblTi = New Label()
+        m_lblTi.AutoSize = True
+        m_lblTi.Margin = New Padding(6, 8, 0, 0)
+        m_lblTi.Name = "m_lblTi"
+        m_lblTi.Size = New Size(72, 12)
+        m_lblTi.Text = "湍流强度%:"
+
+        ' 
+        ' m_numTi
+        ' 
+        m_numTi = New NumericUpDown()
+        m_numTi.DecimalPlaces = 1
+        m_numTi.Increment = New Decimal(New Integer() {5, 0, 0, 65536})
+        m_numTi.Maximum = New Decimal(New Integer() {20, 0, 0, 0})
+        m_numTi.Minimum = New Decimal(New Integer() {0, 0, 0, 0})
+        m_numTi.Name = "m_numTi"
+        m_numTi.Size = New Size(56, 23)
+        m_numTi.Value = New Decimal(New Integer() {2, 0, 0, 0})
+
+        ' 
+        ' m_lblTotalSteps
+        ' 
+        m_lblTotalSteps = New Label()
+        m_lblTotalSteps.AutoSize = True
+        m_lblTotalSteps.Margin = New Padding(6, 8, 0, 0)
+        m_lblTotalSteps.Name = "m_lblTotalSteps"
+        m_lblTotalSteps.Size = New Size(60, 12)
+        m_lblTotalSteps.Text = "总步数:"
+
+        ' 
+        ' m_numTotalSteps
+        ' 
+        m_numTotalSteps = New NumericUpDown()
+        m_numTotalSteps.Increment = New Decimal(New Integer() {10, 0, 0, 0})
+        m_numTotalSteps.Maximum = New Decimal(New Integer() {20000, 0, 0, 0})
+        m_numTotalSteps.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
+        m_numTotalSteps.Name = "m_numTotalSteps"
+        m_numTotalSteps.Size = New Size(72, 23)
+        m_numTotalSteps.Value = New Decimal(New Integer() {200, 0, 0, 0})
+
+        ' 
+        ' m_lblRefArea
+        ' 
+        m_lblRefArea = New Label()
+        m_lblRefArea.AutoSize = True
+        m_lblRefArea.Margin = New Padding(6, 8, 0, 0)
+        m_lblRefArea.Name = "m_lblRefArea"
+        m_lblRefArea.Size = New Size(72, 12)
+        m_lblRefArea.Text = "参考面积:"
+
+        ' 
+        ' m_numRefArea（m²，Cd/Cl/Cm 归一化用）
+        ' 
+        m_numRefArea = New NumericUpDown()
+        m_numRefArea.DecimalPlaces = 2
+        m_numRefArea.Increment = New Decimal(New Integer() {5, 0, 0, 131072})
+        m_numRefArea.Maximum = New Decimal(New Integer() {1000, 0, 0, 0})
+        m_numRefArea.Minimum = New Decimal(New Integer() {1, 0, 0, 131072})
+        m_numRefArea.Name = "m_numRefArea"
+        m_numRefArea.Size = New Size(72, 23)
+        m_numRefArea.Value = New Decimal(New Integer() {1, 0, 0, 0})
+
+        ' 
+        ' m_chkCompressible（可压缩 AUSM+/HLLC 路径）
+        ' 
+        m_chkCompressible = New CheckBox()
+        m_chkCompressible.AutoSize = True
+        m_chkCompressible.Name = "m_chkCompressible"
+        m_chkCompressible.Size = New Size(72, 17)
+        m_chkCompressible.Text = "可压缩"
+
+        ' 
+        ' m_numMach
+        ' 
+        m_numMach = New NumericUpDown()
+        m_numMach.DecimalPlaces = 2
+        m_numMach.Enabled = False
+        m_numMach.Increment = New Decimal(New Integer() {5, 0, 0, 131072})
+        m_numMach.Maximum = New Decimal(New Integer() {3, 0, 0, 0})
+        m_numMach.Minimum = New Decimal(New Integer() {5, 0, 0, 131072})
+        m_numMach.Name = "m_numMach"
+        m_numMach.Size = New Size(60, 23)
+        m_numMach.Value = New Decimal(New Integer() {3, 0, 0, 65536})
+
         ' ---- 第二层：行容器（FlowLayoutPanel，先 New 再添加已创建的子控件）----
         ' 
         ' m_row1 (第一行：动作)
@@ -411,6 +585,8 @@ Partial Class FormWindTunnel
         m_row1.Controls.Add(m_btnRun)
         m_row1.Controls.Add(m_btnStep)
         m_row1.Controls.Add(m_btnReset)
+        m_row1.Controls.Add(m_btnStop)
+        m_row1.Controls.Add(m_progress)
         m_row1.Controls.Add(m_sep1)
         m_row1.Controls.Add(m_chkGpu)
         m_row1.Controls.Add(m_lblViz)
@@ -427,23 +603,16 @@ Partial Class FormWindTunnel
         ' m_row2 (第二行：参数)
         ' 
         m_row2 = New FlowLayoutPanel()
+        ' （体素化 / 分辨率 / voxelSize 三组控件已随 LBM 引擎移除：
+        '   FVM 只加载预生成的 *.eulerian.zip，不再现场体素化）
         m_row2.Controls.Add(m_lblDispField)
         m_row2.Controls.Add(m_cmbField)
         m_row2.Controls.Add(m_sep2)
-        m_row2.Controls.Add(m_lblVoxelizer)
-        m_row2.Controls.Add(m_cmbVoxelizer)
-        m_row2.Controls.Add(m_sep3)
-        m_row2.Controls.Add(m_lblResolution)
         m_row2.Controls.Add(m_lblFreestream)
-        m_row2.Controls.Add(m_lblStepsPerFrame)
-        m_row2.Controls.Add(m_lblVoxelSize)
-        m_row2.Controls.Add(m_numResolution)
-        m_row2.Controls.Add(m_sep4)
         m_row2.Controls.Add(m_numFreestream)
-        m_row2.Controls.Add(m_sep5)
+        m_row2.Controls.Add(m_sep3)
+        m_row2.Controls.Add(m_lblStepsPerFrame)
         m_row2.Controls.Add(m_numStepsPerFrame)
-        m_row2.Controls.Add(m_sep6)
-        m_row2.Controls.Add(m_numVoxelSize)
         m_row2.Dock = DockStyle.Top
         m_row2.Height = 36
         m_row2.Location = New Point(0, 0)
@@ -452,7 +621,32 @@ Partial Class FormWindTunnel
         m_row2.WrapContents = False
 
         ' 
-        ' m_rowT (第三行：阈值)
+        ' m_rowP (第三行：FVM 物理参数)
+        ' 
+        m_rowP = New FlowLayoutPanel()
+        m_rowP.Controls.Add(m_lblDensity)
+        m_rowP.Controls.Add(m_numDensity)
+        m_rowP.Controls.Add(m_lblViscosity)
+        m_rowP.Controls.Add(m_numViscosity)
+        m_rowP.Controls.Add(m_lblTurb)
+        m_rowP.Controls.Add(m_cmbTurb)
+        m_rowP.Controls.Add(m_lblTi)
+        m_rowP.Controls.Add(m_numTi)
+        m_rowP.Controls.Add(m_lblTotalSteps)
+        m_rowP.Controls.Add(m_numTotalSteps)
+        m_rowP.Controls.Add(m_lblRefArea)
+        m_rowP.Controls.Add(m_numRefArea)
+        m_rowP.Controls.Add(m_chkCompressible)
+        m_rowP.Controls.Add(m_numMach)
+        m_rowP.Dock = DockStyle.Top
+        m_rowP.Height = 36
+        m_rowP.Location = New Point(0, 0)
+        m_rowP.Name = "m_rowP"
+        m_rowP.Size = New Size(1280, 36)
+        m_rowP.WrapContents = False
+
+        ' 
+        ' m_rowT (第四行：阈值)
         ' 
         m_rowT = New FlowLayoutPanel()
         m_rowT.Controls.Add(m_lblTransThreshold)
@@ -497,21 +691,22 @@ Partial Class FormWindTunnel
         m_status.ResumeLayout(False)
 
         ' ---- 第四层：工具栏（先 New，再把已创建的行加入）----
-        ' 高度 = row1(36) + row2(36) + rowT(32) + row3(34) + 12 = 150
+        ' 高度 = row1(36) + row2(36) + rowP(36) + rowT(32) + row3(34) + 12 = 186
         ' m_toolbar
         ' 
         m_toolbar = New Panel()
         m_toolbar.SuspendLayout()
         m_toolbar.Controls.Add(m_row3)
         m_toolbar.Controls.Add(m_rowT)
+        m_toolbar.Controls.Add(m_rowP)
         m_toolbar.Controls.Add(m_row2)
         m_toolbar.Controls.Add(m_row1)
         m_toolbar.Dock = DockStyle.Top
-        m_toolbar.Height = 150
+        m_toolbar.Height = 186
         m_toolbar.Location = New Point(0, 0)
         m_toolbar.Name = "m_toolbar"
         m_toolbar.Padding = New Padding(8, 6, 8, 2)
-        m_toolbar.Size = New Size(1280, 150)
+        m_toolbar.Size = New Size(1280, 186)
         m_toolbar.TabIndex = 0
         m_toolbar.ResumeLayout(False)
 
@@ -526,7 +721,7 @@ Partial Class FormWindTunnel
         Controls.Add(m_status)
         Name = "FormWindTunnel"
         StartPosition = FormStartPosition.CenterScreen
-        Text = "LBM 风洞测试模拟器 (float32 CUDA / CPU)"
+        Text = "FVM 风洞测试模拟器 (Eulerian 网格 / GPU float32 + CPU double)"
         Me.ResumeLayout(False)
         Me.PerformLayout()
     End Sub
@@ -540,6 +735,8 @@ Partial Class FormWindTunnel
     Friend WithEvents m_btnRun As Button
     Friend WithEvents m_btnStep As Button
     Friend WithEvents m_btnReset As Button
+    Friend WithEvents m_btnStop As Button
+    Friend WithEvents m_progress As ProgressBar
     Friend WithEvents m_chkGpu As CheckBox
     Friend WithEvents m_lblViz As Label
     Friend WithEvents m_cmbViz As ComboBox
@@ -558,6 +755,7 @@ Partial Class FormWindTunnel
     Friend WithEvents m_chkSliceOnly As CheckBox
     Friend WithEvents m_row1 As FlowLayoutPanel
     Friend WithEvents m_row2 As FlowLayoutPanel
+    Friend WithEvents m_rowP As FlowLayoutPanel
     Friend WithEvents m_rowT As FlowLayoutPanel
     Friend WithEvents m_row3 As FlowLayoutPanel
     Friend WithEvents m_sep1 As Label
@@ -573,5 +771,19 @@ Partial Class FormWindTunnel
     Friend WithEvents m_lblStepsPerFrame As Label
     Friend WithEvents m_lblVoxelSize As Label
     Friend WithEvents m_lblTransThreshold As Label
+    Friend WithEvents m_lblDensity As Label
+    Friend WithEvents m_numDensity As NumericUpDown
+    Friend WithEvents m_lblViscosity As Label
+    Friend WithEvents m_numViscosity As NumericUpDown
+    Friend WithEvents m_lblTurb As Label
+    Friend WithEvents m_cmbTurb As ComboBox
+    Friend WithEvents m_lblTi As Label
+    Friend WithEvents m_numTi As NumericUpDown
+    Friend WithEvents m_lblTotalSteps As Label
+    Friend WithEvents m_numTotalSteps As NumericUpDown
+    Friend WithEvents m_lblRefArea As Label
+    Friend WithEvents m_numRefArea As NumericUpDown
+    Friend WithEvents m_chkCompressible As CheckBox
+    Friend WithEvents m_numMach As NumericUpDown
 
 End Class

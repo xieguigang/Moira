@@ -7,8 +7,6 @@ Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
 Imports Microsoft.VisualBasic.Imaging.Drawing3D
 Imports Microsoft.VisualBasic.MachineLearning.TensorFlow
 Imports Moira.CDFDxCanvas.Rendering
-Imports Moira.LBMEngine
-Imports Moira.ZMesh
 Imports Font = Microsoft.VisualBasic.Imaging.Font
 Imports SolidBrush = Microsoft.VisualBasic.Imaging.SolidBrush
 
@@ -24,8 +22,11 @@ Imports SolidBrush = Microsoft.VisualBasic.Imaging.SolidBrush
 '         - 矢量图 / 流线图：LineSegment 连线叠加层（ShowConnections）；固体模型本体常驻显示
 '         - 色标条：复用 CDFDxCanvas Rendering.ColorbarOverlay（Render 事件 2D 叠加）
 '
-'   数据源不是离线 VTI（CfdDataset），而是实时 WindTunnelSolver 的矩量场
-'   （TensorF 零拷贝视图）。逐帧 UpdatePointCloud / UpdateConnections 保持相机。
+'   数据源是 Eulerian FVM 解经**笛卡尔重采样**后的不可变快照
+'   （Simulation\EulerianFieldSnapshot.vb）。虽然 FVM 网格是非结构的，
+'   但重采样后回到结构笛卡尔格，因此点云 stride 降采样 / 矢量箭头 /
+'   流线三线性插值三条管线可以零改造复用。
+'   逐帧 UpdatePointCloud / UpdateConnections 保持相机。
 '
 ' /********************************************************************************/
 
@@ -328,9 +329,14 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
 #Region "内部状态"
 
     Private WithEvents m_sceneCanvas As DxScene3DCanvas
-    Private m_solver As WindTunnelSolver
+
+    ''' <summary>当前显示的 FVM 解快照（后台线程发布，UI 线程只读）。</summary>
+    Private m_snapshot As EulerianFieldSnapshot
+
     Private m_nx, m_ny, m_nz As Integer
-    Private m_btype As Byte()
+
+    ''' <summary>域外掩膜：1 = 不在流体域内（渲染为固体灰），0 = 流体。</summary>
+    Private m_outside As Byte()
 
     Private m_lut As Color()
     Private m_colorbar As New ColorbarOverlay
@@ -419,10 +425,10 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
         End Get
     End Property
 
-    ''' <summary>已绑定的求解器。</summary>
-    Public ReadOnly Property Solver As WindTunnelSolver
+    ''' <summary>当前绑定的解快照（未绑定时为 Nothing）。</summary>
+    Public ReadOnly Property Snapshot As EulerianFieldSnapshot
         Get
-            Return m_solver
+            Return m_snapshot
         End Get
     End Property
 
@@ -431,17 +437,22 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
 #Region "数据绑定"
 
     ''' <summary>
-    ''' 绑定实时风洞求解器，构建初始场景（相机自动 FitView）。
+    ''' 完整绑定一份 FVM 解快照：分配点缓冲、计算全集质心、重建场景
+    ''' （换网格 / 重置算例时调用；相机自动 FitView）。
     ''' </summary>
-    Public Sub BindSolver(solver As WindTunnelSolver)
-        m_solver = solver
-        m_nx = solver.Nx
-        m_ny = solver.Ny
-        m_nz = solver.Nz
-        m_btype = solver.Btype
+    Public Sub BindSnapshot(snapshot As EulerianFieldSnapshot)
+        If snapshot Is Nothing Then
+            Throw New ArgumentNullException(NameOf(snapshot))
+        End If
+
+        m_snapshot = snapshot
+        m_nx = snapshot.Nx
+        m_ny = snapshot.Ny
+        m_nz = snapshot.Nz
+        m_outside = snapshot.Outside
         m_sceneReady = False
 
-        ' ---- 流体点云降采样步长：控制每帧传输的点数 ----
+        ' ---- 点云降采样步长：控制每帧传输的点数 ----
         Dim total As Long = CLng(m_nx) * m_ny * m_nz
         Dim stride As Integer = 1
 
@@ -450,7 +461,7 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
         End While
         m_stride = stride
 
-        ' ---- 全集质心（质心补偿基准）----
+        ' ---- 全集质心（质心补偿基准）：所有"域内"格点 ----
         Dim sx As Double = 0, sy As Double = 0, sz As Double = 0
         Dim n As Integer = 0
         Dim plane As Integer = m_ny * m_nz
@@ -458,9 +469,7 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
         For i As Integer = 0 To m_nx - 1 Step m_stride
             For j As Integer = 0 To m_ny - 1 Step m_stride
                 For k As Integer = 0 To m_nz - 1 Step m_stride
-                    Dim bt As Byte = m_btype(i * plane + j * m_nz + k)
-
-                    If bt = CudaLbmBackend.CellFluid OrElse bt = CudaLbmBackend.CellSolid Then
+                    If m_outside(i * plane + j * m_nz + k) = 0 Then
                         sx += i : sy += j : sz += k
                         n += 1
                     End If
@@ -478,6 +487,23 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
 
         ' ---- 矢量图 / 流线图状态重置（新流场，缓存全部失效）----
         Call InvalidatePathlines()
+
+        Call RefreshField()
+    End Sub
+
+    ''' <summary>
+    ''' 每帧更新：只换数据引用后刷新（结构格尺寸与缓冲保持不变）。
+    ''' </summary>
+    Public Sub UpdateSnapshot(snapshot As EulerianFieldSnapshot)
+        If snapshot Is Nothing OrElse m_buf Is Nothing Then
+            Return
+        End If
+
+        m_snapshot = snapshot
+        m_nx = snapshot.Nx
+        m_ny = snapshot.Ny
+        m_nz = snapshot.Nz
+        m_outside = snapshot.Outside
 
         Call RefreshField()
     End Sub
@@ -544,20 +570,18 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
 #Region "逐帧场景刷新"
 
     ''' <summary>
-    ''' 从求解器读取当前矩量场并刷新 3D 场景（每帧调用）。
+    ''' 从当前快照读取重采样后的场并刷新 3D 场景（每帧调用）。
     ''' </summary>
     Public Sub RefreshField()
-        If m_solver Is Nothing OrElse m_buf Is Nothing Then
+        If m_snapshot Is Nothing OrElse m_buf Is Nothing Then
             Return
         End If
 
-        Call m_solver.EnsureMoments()
-
         Dim plane As Integer = m_ny * m_nz
-        Dim dataRho As Single() = m_solver.RhoF.Data
-        Dim dataUx As Single() = m_solver.UxF.Data
-        Dim dataUy As Single() = m_solver.UyF.Data
-        Dim dataUz As Single() = m_solver.UzF.Data
+        Dim dataP As Single() = m_snapshot.P
+        Dim dataUx As Single() = m_snapshot.Ux
+        Dim dataUy As Single() = m_snapshot.Uy
+        Dim dataUz As Single() = m_snapshot.Uz
 
         If m_lut Is Nothing OrElse m_lut.Length = 0 Then
             m_lut = Designer.FromSchema(Palette, 256)
@@ -579,10 +603,11 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
             For j As Integer = 0 To m_ny - 1 Step m_stride
                 For k As Integer = 0 To m_nz - 1 Step m_stride
                     Dim idx As Integer = i * plane + j * m_nz + k
-                    Dim bt As Byte = m_btype(idx)
+                    Dim bt As Byte = m_outside(idx)
 
-                    If bt = CudaLbmBackend.CellSolid Then
-                        ' 固体模型本体：三种模式下都常驻，默认不受截面裁剪
+                    If bt = 1 Then
+                        ' 域外（= 被障碍占据的区域）：三种模式下都常驻，默认不受截面裁剪。
+                        ' Eulerian 网格只含流体域，因此"最近单元不存在"即等价于 LBM 时代的固体格点。
                         If Not ShowSolids Then
                             Continue For
                         End If
@@ -593,12 +618,12 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
                         sx += i : sy += j : sz += k
                         nVis += 1
 
-                    ElseIf bt = CudaLbmBackend.CellFluid Then
+                    Else
                         If Not SliceVisible(i, j, k) Then
                             Continue For
                         End If
 
-                        Dim v As Double = ScalarAt(idx, dataRho, dataUx, dataUy, dataUz)
+                        Dim v As Double = ScalarAt(idx, dataP, dataUx, dataUy, dataUz)
 
                         If v < mn Then mn = v
                         If v > mx Then mx = v
@@ -633,9 +658,9 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
             For j As Integer = 0 To m_ny - 1 Step m_stride
                 For k As Integer = 0 To m_nz - 1 Step m_stride
                     Dim idx As Integer = i * plane + j * m_nz + k
-                    Dim bt As Byte = m_btype(idx)
+                    Dim bt As Byte = m_outside(idx)
 
-                    If bt = CudaLbmBackend.CellSolid Then
+                    If bt = 1 Then
                         If Not ShowSolids Then
                             Continue For
                         End If
@@ -646,10 +671,9 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
                         m_buf(p) = New PointCloudPoint(i + ox, j + oy, k + oz, 0.0R, solidHtml)
                         p += 1
 
-                    ElseIf bt = CudaLbmBackend.CellFluid AndAlso heatmap AndAlso
-                        SliceVisible(i, j, k) Then
+                    ElseIf heatmap AndAlso SliceVisible(i, j, k) Then
 
-                        Dim v As Double = ScalarAt(idx, dataRho, dataUx, dataUy, dataUz)
+                        Dim v As Double = ScalarAt(idx, dataP, dataUx, dataUy, dataUz)
                         Dim tc As Double = (v - mn) / denom
 
                         If tc.IsNaNImaginary Then
@@ -690,7 +714,7 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
                     For k As Integer = 0 To m_nz - 1 Step vStride
                         Dim idx As Integer = i * plane + j * m_nz + k
 
-                        If m_btype(idx) <> CudaLbmBackend.CellFluid Then
+                        If m_outside(idx) <> 0 Then
                             Continue For
                         End If
 
@@ -722,7 +746,7 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
 
             ' 矢量线段直接生成在质心补偿空间（与点云/箭头同一坐标空间）
             Dim vfield As New WindTunnelFlowField(
-                m_nx, m_ny, m_nz, dataUx, dataUy, dataUz, m_btype,
+                m_nx, m_ny, m_nz, dataUx, dataUy, dataUz, m_outside,
                 CSng(ox), CSng(oy), CSng(oz))
             Dim voptions As New VectorArrowOptions With {
                 .Stride = vStride,
@@ -738,7 +762,7 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
         ' ---- 流线图（入口面种子 + RK2 积分；折线缓存，仅在需要时重追踪）----
         If m_visualization = VisualizationMode.Streamlines Then
             If m_streamSet Is Nothing Then
-                Dim sfield As New WindTunnelFlowField(m_nx, m_ny, m_nz, dataUx, dataUy, dataUz, m_btype)
+                Dim sfield As New WindTunnelFlowField(m_nx, m_ny, m_nz, dataUx, dataUy, dataUz, m_outside)
 
                 Try
                     m_streamSet = StreamlineTracer.Trace(sfield, New StreamlineOptions With {
@@ -810,13 +834,18 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
         Call m_sceneCanvas.RequestRender()
     End Sub
 
+    ''' <summary>
+    ''' 取第 idx 个格点的显示标量。
+    ''' 压力语义已从 LBM 的格子压力 (ρ−1)/3 改为 FVM 的压力场 p（Pa 量级，
+    ''' SIMPLE 稳态解可差一个任意常数），色标按当前帧 min/max 自适应。
+    ''' </summary>
     Private Function ScalarAt(idx As Integer,
-                              rho As Single(), ux As Single(), uy As Single(), uz As Single()) As Double
+                              p As Single(), ux As Single(), uy As Single(), uz As Single()) As Double
         Select Case Field
             Case TunnelField.Ux : Return CDbl(ux(idx))
             Case TunnelField.Uy : Return CDbl(uy(idx))
             Case TunnelField.Uz : Return CDbl(uz(idx))
-            Case TunnelField.Pressure : Return (CDbl(rho(idx)) - 1.0R) / 3.0R
+            Case TunnelField.Pressure : Return CDbl(p(idx))
             Case Else
                 Dim vx As Double = ux(idx)
                 Dim vy As Double = uy(idx)
@@ -825,10 +854,12 @@ Public Class WindTunnelCanvas : Inherits System.Windows.Forms.UserControl
         End Select
     End Function
 
-    ''' <summary>清空场景（换求解器前调用）。</summary>
+    ''' <summary>清空场景（换网格 / 重新加载前调用）。</summary>
     Public Sub ClearScene()
         m_sceneReady = False
-        m_solver = Nothing
+        m_snapshot = Nothing
+        m_outside = Nothing
+        m_buf = Nothing
         m_colorbar.Visible = False
         Call m_sceneCanvas.Scene.Clear()
     End Sub
