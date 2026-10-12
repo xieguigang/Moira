@@ -103,7 +103,7 @@
     <ProjectReference Include="..\..\Microsoft.VisualBasic.Drawing\src\DXApi\DXApi.vbproj" />
     <ProjectReference Include="..\..\Microsoft.VisualBasic.Drawing\src\DxCanvas\DxCanvas.vbproj" />
     <ProjectReference Include="..\..\Microsoft.VisualBasic.Drawing\src\Microsoft.VisualBasic.Drawing\Microsoft.VisualBasic.Drawing.vbproj" />
-    <ProjectReference Include="..\src\CDFDxCanvas\CDFDxCanvas.vbproj" />
+    <ProjectReference Include="..\src\CDFDxCanvas\CFDDxCanvas.vbproj" />
     <ProjectReference Include="..\src\CFDEngine\CFDEngine.vbproj" />
   </ItemGroup>
 

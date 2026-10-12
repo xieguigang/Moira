@@ -1,6 +1,7 @@
 ﻿Imports Galaxy.Workbench.DockDocument
-Imports Moira.CDFDxCanvas
-Imports Moira.CDFDxCanvas.Data
+Imports Moira.CFDDxCanvas
+Imports Moira.CFDDxCanvas.Data
+Imports Moira.CFDDxCanvas.Rendering
 
 <Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()>
 Partial Class PageCFDPlayer
@@ -62,7 +63,7 @@ Partial Class PageCFDPlayer
         m_canvas.SectionEnabled = False
         m_canvas.SectionPosition = 0
         m_canvas.SelectedVoxel = -1
-        m_canvas.Visualization = Moira.CDFDxCanvas.Rendering.VisualizationMode.Heatmap
+        m_canvas.Visualization = VisualizationMode.Heatmap
         m_canvas.ShowDebugInfo = False
         m_canvas.ShowHoverTooltip = False
         m_canvas.Size = New Size(1183, 433)

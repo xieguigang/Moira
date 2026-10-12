@@ -1,6 +1,6 @@
 ﻿Imports Microsoft.VisualBasic.Imaging.Drawing2D.Colors
-Imports Moira.CDFDxCanvas.Data
-Imports Moira.CDFDxCanvas.Rendering
+Imports Moira.CFDDxCanvas.Data
+Imports Moira.CFDDxCanvas.Rendering
 
 Public Class PanelPlayerLeft
 
