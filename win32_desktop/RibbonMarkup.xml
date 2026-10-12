@@ -133,6 +133,10 @@
     </Command>
     <Command Name="cmdMenuTools" Id="27" LabelTitle="Tools" />
     <Command Name="cmdTabTools" Id="28" LabelTitle="Tools" />
+    <Command Name="cmdButtonEulerianMesh" Id="29" LabelTitle="Eulerian Mesh" />
+    <Command Name="cmdButtonVoxelizer" Id="30" LabelTitle="Voxelizer" />
+    <Command Name="cmdButtonWindTunnel" Id="31" LabelTitle="WindTunnel" />
+    <Command Name="cmdListCFDTools" Id="32" LabelTitle="CFD Tools" />
   </Application.Commands>
   <Application.Views>
     <Ribbon>
@@ -148,6 +152,13 @@
           <MenuGroup>
             <Button CommandName="cmdButton3DModelTool" />
             <Button CommandName="cmdButtonCFDPlay" />
+          </MenuGroup>
+          <MenuGroup>
+            <SplitButton>
+              <Button CommandName="cmdButtonEulerianMesh" />
+              <Button CommandName="cmdButtonVoxelizer" />
+              <Button CommandName="cmdButtonWindTunnel" />
+            </SplitButton>
           </MenuGroup>
           <MenuGroup>
             <Button CommandName="cmdButtonAbout" />

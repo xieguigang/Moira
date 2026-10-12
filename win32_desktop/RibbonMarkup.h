@@ -121,5 +121,14 @@
 #define cmdMenuTools_LabelTitle_RESID 60088
 #define cmdTabTools 28 
 #define cmdTabTools_LabelTitle_RESID 60089
-#define InternalCmd2_LabelTitle_RESID 60090
-#define InternalCmd4_LabelTitle_RESID 60091
+#define cmdButtonEulerianMesh 29 
+#define cmdButtonEulerianMesh_LabelTitle_RESID 60090
+#define cmdButtonVoxelizer 30 
+#define cmdButtonVoxelizer_LabelTitle_RESID 60091
+#define cmdButtonWindTunnel 31 
+#define cmdButtonWindTunnel_LabelTitle_RESID 60092
+#define cmdListCFDTools 32 
+#define cmdListCFDTools_LabelTitle_RESID 60093
+#define InternalCmd2_LabelTitle_RESID 60094
+#define InternalCmd4_LabelTitle_RESID 60095
+#define InternalCmd6_LabelTitle_RESID 60096

@@ -19,6 +19,9 @@ Namespace RibbonLib.Controls
             Public Const cmdFileOpen As UInteger = 8
             Public Const cmdButton3DModelTool As UInteger = 25
             Public Const cmdButtonCFDPlay As UInteger = 26
+            Public Const cmdButtonEulerianMesh As UInteger = 29
+            Public Const cmdButtonVoxelizer As UInteger = 30
+            Public Const cmdButtonWindTunnel As UInteger = 31
             Public Const cmdButtonAbout As UInteger = 12
             Public Const cmdButtonLicense As UInteger = 24
             Public Const cmdButtonAppExit As UInteger = 13
@@ -72,6 +75,24 @@ Namespace RibbonLib.Controls
         Public ReadOnly Property ButtonCFDPlay As RibbonButton
             Get
                 Return _ButtonCFDPlay
+            End Get
+        End Property
+        Private _ButtonEulerianMesh As RibbonButton
+        Public ReadOnly Property ButtonEulerianMesh As RibbonButton
+            Get
+                Return _ButtonEulerianMesh
+            End Get
+        End Property
+        Private _ButtonVoxelizer As RibbonButton
+        Public ReadOnly Property ButtonVoxelizer As RibbonButton
+            Get
+                Return _ButtonVoxelizer
+            End Get
+        End Property
+        Private _ButtonWindTunnel As RibbonButton
+        Public ReadOnly Property ButtonWindTunnel As RibbonButton
+            Get
+                Return _ButtonWindTunnel
             End Get
         End Property
         Private _ButtonAbout As RibbonButton
@@ -210,6 +231,9 @@ Namespace RibbonLib.Controls
             _FileOpen = New RibbonButton(_ribbon, Cmd.cmdFileOpen)
             _Button3DModelTool = New RibbonButton(_ribbon, Cmd.cmdButton3DModelTool)
             _ButtonCFDPlay = New RibbonButton(_ribbon, Cmd.cmdButtonCFDPlay)
+            _ButtonEulerianMesh = New RibbonButton(_ribbon, Cmd.cmdButtonEulerianMesh)
+            _ButtonVoxelizer = New RibbonButton(_ribbon, Cmd.cmdButtonVoxelizer)
+            _ButtonWindTunnel = New RibbonButton(_ribbon, Cmd.cmdButtonWindTunnel)
             _ButtonAbout = New RibbonButton(_ribbon, Cmd.cmdButtonAbout)
             _ButtonLicense = New RibbonButton(_ribbon, Cmd.cmdButtonLicense)
             _ButtonAppExit = New RibbonButton(_ribbon, Cmd.cmdButtonAppExit)

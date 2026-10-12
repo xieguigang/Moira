@@ -22,6 +22,9 @@ namespace RibbonLib.Controls
             public const uint cmdFileOpen = 8;
             public const uint cmdButton3DModelTool = 25;
             public const uint cmdButtonCFDPlay = 26;
+            public const uint cmdButtonEulerianMesh = 29;
+            public const uint cmdButtonVoxelizer = 30;
+            public const uint cmdButtonWindTunnel = 31;
             public const uint cmdButtonAbout = 12;
             public const uint cmdButtonLicense = 24;
             public const uint cmdButtonAppExit = 13;
@@ -52,6 +55,9 @@ namespace RibbonLib.Controls
         public RibbonButton FileOpen { get; private set; }
         public RibbonButton Button3DModelTool { get; private set; }
         public RibbonButton ButtonCFDPlay { get; private set; }
+        public RibbonButton ButtonEulerianMesh { get; private set; }
+        public RibbonButton ButtonVoxelizer { get; private set; }
+        public RibbonButton ButtonWindTunnel { get; private set; }
         public RibbonButton ButtonAbout { get; private set; }
         public RibbonButton ButtonLicense { get; private set; }
         public RibbonButton ButtonAppExit { get; private set; }
@@ -83,6 +89,9 @@ namespace RibbonLib.Controls
             FileOpen = new RibbonButton(ribbon, Cmd.cmdFileOpen);
             Button3DModelTool = new RibbonButton(ribbon, Cmd.cmdButton3DModelTool);
             ButtonCFDPlay = new RibbonButton(ribbon, Cmd.cmdButtonCFDPlay);
+            ButtonEulerianMesh = new RibbonButton(ribbon, Cmd.cmdButtonEulerianMesh);
+            ButtonVoxelizer = new RibbonButton(ribbon, Cmd.cmdButtonVoxelizer);
+            ButtonWindTunnel = new RibbonButton(ribbon, Cmd.cmdButtonWindTunnel);
             ButtonAbout = new RibbonButton(ribbon, Cmd.cmdButtonAbout);
             ButtonLicense = new RibbonButton(ribbon, Cmd.cmdButtonLicense);
             ButtonAppExit = new RibbonButton(ribbon, Cmd.cmdButtonAppExit);
