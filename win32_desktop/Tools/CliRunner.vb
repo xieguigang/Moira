@@ -130,7 +130,8 @@ Friend Class CliRunner
         Try
             If Not p.HasExited Then
                 Try
-                    Call Global.Tools.KillDescendantProcesses(p.Id)
+                    ' galaxy 的全局工具模块：类型全名为 Galaxy.Workbench.Tools
+                    Call Global.Galaxy.Workbench.Tools.KillDescendantProcesses(p.Id)
                 Catch ex As Exception
                     ' WMI 不可用时直接走下面的整树 kill
                 End Try
