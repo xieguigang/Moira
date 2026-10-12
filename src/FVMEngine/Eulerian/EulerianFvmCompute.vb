@@ -593,9 +593,43 @@ Namespace Eulerian
             rpt.Converged = rpt.FinalResidual <= tolerance OrElse
                             (relTol > 0 AndAlso rpt.FinalResidual <= relTol * initial)
 
+            ' ★★ float32 假收敛防护（关键正确性校验）
+            '   病态系数矩阵（例如压力方程在 sealed/退化单元上 rAU 可达 1e-11，
+            '   对角元与右端项相差 20+ 个量级）会让 GPU 侧 float32 的 pAp / rho
+            '   因灾难性相消而失真，PCG 提前退出并**谎报收敛**——
+            '   实测 city_seed42 压力方程：GPU 报 "1 it, residual 1.000 -> 1.000"
+            '   （解完全没变），而同一矩阵 CPU double 需要 285+ 次迭代。
+            '   若把这种"零进展"结果当作已求解交给外层 SIMPLE，
+            '   压力修正量恒为 0，速度场被未修正的 Rhie-Chow 通量反复放大 → 发散。
+            '   因此这里做**实质下降校验**：double 权威残差没有明显下降时，
+            '   丢弃 GPU 结果并返回 False，由 EulerianLinearSolve 回落 CPU double。
+            If Not rpt.Converged Then
+                Dim madeProgress As Boolean =
+                    rpt.FinalResidual <= 0.5 * initial OrElse
+                    (initial <= tolerance AndAlso rpt.FinalResidual <= tolerance)
+
+                If Not madeProgress Then
+                    rpt.Notes = Combine2(rpt.Notes,
+                        $"GPU rejected: no real residual progress in {usedIter} it " &
+                        $"({initial:E3} -> {rpt.FinalResidual:E3}); falling back to CPU double")
+                    rpt.ExecutedOnGpu = False
+                    rpt.Solver = kind
+                    report = rpt
+
+                    Return False
+                End If
+            End If
+
             report = rpt
 
             Return True
+        End Function
+
+        Private Shared Function Combine2(a As String, b As String) As String
+            If String.IsNullOrEmpty(a) Then Return If(b, "")
+            If String.IsNullOrEmpty(b) Then Return a
+
+            Return a & "; " & b
         End Function
 
         ''' <summary>把设备缓冲回写为 double 场数组。</summary>

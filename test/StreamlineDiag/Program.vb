@@ -53,6 +53,11 @@ Module Program
     Private _started As Stopwatch
     Private _gpuReady As Boolean
     Private _snapOverride As List(Of Integer)
+    Private _prIterOverride As Integer
+    Private _prTolOverride As Double
+    Private _momSweepOverride As Integer
+    Private _speedOverride As Double = -1.0
+    Private _coOverride As Double = -1.0
 
     ' ============================================================================
     '  入口
@@ -84,24 +89,13 @@ Module Program
                 Case "convert"
                     If args.Length < 3 Then Throw New ArgumentException("convert 需要 <model.stl> <out.zip> [resolution]")
                     Dim res As Double = If(args.Length > 3, Double.Parse(args(3), CI), 0.0)
-                    code = RunConvert(args(1), args(2), res)
+                    code = RunConvert(args(1), args(2), res, args.Contains("--cut-cells"))
 
                 Case "solve"
                     If args.Length < 2 Then Throw New ArgumentException("solve 需要 <eulerian.zip> [steps]")
                     Dim steps As Integer = If(args.Length > 2, Integer.Parse(args(2), CI), 200)
 
-                    For Each a As String In args
-                        If a.StartsWith("--snap=") Then
-                            Dim list As New List(Of Integer)
-
-                            For Each s As String In a.Substring(7).Split(","c)
-                                list.Add(Integer.Parse(s, CI))
-                            Next
-
-                            _snapOverride = list
-                        End If
-                    Next
-
+                    Call ParseOverrides(args)
                     code = RunSolve(args(1), steps)
 
                 Case "compare"
@@ -117,12 +111,56 @@ Module Program
                 Case "pressurediag"
                     If args.Length < 2 Then Throw New ArgumentException("pressurediag 需要 <eulerian.zip> [steps] [gpu]")
                     Dim psteps As Integer = If(args.Length > 2, Integer.Parse(args(2), CI), 20)
-                    Dim pgpu As Boolean = If(args.Length > 3, Boolean.Parse(args(3)), True)
+                    Dim pgpu As Boolean = If(args.Length > 3 AndAlso Not args(3).StartsWith("--"), Boolean.Parse(args(3)), True)
+
+                    For Each a As String In args
+                        If a.StartsWith("--speed=") Then _speedOverride = Double.Parse(a.Substring(8), CI)
+                    Next
+                    Call ParseOverrides(args)
                     code = RunPressureDiag(args(1), psteps, pgpu)
 
                 Case "il"
                     If args.Length < 4 Then Throw New ArgumentException("il 需要 <dll> <类型全名> <方法名>")
                     code = RunIlDump(args(1), args(2), args(3))
+
+                Case "paramscan"
+                    If args.Length < 2 Then Throw New ArgumentException("paramscan 需要 <eulerian.zip> [steps]")
+                    code = RunParamScan(args(1), If(args.Length > 2, Integer.Parse(args(2), CI), 20), args)
+
+                Case "pcorr"
+                    If args.Length < 2 Then Throw New ArgumentException("pcorr 需要 <eulerian.zip> [steps]")
+                    code = RunPcorrProbe(args(1), If(args.Length > 2, Integer.Parse(args(2), CI), 1))
+
+                Case "deadends"
+                    If args.Length < 2 Then Throw New ArgumentException("deadends 需要 <eulerian.zip>")
+                    code = RunDeadEndScan(args(1))
+
+                Case "channel"
+                    '  channel [nx] [ny] [nz] [speed] [nu] [steps] [gpu] [priter] [prtol] [relaxP] [relaxU] [sweeps]
+                    Dim nxc As Integer = If(args.Length > 1, Integer.Parse(args(1), CI), 20)
+                    Dim nyc As Integer = If(args.Length > 2, Integer.Parse(args(2), CI), 4)
+                    Dim nzc As Integer = If(args.Length > 3, Integer.Parse(args(3), CI), 4)
+                    Dim spd As Double = If(args.Length > 4, Double.Parse(args(4), CI), 30.0R)
+                    Dim nuc As Double = If(args.Length > 5, Double.Parse(args(5), CI), 0.000015R)
+                    Dim stc As Integer = If(args.Length > 6, Integer.Parse(args(6), CI), 50)
+                    Dim gpuC As Boolean = If(args.Length > 7, Boolean.Parse(args(7)), True)
+                    Dim pic As Integer = If(args.Length > 8, Integer.Parse(args(8), CI), 200)
+                    Dim ptc As Double = If(args.Length > 9, Double.Parse(args(9), CI), 1.0E-9R)
+                    Dim rpc As Double = If(args.Length > 10, Double.Parse(args(10), CI), 0.3R)
+                    Dim ruc As Double = If(args.Length > 11, Double.Parse(args(11), CI), 0.7R)
+                    Dim swc As Integer = If(args.Length > 12, Integer.Parse(args(12), CI), 2)
+
+                    Dim obs As Boolean = args.Contains("obstacle")
+                    code = RunChannelTest(nxc, nyc, nzc, spd, nuc, stc, gpuC, pic, ptc, rpc, ruc, swc, obs)
+
+                Case "divergence"
+                    If args.Length < 2 Then Throw New ArgumentException("divergence 需要 <eulerian.zip>")
+                    code = RunDivergenceProbe(args(1))
+
+                Case "momentumdiag"
+                    If args.Length < 2 Then Throw New ArgumentException("momentumdiag 需要 <eulerian.zip> [steps]")
+                    Dim msteps As Integer = If(args.Length > 2, Integer.Parse(args(2), CI), 5)
+                    code = RunMomentumDiag(args(1), msteps)
 
                 Case "resampler"
                     If args.Length < 2 Then Throw New ArgumentException("resampler 需要 <eulerian.zip>")
@@ -164,10 +202,14 @@ Module Program
     Private Sub Usage()
         Call Line("StreamlineDiag —— WindTunnelBox 流线图空白问题诊断")
         Call Line("")
-        Call Line("  StreamlineDiag mesh    <eulerian.zip>                       仅网格诊断")
-        Call Line("  StreamlineDiag convert <model.stl> <out.zip> [resolution]   STL → Eulerian 网格")
-        Call Line("  StreamlineDiag solve   <eulerian.zip> [steps]               求解 + 流线诊断")
-        Call Line("  StreamlineDiag all     <model.stl> <out.zip> [steps]        转换 + 求解 + 诊断")
+        Call Line("  StreamlineDiag mesh        <eulerian.zip>                       仅网格诊断")
+        Call Line("  StreamlineDiag convert     <model.stl> <out.zip> [resolution]   STL → Eulerian 网格（GPU）")
+        Call Line("  StreamlineDiag solve       <eulerian.zip> [steps] [--snap=a,b]  求解 + 流线诊断")
+        Call Line("  StreamlineDiag compare     <eulerian.zip> [steps] [only-new]    求解稳定性对照矩阵（19 组参数）")
+        Call Line("  StreamlineDiag pressurediag <eulerian.zip> [steps] [gpu]        逐步推进 + 压力方程线性求解探针")
+        Call Line("  StreamlineDiag resampler   <eulerian.zip>                       AutoConfigure / 重采样方式探针")
+        Call Line("  StreamlineDiag il          <dll> <类型全名> <方法名>             IL 反汇编（核对编译产物与源码）")
+        Call Line("  StreamlineDiag all         <model.stl> <out.zip> [steps]        转换 + 求解 + 诊断")
     End Sub
 
     ''' <summary>同时写控制台与日志文件。</summary>
@@ -177,6 +219,29 @@ Module Program
         If _log IsNot Nothing Then
             _log.WriteLine(text)
         End If
+    End Sub
+
+    ''' <summary>解析通用覆盖参数：--snap= / --priter= / --prtol= / --sweep=</summary>
+    Private Sub ParseOverrides(args As String())
+        For Each a As String In args
+            If a.StartsWith("--snap=") Then
+                Dim list As New List(Of Integer)
+
+                For Each s As String In a.Substring(7).Split(","c)
+                    list.Add(Integer.Parse(s, CI))
+                Next
+
+                _snapOverride = list
+            ElseIf a.StartsWith("--priter=") Then
+                _prIterOverride = Integer.Parse(a.Substring(9), CI)
+            ElseIf a.StartsWith("--prtol=") Then
+                _prTolOverride = Double.Parse(a.Substring(8), CI)
+            ElseIf a.StartsWith("--sweep=") Then
+                _momSweepOverride = Integer.Parse(a.Substring(8), CI)
+            ElseIf a.StartsWith("--co=") Then
+                _coOverride = Double.Parse(a.Substring(5), CI)
+            End If
+        Next
     End Sub
 
     Private Sub Section(title As String)
@@ -195,12 +260,13 @@ Module Program
     '  [A] STL → Eulerian 网格
     ' ============================================================================
 
-    Private Function RunConvert(modelPath As String, outZip As String, resolution As Double) As Integer
+    Private Function RunConvert(modelPath As String, outZip As String, resolution As Double,
+                                Optional cutCells As Boolean = False) As Integer
         Call Section($"[A] STL → Eulerian 网格：{IO.Path.GetFileName(modelPath)}")
 
         Call Line($"model      : {modelPath}")
         Call Line($"output zip : {outZip}")
-        Call Line($"resolution : {If(resolution > 0, resolution.ToString("G4", CI), "(默认 0.05)")}")
+        Call Line($"resolution : {If(resolution > 0, resolution.ToString("G4", CI), "(默认 0.05)")}   cutCells={cutCells}")
 
         If Not File.Exists(modelPath) Then
             Call Line($"[FAIL] 找不到模型文件：{modelPath}")
@@ -223,7 +289,7 @@ Module Program
                 modelPath, outZip, EulerianPipeline.MeshType.Octree,
                 resolution:=res,
                 domainScale:=2.0,
-                cutCells:=False,
+                cutCells:=cutCells,
                 smoothLaplacian:=False)
 
             sw.Stop()
@@ -671,9 +737,11 @@ Module Program
         End If
 
         Call Line($"")
-        Call Line("  请对照第 6 / 7 节：若零阶路径的 Straightness 全部 < 0.05，")
-        Call Line("  而平滑路径出现明显 > 0.05 的流线，则根因是")
-        Call Line("  【EulerianFieldSampler 的最近单元零阶重采样使速度场分片常数】。")
+        Call Line("  判读要点（对照第 6 / 7 节）：")
+        Call Line("    · 若零阶、连续插值、平滑、缩小步长 四种手段都推不过 0.05，")
+        Call Line("      则根因是【速度场本身近乎均匀】—— 网格太粗（建筑不可分辨）。")
+        Call Line("    · 若只有零阶路径推不过，而连续插值/平滑能过，")
+        Call Line("      则根因是【EulerianFieldSampler 的最近单元零阶重采样使速度场分片常数】。")
         Return 0
     End Function
 
@@ -894,6 +962,800 @@ Module Program
     End Function
 
     ' ============================================================================
+    '  [J] 求解参数扫描（找可收敛的参数组合）
+    ' ============================================================================
+
+    Private Function RunParamScan(zipPath As String, steps As Integer, args As String()) As Integer
+        Call Section($"[J] 求解参数扫描：{IO.Path.GetFileName(zipPath)}（每例 {steps} 步）")
+
+        Call EnableGpu()
+
+        Dim mesh As EulerianFvMesh = EulerianFvMesh.FromFile(zipPath)
+
+        Dim cases As New List(Of String())
+        ' 每项：{标题, prIter, prTol, prRelTol, momSweeps, relaxU}
+        cases.Add(New String() {"基线 prIter=200 tol=1e-9 rel=0.01 sweep=2 U=0.7", "200", "1e-9", "0.01", "2", "0.7"})
+        cases.Add(New String() {"prIter=2000 tol=1e-9 rel=0.01 sweep=2 U=0.7", "2000", "1e-9", "0.01", "2", "0.7"})
+        cases.Add(New String() {"prIter=2000 tol=1e-6 rel=0.01 sweep=2 U=0.7", "2000", "1e-6", "0.01", "2", "0.7"})
+        cases.Add(New String() {"prIter=2000 tol=1e-6 rel=0.0 sweep=2 U=0.7", "2000", "1e-6", "0", "2", "0.7"})
+        cases.Add(New String() {"prIter=2000 tol=1e-6 rel=0.0 sweep=10 U=0.7", "2000", "1e-6", "0", "10", "0.7"})
+        cases.Add(New String() {"prIter=2000 tol=1e-6 rel=0.0 sweep=10 U=0.5", "2000", "1e-6", "0", "10", "0.5"})
+        cases.Add(New String() {"prIter=2000 tol=1e-6 rel=0.0 sweep=20 U=0.3", "2000", "1e-6", "0", "20", "0.3"})
+        cases.Add(New String() {"prIter=5000 tol=1e-8 rel=0.0 sweep=10 U=0.7", "5000", "1e-8", "0", "10", "0.7"})
+        cases.Add(New String() {"prIter=5000 tol=1e-8 rel=0.0 sweep=20 U=0.5", "5000", "1e-8", "0", "20", "0.5"})
+
+        Call Line("")
+        Call Line("  例                                                       max|U|         cont          pIt    用时")
+
+        For Each spec As String() In cases
+            Try
+                Dim opts As New EulerianWindTunnelOptions With {
+                    .InletSpeed = 30.0R,
+                    .InletDirection = New EulerianVertex(1.0R, 0.0R, 0.0R),
+                    .Density = 1.225R,
+                    .KinematicViscosity = 0.000015R,
+                    .Turbulence = WindTunnelTurbulence.Laminar,
+                    .Compressible = False,
+                    .UseGpu = _gpuReady,
+                    .PressureMaxIterations = Integer.Parse(spec(1), CI),
+                    .RelaxU = Double.Parse(spec(5), CI)}
+
+                Dim tc As New EulerianWindTunnelCase(mesh, opts)
+
+                Call tc.Configure()
+
+                If tc.Incompressible IsNot Nothing Then
+                    tc.Incompressible.Options.PressureTolerance = Double.Parse(spec(2), CI)
+                    tc.Incompressible.Options.MomentumSweeps = Integer.Parse(spec(4), CI)
+                End If
+
+                Dim sw As Stopwatch = Stopwatch.StartNew()
+
+                Call tc.Run(steps)
+                sw.Stop()
+
+                Dim um As Double = SafeMax(tc.Fields.U.Values)
+                Dim pit As String = If(tc.Incompressible IsNot Nothing,
+                                       tc.Incompressible.PressureReport.Iterations.ToString(), "n/a")
+
+                Call Line($"  {spec(0).PadRight(52)} {um,-13:E3} {Continuity(tc),-13:E3} {pit,-6} {sw.Elapsed.TotalSeconds:F1} s")
+
+            Catch ex As Exception
+                Call Line($"  {spec(0).PadRight(52)} 异常 {ex.GetType().Name}: {ex.Message}")
+            End Try
+        Next
+
+        Return 0
+    End Function
+
+    ' ============================================================================
+    '  [I] 压力修正方向性探针（修正后散度是否下降）
+    ' ============================================================================
+
+    Private Function RunPcorrProbe(zipPath As String, steps As Integer) As Integer
+        Call Section($"[I] 压力修正方向性探针：{IO.Path.GetFileName(zipPath)}")
+
+        Call EnableGpu()
+
+        Dim mesh As EulerianFvMesh = EulerianFvMesh.FromFile(zipPath)
+        Dim opts As New EulerianWindTunnelOptions With {
+            .InletSpeed = 30.0R,
+            .InletDirection = New EulerianVertex(1.0R, 0.0R, 0.0R),
+            .Density = 1.225R,
+            .KinematicViscosity = 0.000015R,
+            .Turbulence = WindTunnelTurbulence.Laminar,
+            .Compressible = False,
+            .UseGpu = False,
+            .PressureMaxIterations = 200}
+
+        Dim testCase As New EulerianWindTunnelCase(mesh, opts)
+        Call testCase.Configure()
+
+        Dim inc As IncompressibleSolver = testCase.Incompressible
+        Dim n As Integer = mesh.CellCount
+        Dim p As EulerianField = testCase.Fields.P
+
+        Call testCase.Run(Math.Max(1, steps))
+
+        ' 反射取 private 数组
+        Dim rauFace As Double() = PrivateArray(inc, "_rauFace")
+        Dim phiH As Double() = PrivateArray(inc, "_phiHbyA")
+        Dim flux As Double() = PrivateArray(inc, "_flux")
+
+        Call Line($"  推进 {testCase.StepCount} 步后，max|U| = {SafeMax(testCase.Fields.U.Values):E3}")
+
+        ' ---- A) phiHbyA 的散度（压力方程右端）----
+        Dim divPhiH(n - 1) As Double
+
+        Call EulerianOperators.FvcDiv(mesh, phiH, divPhiH)
+
+        Call Line($"  div(phiHbyA)  maxAbs = {MaxAbs(divPhiH):E4}   ← 压力方程右端 b")
+
+        ' ---- B) 反解压力方程（大迭代上限 + 紧容差），看它能否把散度降到 0 ----
+        Dim mP As New FvMatrix(mesh, "p")
+
+        mP.Symmetric = True
+
+        Call EulerianOperators.FvmLaplacian(mP, p, 0, rauFace, sign:=-1.0)
+        Call mP.AddSourceField(divPhiH)
+
+        Dim hasFixed As Boolean = False
+
+        For pi As Integer = 0 To mesh.PatchCount - 1
+            If TypeOf p.Boundaries(pi).Condition Is FixedValueBc Then hasFixed = True
+        Next
+
+        If Not hasFixed Then Call mP.SetReference(0, 0.0)
+
+        ' 从 0 压力起步反解
+        Dim pr0 As Double() = New Double(n - 1) {}
+
+        Call p.UpdateBoundaries()
+
+        Dim x As Double() = Nothing
+        Dim rpt As EulerianSolverReport = EulerianLinearSolve.Solve(
+            mP, x, EulerianLinearSolverKind.Pcg, 1.0E-12, 0.0, 20000, 0, False)
+
+        Call Line($"  反解压力方程（maxIter=20000, tol=1e-12）：{rpt.ToString()}")
+
+        ' ---- C) 用反解出的 p 做通量修正：φ = phiHbyA − rAU·Δ·(p_Q − p_P) ----
+        Dim corr(mesh.FaceCount - 1) As Double
+        Dim lapFlux(mesh.FaceCount - 1) As Double
+
+        ' 先把解写回场，LaplacianFaceFlux 才能看到
+        Call p.SetFromComponent(0, x)
+        Call p.UpdateBoundaries()
+        Call EulerianOperators.LaplacianFaceFlux(mesh, rauFace, p, 0, lapFlux)
+
+        For f As Integer = 0 To corr.Length - 1
+            corr(f) = phiH(f) - lapFlux(f)
+        Next
+
+        Dim divCorr(n - 1) As Double
+
+        Call EulerianOperators.FvcDiv(mesh, corr, divCorr)
+
+        ' 同时用真实残差检查矩阵方程满足度
+        Call Line($"  修正后 div(φ)  maxAbs = {MaxAbs(divCorr):E4}")
+        Call Line($"  修正前 div(phiHbyA) maxAbs = {MaxAbs(divPhiH):E4}")
+        Call Line($"  → 下降倍数 = {MaxAbs(divPhiH) / Math.Max(1.0E-300, MaxAbs(divCorr)):E3}")
+
+        ' 符号检验：把修正反号
+        Dim wrong(mesh.FaceCount - 1) As Double
+
+        For f As Integer = 0 To wrong.Length - 1
+            wrong(f) = phiH(f) + lapFlux(f)
+        Next
+
+        Dim divWrong(n - 1) As Double
+
+        Call EulerianOperators.FvcDiv(mesh, wrong, divWrong)
+
+        Call Line($"  若把修正反号 div(φ) maxAbs = {MaxAbs(divWrong):E4}（应远大于修正后，否则符号反了）")
+
+        Return 0
+    End Function
+
+    Private Function MaxAbs(a As Double()) As Double
+        Dim m As Double = 0
+
+        For i As Integer = 0 To a.Length - 1
+            If Math.Abs(a(i)) > m Then m = Math.Abs(a(i))
+        Next
+
+        Return m
+    End Function
+
+    ' ============================================================================
+    '  [H] 网格散度-自由性探针（均匀通量应给出零散度）
+    ' ============================================================================
+
+    Private Function RunDivergenceProbe(zipPath As String) As Integer
+        Call Section($"[H] 网格散度-自由性探针：{IO.Path.GetFileName(zipPath)}")
+
+        Dim mesh As EulerianFvMesh = EulerianFvMesh.FromFile(zipPath)
+        Dim n As Integer = mesh.CellCount
+        Dim nF As Integer = mesh.FaceCount
+        Dim sf As EulerianVertex() = mesh.Sf
+
+        ' ---- 1) 均匀 x 通量 F_f = Sf.X * 30 ----
+        Dim flux(nF - 1) As Double
+
+        For f As Integer = 0 To nF - 1
+            flux(f) = sf(f).X * 30.0R
+        Next
+
+        Dim d1(n - 1) As Double
+
+        Call EulerianOperators.FvcDiv(mesh, flux, d1)
+
+        Dim m1 As Double = 0
+
+        For c As Integer = 0 To n - 1
+            m1 = Math.Max(m1, Math.Abs(d1(c)))
+        Next
+
+        Call Line($"  1) 均匀 x 通量 F=Sf.X*30：Σ|Sf.X| 参考，maxAbs(div) = {m1:E4}")
+
+        If m1 > 0 Then
+            Call Line($"     相对量级：|flux|max*30 ≈ {MaxAbsSf(sf):E4}  → 相对残差 = {m1 / Math.Max(1.0E-300, MaxAbsSf(sf)):E3}")
+        End If
+
+        ' ---- 2) 闭合性检验：Σ_f Sf = 0（单元闭合）----
+        Dim worstClose As Double = 0
+        Dim worstCell As Integer = -1
+
+        For c As Integer = 0 To n - 1
+            Dim sx As Double = 0, sy As Double = 0, sz As Double = 0
+            Dim cf As Integer() = mesh.CellFaces(c)
+
+            For k As Integer = 0 To cf.Length - 1
+                Dim f As Integer = cf(k)
+                Dim sign As Double = If(mesh.Mesh.Faces(f).Owner = c, 1.0R, -1.0R)
+
+                sx += sign * sf(f).X : sy += sign * sf(f).Y : sz += sign * sf(f).Z
+            Next
+
+            Dim mag As Double = Math.Sqrt(sx * sx + sy * sy + sz * sz)
+
+            If mag > worstClose Then
+                worstClose = mag : worstCell = c
+            End If
+        Next
+
+        Call Line($"  2) Σ_f Sf（单元闭合性）：max|Σ Sf| = {worstClose:E4} @ cell {worstCell}" &
+                  $"（应恒为 0；非 0 说明面法向/绕序不一致）")
+
+        ' ---- 3) 每个 patch 的通量和与面积向量 ----
+        Call Line("")
+        Call Line("  3) 各 patch 面积向量和（应指向域外、量值 ≈ patch 面积）：")
+
+        For pi As Integer = 0 To mesh.PatchCount - 1
+            Dim geo As EulerianPatchGeometry = mesh.Patches(pi)
+            Dim sx As Double = 0, sy As Double = 0, sz As Double = 0, area As Double = 0
+
+            For k As Integer = 0 To geo.FaceCount - 1
+                sx += geo.Sf(k).X : sy += geo.Sf(k).Y : sz += geo.Sf(k).Z
+                area += mesh.Mesh.FaceAreas(geo.FaceIndices(k))
+            Next
+
+            Call Line($"     {geo.Name,-14} faces={geo.FaceCount,5}  Σ Sf = ({sx,12:E3}, {sy,12:E3}, {sz,12:E3})  面积={area:E4}")
+        Next
+
+        ' ---- 4) 一个内部单元的逐面通量明细 ----
+        Dim probe As Integer = EulerianDiagnostics.NearestCell(mesh, -500.8R + 16.0R * 32.866R, 800.0R, 90.0R)
+        Call Line("")
+        Call Line($"  4) 内部单元 #{probe} 的逐面 F = Sf.X*30（应求和为 0）：")
+
+        Dim cf2 As Integer() = mesh.CellFaces(probe)
+        Dim tot As Double = 0
+
+        For k As Integer = 0 To cf2.Length - 1
+            Dim f As Integer = cf2(k)
+            Dim owner As Integer = mesh.Mesh.Faces(f).Owner
+            Dim sign As Double = If(owner = probe, 1.0R, -1.0R)
+            Dim contrib As Double = sign * sf(f).X * 30.0R
+
+            tot += contrib
+
+            Call Line($"     face {f,6} {If(owner = probe, "owner", "neigh")}  Sf=({sf(f).X,10:E3},{sf(f).Y,10:E3},{sf(f).Z,10:E3})  contrib={contrib,13:E4}")
+        Next
+
+        Call Line($"     Σ contrib = {tot:E4}（应 = 0）")
+
+        ' ---- 5) 求解器初始化后的 _flux 是否散度自由（均匀 30 m/s 应给出 0）----
+        Call Line("")
+        Call Line("  5) 求解器 Initialize() 后的 _flux 散度（均匀 30 m/s 应 ≈ 0）：")
+
+        Dim opts As New EulerianWindTunnelOptions With {
+            .InletSpeed = 30.0R,
+            .InletDirection = New EulerianVertex(1.0R, 0.0R, 0.0R),
+            .Density = 1.225R,
+            .KinematicViscosity = 0.000015R,
+            .Turbulence = WindTunnelTurbulence.Laminar,
+            .Compressible = False,
+            .UseGpu = False}
+
+        Dim tc As New EulerianWindTunnelCase(mesh, opts)
+
+        Call tc.Configure()
+
+        Dim inc As IncompressibleSolver = tc.Incompressible
+        Dim f0 As Double() = PrivateArray(inc, "_flux")
+        Dim d0(n - 1) As Double
+
+        ' ---- 哨兵测试：确认反射拿到的 _flux 就是求解器使用的那个数组 ----
+        Dim sentinel As Double = -12345.6789
+        Dim savedF As Double() = CType(f0.Clone(), Double())
+
+        f0(0) = sentinel
+
+        Dim reRead As Double() = PrivateArray(inc, "_flux")
+
+        Call Line($"     [哨兵] 写入 _flux(0)={sentinel}，重读 = {reRead(0)}（相等则反射数组即求解器数组）")
+        Array.Copy(savedF, f0, f0.Length)
+
+        ' ---- 显式重新 SetOutlet 后再算一次面通量（验证 BC 是否影响）----
+        Dim fBC(mesh.FaceCount - 1) As Double
+
+        Call tc.Fields.U.SetZeroGradient("outlet")
+        Call tc.Fields.U.UpdateBoundaries()
+        Call EulerianOperators.FaceVolumetricFlux(tc.Fields.U, fBC)
+
+        Dim piOutB As Integer = mesh.FindPatch("outlet")
+
+        If piOutB >= 0 Then
+            Call Line($"     [BC 复现] SetZeroGradient(outlet) 后 face0 通量 = {fBC(mesh.Patches(piOutB).FaceIndices(0)):E3}" &
+                      $"（若 = 1.701E4 说明该 BC 本身没问题）")
+        End If
+
+        ' ---- 直接复刻 FluxFromVectorField 的 outlet 分支 ----
+        Dim piOut As Integer = mesh.FindPatch("outlet")
+
+        If piOut >= 0 Then
+            Dim geoOut As EulerianPatchGeometry = mesh.Patches(piOut)
+            Dim pfOut As EulerianPatchField = tc.Fields.U.Boundaries(piOut)
+            Dim bcOut As EulerianBoundaryCondition = pfOut.Condition
+
+            Call Line($"     outlet: bc={If(bcOut Is Nothing, "(Nothing)", bcOut.GetType().Name)} " &
+                      $"PrescribesVelocity={If(bcOut Is Nothing, "?", bcOut.PrescribesVelocity.ToString())}")
+
+            For k As Integer = 0 To Math.Min(2, geoOut.FaceCount - 1)
+                Dim f As Integer = geoOut.FaceIndices(k)
+                Dim own As Integer = geoOut.OwnerCells(k)
+                Dim s As EulerianVertex = geoOut.Sf(k)
+                Dim uxOwn As Double = tc.Fields.U.Values(own)
+
+                ' 顶点法独立复算该面的 Sf（验证 m.Sf(f) 是否可靠）
+                Dim eFace As Moira.CFDEngine.Eulerian.EulerianFace = mesh.Mesh.Faces(f)
+                Dim nv As Integer = eFace.PointIndices.Count
+                Dim sxx As Double = 0, syy As Double = 0, szz As Double = 0
+
+                For v As Integer = 0 To nv - 1
+                    Dim p1 As EulerianVertex = mesh.Mesh.Points(eFace.PointIndices(v))
+                    Dim p2 As EulerianVertex = mesh.Mesh.Points(eFace.PointIndices((v + 1) Mod nv))
+
+                    sxx += (p1.Y - p2.Y) * (p1.Z + p2.Z)
+                    syy += (p1.Z - p2.Z) * (p1.X + p2.X)
+                    szz += (p1.X - p2.X) * (p1.Y + p2.Y)
+                Next
+
+                sxx *= 0.5 : syy *= 0.5 : szz *= 0.5
+
+                Call Line($"       face#{f} own=#{own} Sf.X={s.X:E3} 顶点法 Sf.X={sxx:E3} " &
+                          $"Ux(own)={uxOwn:E3} 实际 _flux={f0(f):E3}")
+            Next
+        End If
+
+        ' 检查 IncompressibleSolver 是否真的被 Initialize 过：重算一次面通量对比
+        Dim fRef(mesh.FaceCount - 1) As Double
+
+        Call EulerianOperators.FaceVolumetricFlux(tc.Fields.U, fRef)
+
+        Dim same As Boolean = True
+        Dim diffCnt As Integer = 0
+
+        For f As Integer = 0 To fRef.Length - 1
+            If Math.Abs(fRef(f) - f0(f)) > 1.0E-9 Then same = False : diffCnt += 1
+        Next
+
+        Call Line($"     重算 FaceVolumetricFlux 与 _flux 是否一致：{same}（差异面数 {diffCnt}）")
+
+        Dim frMax As Double = 0
+
+        For f As Integer = 0 To fRef.Length - 1
+            frMax = Math.Max(frMax, Math.Abs(fRef(f)))
+        Next
+
+        Call Line($"     重算 max|F| = {frMax:E3}")
+
+        For Each pn As String In New String() {"inlet", "outlet"}
+            Dim pi2 As Integer = mesh.FindPatch(pn)
+
+            If pi2 >= 0 Then
+                Dim geo2 As EulerianPatchGeometry = mesh.Patches(pi2)
+
+                Call Line($"       patch {pn}: 重算净通量={EulerianOperators.PatchFlux(mesh, fRef, pi2):E3}  " &
+                          $"实际净通量={EulerianOperators.PatchFlux(mesh, f0, pi2):E3}  " &
+                          $"重算 face0={fRef(geo2.FaceIndices(0)):E3}  实际 face0={f0(geo2.FaceIndices(0)):E3}")
+            End If
+        Next
+
+        Call EulerianOperators.FvcDiv(mesh, f0, d0)
+
+        Dim myD0 As Double = MaxAbs(d0)
+        Dim f0max As Double = 0
+
+        For f As Integer = 0 To f0.Length - 1
+            f0max = Math.Max(f0max, Math.Abs(f0(f)))
+        Next
+
+        Call Line($"     配置后 _flux: max|F|={f0max:E3}  maxAbs(div)={myD0:E3}  " &
+                  $"（若不 ≈0，说明初始化通量本身不满足离散连续性）")
+
+        ' 分 patch 通量（入口/出口应量值相等、符号相反）
+        For pi As Integer = 0 To mesh.PatchCount - 1
+            Dim s As Double = EulerianOperators.PatchFlux(mesh, f0, pi)
+            Call Line($"       patch {mesh.Patches(pi).Name,-14} 净通量 = {s:E3}")
+        Next
+
+        ' 速度场是否真的是均匀 30
+        Dim u As Double() = tc.Fields.U.Values
+        Dim uxmin As Double = Double.MaxValue, uxmax As Double = Double.MinValue
+
+        For c As Integer = 0 To n - 1
+            uxmin = Math.Min(uxmin, u(c)) : uxmax = Math.Max(uxmax, u(c))
+        Next
+
+        Call Line($"     配置后 Ux 范围 = [{uxmin:E3}, {uxmax:E3}]（应恒为 30）")
+
+        ' ---- 找出散度非零的单元，逐面追踪 ----
+        Dim worstC As Integer = -1
+        Dim worstV As Double = 0
+
+        For c As Integer = 0 To n - 1
+            If Math.Abs(d0(c)) > worstV Then
+                worstV = Math.Abs(d0(c)) : worstC = c
+            End If
+        Next
+
+        Call Line("")
+        Dim ctr As EulerianVertex = mesh.CellCentre(worstC)
+
+        Call Line($"     散度最大单元 #{worstC}：div={d0(worstC):E4}  中心=({ctr.X:E4}, {ctr.Y:E4}, {ctr.Z:E4})")
+
+        ' 全局面积异常统计（切割单元/退化面）
+        Dim ar As Double() = mesh.Mesh.FaceAreas
+        Dim aMin As Double = Double.MaxValue, aMax As Double = Double.MinValue
+        Dim tiny As Integer = 0, big As Integer = 0
+        Dim expected As Double = 32.866R ^ 2
+
+        For f As Integer = 0 To ar.Length - 1
+            aMin = Math.Min(aMin, ar(f)) : aMax = Math.Max(aMax, ar(f))
+            If ar(f) < 0.01 * expected Then tiny += 1
+            If ar(f) > 10.0 * expected Then big += 1
+        Next
+
+        Call Line($"     面面积：min={aMin:E3} max={aMax:E3} 期望≈{expected:E3}；" &
+                  $"<1% 期望的面数={tiny}，>10 倍期望={big}")
+
+        ' ---- 统计"仅靠壁面封闭"的死端单元（x 面缺失 ⇒ 均匀来流下必然质量堆积）----
+        Dim noDown As Integer = 0, noUp As Integer = 0, sealedX As Integer = 0
+        Dim worstCell2 As Integer = -1
+        Dim worstImb As Double = 0
+
+        For c As Integer = 0 To n - 1
+            Dim hasIn As Boolean = False, hasOut As Boolean = False
+            Dim wallX As Integer = 0
+            Dim cf4 As Integer() = mesh.CellFaces(c)
+
+            For k As Integer = 0 To cf4.Length - 1
+                Dim f As Integer = cf4(k)
+                Dim eF As Moira.CFDEngine.Eulerian.EulerianFace = mesh.Mesh.Faces(f)
+                Dim sgn As Double = If(eF.Owner = c, 1.0R, -1.0R)
+                Dim sx As Double = sgn * mesh.Sf(f).X
+
+                If Math.Abs(sx) < 1.0E-9 Then Continue For
+
+                If eF.Neighbour < 0 Then
+                    wallX += 1
+                ElseIf sx < 0 Then
+                    hasIn = True
+                Else
+                    hasOut = True
+                End If
+            Next
+
+            If wallX > 0 AndAlso Not hasOut Then noDown += 1
+            If wallX > 0 AndAlso Not hasIn Then noUp += 1
+
+            If wallX >= 2 AndAlso Not hasOut Then
+                sealedX += 1
+
+                Dim imb As Double = Math.Abs(d0(c))
+
+                If imb > worstImb Then
+                    worstImb = imb : worstCell2 = c
+                End If
+            End If
+        Next
+
+        Call Line("")
+        Call Line($"     【死端单元统计】x 向无出流面的单元 = {noDown}（占 {100.0 * noDown / n:F3}%）；" &
+                  $"x 向无入流面的单元 = {noUp}")
+        Call Line($"       x 向被壁面封死（≥2 个 x 壁面且无出流）的单元 = {sealedX}" &
+                  $"（占 {100.0 * sealedX / n:F3}%），其中散度最大 = {worstImb:E3} @ #{worstCell2}")
+        Call Line("       （这些单元在均匀来流下必然质量堆积，是压力方程病态/发散的几何根源）")
+
+        If worstC >= 0 Then
+            Dim cf3 As Integer() = mesh.CellFaces(worstC)
+
+            For k As Integer = 0 To cf3.Length - 1
+                Dim f As Integer = cf3(k)
+                Dim eF As Moira.CFDEngine.Eulerian.EulerianFace = mesh.Mesh.Faces(f)
+                Dim isB As Boolean = eF.Neighbour < 0
+                Dim sign As Double = If(eF.Owner = worstC, 1.0R, -1.0R)
+                Dim patchOf As String = ""
+
+                For pi3 As Integer = 0 To mesh.PatchCount - 1
+                    If mesh.Patches(pi3).FaceIndices.Contains(f) Then patchOf &= mesh.Patches(pi3).Name & " "
+                Next
+
+                Dim sgn As EulerianVertex = mesh.Sf(f)
+
+                Call Line($"       face {f,6} own={eF.Owner,6} nb={eF.Neighbour,6} bnd={isB,-6} " &
+                          $"patch=[{patchOf.TrimEnd}] sign={sign,3} " &
+                          $"signedSf.X={sign * sgn.X,12:E4} F={f0(f):E4} contrib={sign * f0(f):E4}")
+            Next
+        End If
+
+        ' 逐 patch：BC 类型 / PrescribesVelocity / 前 3 个面的 U 边界值与算出的通量
+        Call Line("")
+        Call Line("     逐 patch 边界诊断：")
+
+        For pi As Integer = 0 To mesh.PatchCount - 1
+            Dim geo As EulerianPatchGeometry = mesh.Patches(pi)
+            Dim pf As EulerianPatchField = tc.Fields.U.Boundaries(pi)
+            Dim bc As EulerianBoundaryCondition = pf.Condition
+
+            Dim bcInfo As String = $"       {geo.Name,-14} type={geo.PatchType,-10} " &
+                                   $"bc={If(bc Is Nothing, "(Nothing)", bc.GetType().Name),-18} " &
+                                   $"prescribes={If(bc IsNot Nothing, bc.PrescribesVelocity.ToString(), "?")}"
+
+            Call Line(bcInfo)
+
+            If geo.FaceCount > 0 Then
+                Dim s0 As EulerianVertex = geo.Sf(0)
+
+                Dim vb0 As Double() = pf.Values()
+                Dim ub As Double = pf.Value(0, 0)
+
+                Call Line($"           face0: Sf=({s0.X:E3},{s0.Y:E3},{s0.Z:E3})  U_b.x={ub:E3}  " &
+                          $"patchValues.len={vb0.Length}  patchValues(0)={vb0(0):E3}  " &
+                          $"F_actual={f0(geo.FaceIndices(0)):E3}  " &
+                          $"F_expected(owner*Sf)={uxmax * s0.X:E3}")
+            End If
+        Next
+
+        Return 0
+    End Function
+
+    Private Function MaxAbsSf(sf As EulerianVertex()) As Double
+        Dim m As Double = 0
+
+        For i As Integer = 0 To sf.Length - 1
+            Dim v As Double = Math.Sqrt(sf(i).X ^ 2 + sf(i).Y ^ 2 + sf(i).Z ^ 2)
+
+            If v > m Then m = v
+        Next
+
+        Return m
+    End Function
+
+    ' ============================================================================
+    '  [G] 动量方程对角元探针
+    ' ============================================================================
+
+    Private Function RunMomentumDiag(zipPath As String, steps As Integer) As Integer
+        Call Section($"[G] 动量方程对角元探针：{IO.Path.GetFileName(zipPath)}")
+
+        Call EnableGpu()
+
+        Dim mesh As EulerianFvMesh = EulerianFvMesh.FromFile(zipPath)
+        Dim opts As New EulerianWindTunnelOptions With {
+            .InletSpeed = 30.0R,
+            .InletDirection = New EulerianVertex(1.0R, 0.0R, 0.0R),
+            .Density = 1.225R,
+            .KinematicViscosity = 0.000015R,
+            .Turbulence = WindTunnelTurbulence.Laminar,
+            .Compressible = False,
+            .UseGpu = False,
+            .PressureMaxIterations = 200}
+
+        Dim testCase As New EulerianWindTunnelCase(mesh, opts)
+        Call testCase.Configure()
+
+        ' 用层流 + CPU 隔离变量
+        Call Line("  逐步：手工装配动量矩阵 U0（与 MomentumPredictor 逐行等价），读对角元/源项/rau")
+
+        Call Line("")
+        Call Line("  step   a_P(min)      a_P(median)    a_P(max)      |b|(L2)        rauCell(min)   rauCell(max)")
+
+        For s As Integer = 1 To Math.Max(1, steps)
+            Call testCase.Run(1)
+
+            Dim inc As IncompressibleSolver = testCase.Incompressible
+            Dim n As Integer = mesh.CellCount
+            Dim rho As Double() = testCase.Fields.Rho.Values
+            Dim vol As Double() = mesh.CellVolume
+            Dim phi As Double() = inc.Flux
+            Dim uComp As Double() = testCase.Fields.U.ToComponent(0)
+
+            Dim m As New FvMatrix(mesh, "U0")
+
+            m.Symmetric = False
+
+            ' pseudo-transient（与源码一致：coeff = rho * 0.5*Σ|rhoPhi| / Co）
+            Dim co As Double = 0.5R
+            Dim fluxSum(n - 1) As Double
+
+            For i As Integer = 0 To mesh.InternalFaceCount - 1
+                Dim f As Integer = mesh.InternalFaces(i)
+                Dim a As Double = Math.Abs(phi(f))
+
+                fluxSum(mesh.InternalOwner(i)) += a
+                fluxSum(mesh.InternalNeighbour(i)) += a
+            Next
+
+            For pi As Integer = 0 To mesh.PatchCount - 1
+                Dim geo As EulerianPatchGeometry = mesh.Patches(pi)
+
+                For k As Integer = 0 To geo.FaceCount - 1
+                    fluxSum(geo.OwnerCells(k)) += Math.Abs(phi(geo.FaceIndices(k)))
+                Next
+            Next
+
+            Dim pseudo(n - 1) As Double
+
+            For c As Integer = 0 To n - 1
+                pseudo(c) = If(fluxSum(c) > 0, rho(c) * 0.5 * fluxSum(c) / co, 0.0R)
+            Next
+
+            For c As Integer = 0 To n - 1
+                m.AddDiag(c, pseudo(c))
+                m.AddSource(c, pseudo(c) * uComp(c))
+            Next
+
+            ' 对流（用 solver 当前的 _rhoPhi 面通量）
+            Dim mf As Double() = inc.MassFluxFace
+            Dim rhoPhi(mf.Length - 1) As Double
+
+            Array.Copy(mf, rhoPhi, mf.Length)
+
+            Call EulerianOperators.FvmDiv(m, rhoPhi, testCase.Fields.U, 0, EulerianConvectionScheme.Upwind)
+
+            ' 扩散
+            Dim gamma As Double() = EulerianOperators.UniformFaceGamma(mesh, opts.Density * opts.KinematicViscosity)
+
+            Call EulerianOperators.FvmLaplacian(m, testCase.Fields.U, 0, gamma, sign:=-1.0)
+
+            Dim de As Integer() = mesh.DiagEntry
+            Dim vals(n - 1) As Double
+
+            For c As Integer = 0 To n - 1
+                vals(c) = m.Values(de(c))
+            Next
+
+            Array.Sort(vals)
+
+            Dim rau As Double() = PrivateArray(inc, "_rauCell")
+            Dim rmin As Double = Double.MaxValue, rmax As Double = Double.MinValue
+            Dim rauSorted(n - 1) As Double
+
+            Array.Copy(rau, rauSorted, n)
+            Array.Sort(rauSorted)
+
+            For c As Integer = 0 To n - 1
+                rmin = Math.Min(rmin, rau(c)) : rmax = Math.Max(rmax, rau(c))
+            Next
+
+            ' 分位 + 异常单元定位（rAU 大 ⇒ a_P 小 ⇒ 压力方程近奇异）
+            Dim p99 As Double = rauSorted(CInt(0.99 * (n - 1)))
+            Dim p999 As Double = rauSorted(CInt(0.999 * (n - 1)))
+            Dim bigCount As Integer = 0
+            Dim firstBig As Integer = -1
+
+            For c As Integer = 0 To n - 1
+                If rau(c) > 1.0E-6 Then
+                    bigCount += 1
+
+                    If firstBig < 0 Then firstBig = c
+                End If
+            Next
+
+            Call Line($"        rAU 分位: min={rauSorted(0):E3} p50={rauSorted(n \ 2):E3} p99={p99:E3} p99.9={p999:E3} max={rauSorted(n - 1):E3}" &
+                      $"  |  rAU>1e-6 的单元数={bigCount}（首个 #{firstBig}）")
+
+            ' 对最病态的若干单元打印几何/邻接
+            Dim order(n - 1) As Integer
+
+            For c As Integer = 0 To n - 1
+                order(c) = c
+            Next
+
+            Array.Sort(rau, order)
+            Array.Reverse(order)
+            Array.Reverse(rau)
+
+            For k As Integer = 0 To Math.Min(3, n - 1)
+                Dim c As Integer = order(k)
+                Dim vols As Double() = mesh.CellVolume
+                Dim dmin As Double = Double.MaxValue
+
+                For i As Integer = 0 To mesh.InternalFaceCount - 1
+                    If mesh.InternalOwner(i) = c OrElse mesh.InternalNeighbour(i) = c Then
+                        dmin = Math.Min(dmin, mesh.DeltaCoeff(i))
+                    End If
+                Next
+
+                Call Line($"        病态单元 #{c}: rAU={rau(k):E3} (a_P={SafeDiv(1.0, rau(k)):E3})  V={vols(c):E3}  " &
+                          $"faces={mesh.CellFaces(c).Length}  min|Delta_f|={dmin:E3}")
+            Next
+
+            Call Line($"  {s,4}   {vals(0),-13:E3} {vals(n \ 2),-13:E3} {vals(n - 1),-13:E3} " &
+                      $"{m.SourceNorm(),-13:E3} {rmin,-13:E3} {rmax,-13:E3}")
+
+            ' ---- 通量规模诊断（判断连续性误差是否量级合理）----
+            Dim fmax As Double = 0, fsum As Double = 0
+
+            For f As Integer = 0 To phi.Length - 1
+                Dim a As Double = Math.Abs(phi(f))
+
+                If a > fmax Then fmax = a
+                fsum += a
+            Next
+
+            Dim phiH As Double() = PrivateArray(inc, "_phiHbyA")
+            Dim phimax As Double = 0, phisum As Double = 0
+
+            For f As Integer = 0 To phiH.Length - 1
+                Dim a As Double = Math.Abs(phiH(f))
+
+                If a > phimax Then phimax = a
+                phisum += a
+            Next
+
+            ' 面面积中位数
+            Dim sfv As Double() = New Double(mesh.FaceCount - 1) {}
+
+            For f As Integer = 0 To mesh.FaceCount - 1
+                sfv(f) = mesh.Mesh.FaceAreas(f)
+            Next
+
+            Array.Sort(sfv)
+
+            Call Line($"        |flux|: max={fmax:E3} Σ={fsum:E3}   |phiHbyA|: max={phimax:E3} Σ={phisum:E3}   " &
+                      $"faceArea p50={sfv(sfv.Length \ 2):E3}   cellVol={mesh.CellVolume(0):E3}   " &
+                      $"continuity={inc.ContinuityError:E3}")
+
+            ' ---- 独立复算连续性（自写散度，验证 FvcDiv / MaxContinuityError 本身是否正确）----
+            Dim myDiv(n - 1) As Double
+
+            For i As Integer = 0 To mesh.InternalFaceCount - 1
+                Dim f As Integer = mesh.InternalFaces(i)
+                myDiv(mesh.InternalOwner(i)) += phi(f)
+                myDiv(mesh.InternalNeighbour(i)) -= phi(f)
+            Next
+
+            For pi As Integer = 0 To mesh.PatchCount - 1
+                Dim geo As EulerianPatchGeometry = mesh.Patches(pi)
+
+                For k As Integer = 0 To geo.FaceCount - 1
+                    myDiv(geo.OwnerCells(k)) += phi(geo.FaceIndices(k))
+                Next
+            Next
+
+            Dim myMax As Double = 0
+
+            For c As Integer = 0 To n - 1
+                myMax = Math.Max(myMax, Math.Abs(myDiv(c)))
+            Next
+
+            Dim patchFaceSum As Integer = 0
+
+            For pi As Integer = 0 To mesh.PatchCount - 1
+                patchFaceSum += mesh.Patches(pi).FaceCount
+            Next
+
+            Call Line($"        自写散度 maxAbs = {myMax:E3}（应等于 continuity）；" &
+                      $"boundary faces = {mesh.Mesh.BoundaryFaceCount}，patch 面数和 = {patchFaceSum}，" &
+                      $"internal faces = {mesh.InternalFaceCount}，total = {mesh.FaceCount}")
+        Next
+
+        Return 0
+    End Function
+
+    ' ============================================================================
     '  [F] EulerianToCartesianResampler.AutoConfigure 探针
     ' ============================================================================
 
@@ -1040,7 +1902,7 @@ Module Program
 
         Dim mesh As EulerianFvMesh = EulerianFvMesh.FromFile(zipPath)
         Dim opts As New EulerianWindTunnelOptions With {
-            .InletSpeed = 30.0R,
+            .InletSpeed = If(_speedOverride >= 0, _speedOverride, 30.0R),
             .InletDirection = New EulerianVertex(1.0R, 0.0R, 0.0R),
             .Density = 1.225R,
             .KinematicViscosity = 0.000015R,
@@ -1057,6 +1919,11 @@ Module Program
         Sub_("逐步诊断（每步打印 U / p / 连续性 / 压力求解器）")
 
         Call Line("  step    max|U|        max|p|       cont           pIt  pRes(init->final)         RauCell(max)")
+
+        If _prIterOverride > 0 Then testCase.Incompressible.Options.PressureMaxIterations = _prIterOverride
+        If _prTolOverride > 0 Then testCase.Incompressible.Options.PressureTolerance = _prTolOverride
+        If _momSweepOverride > 0 Then testCase.Incompressible.Options.MomentumSweeps = _momSweepOverride
+        If _coOverride > 0 Then testCase.Incompressible.Options.PseudoTransientCourant = _coOverride
 
         For s As Integer = 1 To Math.Max(1, steps)
             Call testCase.Run(1)
@@ -1265,6 +2132,41 @@ Module Program
     Private Function SafeDiv(a As Double, b As Double) As Double
         If Math.Abs(b) < 1.0E-300 Then Return 0
         Return a / b
+    End Function
+
+    ''' <summary>轻量：只统计"死端单元"占比（网格质量指标）。</summary>
+    Private Function RunDeadEndScan(zipPath As String) As Integer
+        Dim mesh As EulerianFvMesh = EulerianFvMesh.FromFile(zipPath)
+        Dim n As Integer = mesh.CellCount
+        Dim noOut As Integer = 0, noIn As Integer = 0, both As Integer = 0
+
+        For c As Integer = 0 To n - 1
+            Dim hasIn As Boolean = False, hasOut As Boolean = False
+            Dim cf As Integer() = mesh.CellFaces(c)
+
+            For k As Integer = 0 To cf.Length - 1
+                Dim f As Integer = cf(k)
+                Dim eF As Moira.CFDEngine.Eulerian.EulerianFace = mesh.Mesh.Faces(f)
+
+                If eF.Neighbour >= 0 Then
+                    Dim sgn As Double = If(eF.Owner = c, 1.0R, -1.0R)
+                    Dim sx As Double = sgn * mesh.Sf(f).X
+
+                    If sx < -1.0E-9 Then hasIn = True
+                    If sx > 1.0E-9 Then hasOut = True
+                End If
+            Next
+
+            If Not hasOut Then noOut += 1
+            If Not hasIn Then noIn += 1
+            If Not hasIn AndAlso Not hasOut Then both += 1
+        Next
+
+        Console.WriteLine($"{IO.Path.GetFileName(zipPath),-42} cells={n,9}  " &
+                          $"无x出流面={noOut,7} ({100.0 * noOut / n,6:F3}%)  " &
+                          $"无x入流面={noIn,7} ({100.0 * noIn / n,6:F3}%)  两者皆无={both,6}")
+
+        Return 0
     End Function
 
     ''' <summary>用反射读取对象的私有 Double() 字段（诊断用，绕过内部封装）。</summary>

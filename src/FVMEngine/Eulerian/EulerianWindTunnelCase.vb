@@ -83,6 +83,40 @@ Namespace Eulerian
         ''' <summary>速度欠松弛。</summary>
         Public Property RelaxU As Double = 0.7
 
+        ''' <summary>
+        ''' 压力场显式欠松弛（SIMPLE 教科书值 0.3）。
+        ''' </summary>
+        ''' <remarks>
+        ''' ★ 阶梯状障碍网格上必须保持较小值（0.2~0.3）：
+        '''   这类网格会产生比例高达 2%~4% 的"x 向死端单元"，
+        '''   使压力方程的右端与系数极端病态（rAU 动态范围可达 1e-17~1e2），
+        '''   压力修正的**量级**会远大于来流速度。
+        '''   全额施加修正会形成正反馈；0.3 的显式松弛是这类网格上
+        '''   把修正幅度压回物理量级的必要手段。
+        ''' </remarks>
+        Public Property RelaxP As Double = 0.3
+
+        ''' <summary>
+        ''' 动量预测的平滑扫描次数（OpenFOAM smoothSolver nSweeps 等价物）。
+        ''' </summary>
+        Public Property MomentumSweeps As Integer = 2
+
+        ''' <summary>
+        ''' 稳态伪瞬态 Courant 数（&gt; 0 启用伪瞬态对角项；0 = 关闭）。
+        ''' </summary>
+        ''' <remarks>
+        ''' ★ 该系数直接决定动量方程对角元 a_P 的量级，进而决定 rAU = 1/a_P。
+        '''   它**没有**解析上界，但对病态网格必须取小值（0.1~0.5）：
+        '''   伪瞬态对角项越大 ⇔ rAU 越小 ⇔ 压力修正对速度的影响越小，
+        '''   即"局部时间步推进"带来的隐式阻尼。
+        '''   实测 city_seed42（32.87 m 单元）：取 0.5 时第 1 步压力修正仍达 7e7 Pa
+        '''   （来流动压仅 ~550 Pa），必须靠更小的 Co 与 RelaxP 共同压制。
+        ''' </remarks>
+        Public Property PseudoTransientCourant As Double = 0.5
+
+        ''' <summary>压力方程归一化残差容差。</summary>
+        Public Property PressureTolerance As Double = 1.0E-9
+
         ''' <summary>压力方程最大迭代数。</summary>
         Public Property PressureMaxIterations As Integer = 200
 
@@ -233,7 +267,11 @@ Namespace Eulerian
                 .DeltaT = If(opts.DeltaT > 0, opts.DeltaT, 0.001),
                 .Scheme = opts.Scheme,
                 .RelaxU = opts.RelaxU,
+                .RelaxP = opts.RelaxP,
+                .MomentumSweeps = opts.MomentumSweeps,
+                .PseudoTransientCourant = opts.PseudoTransientCourant,
                 .PressureMaxIterations = opts.PressureMaxIterations,
+                .PressureTolerance = opts.PressureTolerance,
                 .UseGpu = opts.UseGpu,
                 .Turbulence = If(opts.Turbulence = WindTunnelTurbulence.Laminar, Nothing, TurbulenceModel),
                 .TurbulenceIntensity = opts.TurbulenceIntensity,
@@ -266,6 +304,16 @@ Namespace Eulerian
             Next
 
             Call Fields.U.UpdateBoundaries()
+
+            ' ★ 关键修复：远场速度初值是在 Initialize() 之后才写入的，
+            '   而 Initialize() 内部已用**当时为零**的速度场构造过面通量 φ_f。
+            '   若不重新同步，φ 就与 U 不一致：入口按 30 m/s 注入质量，
+            '   出口通量却为 0 ⇒ 离散连续性残差 ≈ 单个单元面通量量级
+            '   （实测 city_seed42 第 1 步 4.18e8，正确量级应 < 1e3），
+            '   压力修正被这个虚假源项驱动，rAU=1/a_P 指数崩溃 → 2~3 步发散。
+            If Incompressible IsNot Nothing Then
+                Call Incompressible.RefreshInitialFlux()
+            End If
         End Sub
 
 #End Region

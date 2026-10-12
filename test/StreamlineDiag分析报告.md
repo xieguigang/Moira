@@ -142,20 +142,23 @@ straightness = 0.0110662   （阈值 0.05）
 
 ### 2.4 对照实验：不是"零阶重采样"的锅，是网格/流场本身太均匀
 
-用同一帧、同一个 `StreamlineTracer`，只把重采样换成**单元中心反距离平方插值**（连续场）：
+用**同一帧**（最终帧）、同一个 `StreamlineTracer`，只把重采样换成
+**单元中心反距离平方插值**（连续场，不是分片常数）：
 
-| step | 重采样方式 | 有效流线 | Straightness max | 过滤后可见线段 |
-|---|---|---|---|---|
-| 1 | 最近单元（零阶，当前实现） | 39 | 0.01107 | **0** |
-| 1 | 单元中心反距离插值 | 34 | 0.01325 | **0** |
-| 2 | 最近单元（零阶） | 33 | 0.01686 | **0** |
-| 2 | 单元中心反距离插值 | 34 | 0.01207 | **0** |
+| 重采样方式 | 种子数 | 有效流线 | Straightness median / max | 阈值 | **过滤后可见线段** |
+|---|---|---|---|---|---|
+| 最近单元（零阶，当前实现） | 39 | 33 | 0.00830 / **0.01686** | 0.05 | **0** |
+| 单元中心反距离平方插值（连续） | 39 | 33 | 0.00784 / **0.01614** | 0.05 | **0** |
+| 最近单元 + 3 轮 Jacobi 平滑 | 39 | 35 | 0.00553 / **0.01135** | 0.05 | **0** |
+| 最近单元，RK2 步长 0.7 → 0.2 | 39 | 33 | 0.00830 / **0.01668** | 0.05 | **0** |
+| 最近单元，种子步长 4 → 8 | 14 | 11 | 0.00613 / **0.01122** | 0.05 | **0** |
 
-两种重采样都不足以让流线越过 0.05 阈值 ⇒ **问题的主导因素是"速度场本身近乎均匀"，
-零阶重采样只是雪上加霜（它保证方块内是严格零曲率）。**
+**换成连续插值、做平滑、把步长缩到 1/3.5、把种子加密 —— 四种手段都无法把 Straightness 推过 0.05。**
+⇒ **主导因素是"速度场本身近乎均匀"（网格太粗），零阶重采样只是雪上加霜
+（它额外保证"方块内严格零曲率"）。**
 
-旁证：把 RK2 步长从 0.7 缩到 0.2（顶点数 ×4），Straightness 完全不变
-（0.296 → 0.296）⇒ 几何真的是折线，追踪器没有丢信息。
+旁证：把 RK2 步长从 0.7 缩到 0.2（顶点数 ×3.5），`Straightness` 几乎不变
+（0.01686 → 0.01668）⇒ 几何真的是折线，追踪器没有丢信息。
 
 ### 2.5 求解器层：第 2 步起发散（这是更严重的问题）
 
@@ -303,10 +306,10 @@ AutoConfigure(cellSize=33) → 1x1x1, h=33
 | **P1** | 网格太粗 + 建筑不可分辨 ⇒ 解近乎均匀 ⇒ 全部流线 `Straightness < 0.05` ⇒ 被过滤 | `ZMesh\Eulerian\MeshGenerators\OctreeCutCellGenerator.vb`（恒为均匀网格）+ 使用时选的 `resolution` | **流线图全空的直接原因** |
 | **P2** | FVM 不可压求解器（SIMPLE + 伪瞬态）该网格上第 2~3 步发散；`rAU=1/a_P` 正反馈崩溃 | `FVMEngine\Eulerian\IncompressibleSolver.vb`（`MomentumPredictor` / `PressureCorrection` / `BuildPseudoTransientCoefficient`） | 任何可视化都无意义 |
 | **P3** | GPU float32 压力求解器"假收敛"（1 次迭代、残差不变、不回落 CPU） | `FVMEngine\Eulerian\EulerianFvmCompute.vb` `TrySolve`/`GpuPcg`；`IncompressibleSolver.PressureCorrection` 的 `PressureMaxIterations=200` 也不够（需 285+） | 压力修正=0，加速发散 |
-| **P4** | `EulerianToCartesianResampler.AutoConfigure()` 对真实网格返回 1×1×1 | `CFDEngine\Snapshot\EulerianSnapshotRecorder.vb` | WindTunnel CLI 的 `--format vti` 输出无效 |
-| **P5** | 零阶（最近单元）重采样把速度场打成"分片常数"，保证方块内流线严格为直线 | `WindTunnelBox\Simulation\EulerianFieldSnapshot.vb` 的 `Sample` | 加剧 P1；速度场不该用零阶重采样 |
-| **P6** | `Straightness` 用"顶点到首尾弦的最大垂距 / 弦长"定义，对"S 形/对称弧"会低估；`HideStraightStreamlines=True` 又是默认 | `CDFDxCanvas\Rendering\Streamlines.vb` | 次要，但对"看起来该有曲线却没有"有贡献 |
-| **P7** | GUI 未暴露 `TurbulenceLengthScale`，用类默认 0.05 m（域尺寸 2000 m，相差 4 个量级） | `WindTunnelBox\FormWindTunnel.vb` `BuildOptions` vs `WindTunnel\CltOptions.vb` 的 `AutoTurbulenceLength` | 湍流场完全不合理（但实测不是发散主因） |
+| **P4** | 零阶（最近单元）重采样把速度场打成"分片常数"，保证方块内流线严格为直线；25.25% 的相邻结构格节点速度完全相同 | `WindTunnelBox\Simulation\EulerianFieldSnapshot.vb` 的 `Sample` | 加剧 P1；速度场不该用零阶重采样 |
+| **P5** | `Straightness` 用"顶点到首尾弦的最大垂距 / 弦长"定义，对"S 形 / 对称弧"会低估（弦两侧偏差互相掩盖）；`HideStraightStreamlines = True` 又是默认 | `CDFDxCanvas\Rendering\Streamlines.vb` | 次要，但对"看起来该有曲线却没有"有贡献 |
+| **P6** | GUI 未暴露 `TurbulenceLengthScale`，用类默认 0.05 m（域尺寸 2000 m，相差 4 个量级） | `WindTunnelBox\FormWindTunnel.vb` `BuildOptions` vs `WindTunnel\CliOptions.vb` 的 `AutoTurbulenceLength` | 湍流场完全不合理（但实测不是发散主因） |
+| **P7** | `AutoConfigure()` 对真实网格返回 1×1×1（现象确凿、根因未锁定） | `CFDEngine\Snapshot\EulerianSnapshotRecorder.vb` | WindTunnel CLI 的 `--format vti` 输出无效 |
 
 ---
 
@@ -319,10 +322,11 @@ AutoConfigure(cellSize=33) → 1x1x1, h=33
    → 立刻能确认"空白 = 被过滤"，但画出来的是几乎笔直的线。
 
 ### 真正解决问题
-2. **提高网格分辨率到建筑可分辨**（建筑高 178 m ⇒ 单元 5~10 m 量级，即
-   `resolution` 需按"2 的幂次量化"反推，而不是 0.05）。
-   注意 `OctreeCutCellGenerator` 用 `maxExtent/(2^depth)`，扩域 2003 m 时
-   depth=8 才是 7.8 m ⇒ 单元数 ~2e7，需要分段/自适应或 ROI 细化。
+2. **提高网格分辨率到建筑可分辨**（建筑高 178 m ⇒ 单元 5~10 m 量级）。
+   注意 `OctreeCutCellGenerator` 的目标深度是
+   `Ceiling(Log(maxExtent/resolution, 2))`、单元边长 = `maxExtent / 2^depth`：
+   扩域 maxExtent = 2003 m 时 depth=8 才是 7.8 m，而均匀网格单元数 ≈ 256×205×46 ≈ **2.4e6**
+   （当前 3.17e4，即 76 倍），depth=9 更是 1.9e7 —— 需要自适应/ROI 细化或分段计算。
    **这是让流线真的弯曲的前提。**
 3. **修压力修正的病态**：限制 `rAU` 的上界（如 `min(1/a_P, C·V/dt)`）、
    用 Aitken / 更小的 `RelaxP`、或改成耦合式（coupled）压力-速度求解；
@@ -331,7 +335,7 @@ AutoConfigure(cellSize=33) → 1x1x1, h=33
    （或 `usedIter <= 1` 且残差未变）就 `Return False` 回落 CPU double。
 5. **速度场重采样改连续插值**：把 `EulerianToCartesianResampler` 的
    `NearestCell` 换成"单元中心反距离/三线性插值"（标量显示可保留零阶，
-   矢量场必须连续）。诊断已给出对照数据。
+   矢量场必须连续）。诊断已给出对照数据（2.4 节）。
 6. **修 `AutoConfigure()`**（P4），或像 WindTunnelBox 一样绕开它。
 7. `Straightness` 改用"弧长/弦长比 + 方向变化累积"的组合指标，
    避免 S 形曲线被误判为直线。

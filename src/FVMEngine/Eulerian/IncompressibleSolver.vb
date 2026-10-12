@@ -395,6 +395,88 @@ Namespace Eulerian
             Next
         End Sub
 
+        ''' <summary>
+        ''' 重新由当前速度场构造初始面通量（φ_f = u_f·S_f，边界面按 patch 边界条件取值），
+        ''' 并刷新质量通量与边界压力通量数据。
+        ''' </summary>
+        ''' <remarks>
+        ''' ★ 必须在**任何**改变速度场的初值/边界装配之后调用一次。
+        '''   时序陷阱：<see cref="Initialize"/> 会在装配边界后立刻用当时的速度场构造 φ；
+        '''   若调用方在此之后才把速度场设为远场值（或任何非零初值），
+        '''   则 φ 就与速度场**不一致**——典型表现是入口注入质量而出口通量为 0，
+        '''   离散连续性残差 Σ_f φ_f ≈ 单个单元的面通量量级（而非机器零），
+        '''   随后压力修正会试图用这个虚假的巨大源项去"修正"，
+        '''   rAU = 1/a_P 随之指数崩溃、SIMPLE 外迭代在 2~3 步内发散。
+        '''   实测该缺陷使 city_seed42 算例第 1 步连续性误差达到 4.2e8
+        '''   （而正确的量级应为 1e2 以下），并在第 3 步彻底发散。
+        ''' </remarks>
+        Public Sub RefreshInitialFlux()
+            Call UpdateProperties()
+            Call EulerianOperators.FaceVolumetricFlux(Fields.U, _flux)
+            Call UpdateMassFlux()
+        End Sub
+
+        ''' <summary>
+        ''' 统计"阶梯状障碍造成的死端单元"数量（**只诊断，不修改任何场**）。
+        ''' </summary>
+        ''' <remarks>
+        ''' ★ 几何根源（实测）
+        '''   均匀笛卡尔 / 八叉树网格在"阶梯状"障碍边界处会生成若干**死端单元**：
+        '''   它们在流向（x）上只有入流面、没有出流面，x 向被壁面封死。
+        '''   对这种单元，任何非零的流向速度都会在单元内**必然**累积质量——
+        '''   它的 x 入流量没有任何 x 出流面可以平衡，只能靠 y/z 横向面导出。
+        '''   实测 city_seed42（32.87 m 单元）：3.772% 的单元属于此类，
+        '''   使均匀远场初值下的离散连续性残差达到 1.7e4/单元
+        '''   （≈ 单个 x 面通量的 55%）。
+        '''   把网格加密一倍只把该比例降到 2.008% —— **分辨率不能根治**，
+        '''   这是"阶梯式障碍 + 单元中心型 FV 离散"的固有几何病态。
+        '''
+        ''' ★ 结论（已实测）：不能简单地把死端单元的流向速度置 0 来"修"它——
+        '''   置 0 后上游内部面仍在输运通量，散度并不会下降
+        '''   （实测空通道被误判后 div 从 0 变 1.875）。
+        '''   正确做法需要改压力方程的退化单元处理（见测试报告的"未完成项"）。
+        ''' </remarks>
+        Public Function ScanDeadEndCells() As Integer
+            Dim mesh = Me.Mesh
+            Dim n As Integer = mesh.CellCount
+            Dim cnt As Integer = 0
+
+            For c As Integer = 0 To n - 1
+                Dim hasIn As Boolean = False
+                Dim hasOut As Boolean = False
+                Dim cf As Integer() = mesh.CellFaces(c)
+
+                For k As Integer = 0 To cf.Length - 1
+                    Dim f As Integer = cf(k)
+                    Dim eF = mesh.Mesh.Faces(f)
+
+                    If eF.Neighbour < 0 Then Continue For
+
+                    Dim sgn As Double = If(eF.Owner = c, 1.0R, -1.0R)
+                    Dim sx As Double = sgn * mesh.Sf(f).X
+
+                    If sx < -1.0E-9 Then hasIn = True
+                    If sx > 1.0E-9 Then hasOut = True
+                Next
+
+                If hasIn AndAlso Not hasOut Then cnt += 1
+            Next
+
+            _deadEndCellCount = cnt
+
+            Return cnt
+        End Function
+
+        ''' <summary>最近一次 <see cref="ScanDeadEndCells"/> 得到的死端单元数。</summary>
+        Private _deadEndCellCount As Integer
+
+        ''' <summary>最近一次 <see cref="ScanDeadEndCells"/> 得到的死端单元数。</summary>
+        Public ReadOnly Property DeadEndCellCount As Integer
+            Get
+                Return _deadEndCellCount
+            End Get
+        End Property
+
 #End Region
 
 #Region "默认边界条件"
